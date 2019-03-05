@@ -54,12 +54,13 @@ impl Watch {
         events += 1;
         loop {
             match self.rx.try_recv() {
-                Ok(_) => {
+                Ok(event) => {
+                    debug!("Watch Event: {:#?}", event);
                     events += 1;
                 }
                 Err(TryRecvError::Disconnected) => return Err(()),
                 Err(TryRecvError::Empty) => {
-                    debug!("Found {} events", events);
+                    info!("Found {} events", events);
                     return Ok(());
                 }
             }
