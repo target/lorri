@@ -145,4 +145,31 @@ mod tests {
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
         assert!(watcher.block_timeout(Duration::from_secs(1)).is_ok());
     }
+
+    #[test]
+    fn rename_over_vim() {
+        // Vim renames files in to place for atomic writes
+        let mut watcher = Watch::init().expect("failed creating Watch");
+        let temp = tempdir().unwrap();
+
+        expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
+        expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
+        watcher.extend(&[temp.path().join("foo")]).unwrap();
+
+        // bar is not watched, expect error
+        expect_bash(r#"echo 1 > "$1/bar""#, &[temp.path().as_os_str()]);
+        assert!(watcher.block_timeout(Duration::from_secs(1)).is_err());
+
+        // Rename bar to foo, expect a notification
+        expect_bash(r#"mv "$1/bar" "$1/foo""#, &[temp.path().as_os_str()]);
+        assert!(watcher.block_timeout(Duration::from_secs(1)).is_ok());
+
+        // Do it a second time
+        expect_bash(r#"echo 1 > "$1/bar""#, &[temp.path().as_os_str()]);
+        assert!(watcher.block_timeout(Duration::from_secs(1)).is_err());
+
+        // Rename bar to foo, expect a notification
+        expect_bash(r#"mv "$1/bar" "$1/foo""#, &[temp.path().as_os_str()]);
+        assert!(watcher.block_timeout(Duration::from_secs(1)).is_ok());
+    }
 }
