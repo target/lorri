@@ -5,6 +5,7 @@ use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, TryRecvError};
+use std::time::Duration;
 
 /// A dynamic list of paths to watch for changes, and
 /// react to changes when they occur.
@@ -41,12 +42,12 @@ impl Watch {
     }
 
     /// Wait for a batch of changes to arrive, returning when they do.
-    pub fn wait_for_change(&mut self) -> Result<(), ()> {
-        debug!("pre-read");
+    pub fn wait_for_change(&mut self) -> Result<usize, ()> {
+        self.block()
+    }
 
-        let mut events = 0;
-
-        // Block for the first record
+    /// Block until we have at least one event
+    pub fn block(&mut self) -> Result<usize, ()> {
         match self.rx.recv() {
             Ok(event) => self.handle_event(event),
             Err(err) => {
@@ -55,7 +56,26 @@ impl Watch {
             }
         }
 
-        events += 1;
+        Ok(1 + self.process_ready()?)
+    }
+
+    /// Block until we have at least one event
+    pub fn block_timeout(&mut self, timeout: Duration) -> Result<usize, ()> {
+        match self.rx.recv_timeout(timeout) {
+            Ok(event) => self.handle_event(event),
+            Err(err) => {
+                debug!("Failure in watch recv: {:#?}", err);
+                return Err(());
+            }
+        }
+
+        Ok(1 + self.process_ready()?)
+    }
+
+    /// Non-blocking, read all the events already received -- draining
+    /// the event queue.
+    pub fn process_ready(&mut self) -> Result<usize, ()> {
+        let mut events = 0;
         loop {
             match self.rx.try_recv() {
                 Ok(event) => {
@@ -65,7 +85,7 @@ impl Watch {
                 Err(TryRecvError::Disconnected) => return Err(()),
                 Err(TryRecvError::Empty) => {
                     info!("Found {} events", events);
-                    return Ok(());
+                    return Ok(events);
                 }
             }
         }
@@ -102,5 +122,27 @@ impl Watch {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Watch;
+    use crate::bash::expect_bash;
+    use std::time::Duration;
+    use tempfile::tempdir;
+
+    #[test]
+    fn trivial_watch() {
+        let mut watcher = Watch::init().expect("failed creating Watch");
+        let temp = tempdir().unwrap();
+
+        expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
+        watcher.extend(&[temp.path().to_path_buf()]).unwrap();
+        expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
+        assert!(watcher.block_timeout(Duration::from_secs(1)).is_ok());
+
+        expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
+        assert!(watcher.block_timeout(Duration::from_secs(1)).is_ok());
     }
 }
