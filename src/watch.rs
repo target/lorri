@@ -47,15 +47,19 @@ impl Watch {
         let mut events = 0;
 
         // Block for the first record
-        if self.rx.recv().is_err() {
-            return Err(());
+        match self.rx.recv() {
+            Ok(event) => self.handle_event(event),
+            Err(err) => {
+                debug!("Failure in watch recv: {:#?}", err);
+                return Err(());
+            }
         }
 
         events += 1;
         loop {
             match self.rx.try_recv() {
                 Ok(event) => {
-                    debug!("Watch Event: {:#?}", event);
+                    self.handle_event(event);
                     events += 1;
                 }
                 Err(TryRecvError::Disconnected) => return Err(()),
@@ -65,6 +69,10 @@ impl Watch {
                 }
             }
         }
+    }
+
+    fn handle_event(&mut self, event: notify::RawEvent) {
+        debug!("Watch Event: {:#?}", event);
     }
 
     fn add_path_recursively(&mut self, path: &PathBuf) -> Result<(), notify::Error> {
