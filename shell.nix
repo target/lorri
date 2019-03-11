@@ -20,7 +20,7 @@ pkgs.mkShell {
   # Enable printing backtraces for rust binaries
   RUST_BACKTRACE = 1;
   # The root directory of this project
-  ROOT = toString ./.;
+  LORRI_ROOT = toString ./.;
   # Needed by the lorri build.rs to determine its own version
   # for the development repository (non-release), we set it to 1
   BUILD_REV_COUNT = 1;
@@ -38,11 +38,11 @@ pkgs.mkShell {
     # nix-shell, you don't need this.
     export SHELL="${pkgs.bashInteractive}/bin/bash";
 
-    alias newlorri="(cd $ROOT; cargo run -- shell)"
+    alias newlorri="(cd $LORRI_ROOT; cargo run -- shell)"
     alias ci="ci_check"
 
     function ci_check() (
-      cd "$ROOT";
+      cd "$LORRI_ROOT";
 
       set -x
 
