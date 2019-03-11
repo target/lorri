@@ -1,5 +1,5 @@
 { pkgs ? import ./nix/nixpkgs.nix { enableMozillaOverlay = true; } }:
-pkgs.mkShell {
+pkgs.mkShell rec {
   name = "lorri";
   buildInputs = [
     # This rust comes from the Mozilla rust overlay so we can
@@ -17,13 +17,21 @@ pkgs.mkShell {
 
   # Keep project-specific shell commands local
   HISTFILE = "${toString ./.}/.bash_history";
-  # Enable printing backtraces for rust binaries
-  RUST_BACKTRACE = 1;
+
+  # Lorri-specific
+
   # The root directory of this project
   LORRI_ROOT = toString ./.;
   # Needed by the lorri build.rs to determine its own version
   # for the development repository (non-release), we set it to 1
   BUILD_REV_COUNT = 1;
+
+  # Rust-specific
+
+  # Enable printing backtraces for rust binaries
+  RUST_BACKTRACE = 1;
+  # Set up a local directory to install binaries in
+  CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
 
   # Executed when entering `nix-shell`
   shellHook = ''
