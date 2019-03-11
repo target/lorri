@@ -14,11 +14,18 @@ pkgs.mkShell {
     pkgs.darwin.apple_sdk.frameworks.CoreServices
     pkgs.darwin.apple_sdk.frameworks.CoreFoundation
   ];
+
   # Keep project-specific shell commands local
   HISTFILE = "${toString ./.}/.bash_history";
+  # Enable printing backtraces for rust binaries
   RUST_BACKTRACE = 1;
+  # The root directory of this project
   ROOT = toString ./.;
+  # Needed by the lorri build.rs to determine its own version
+  # for the development repository (non-release), we set it to 1
   BUILD_REV_COUNT = 1;
+
+  # Executed when entering `nix-shell`
   shellHook = ''
     # we can only output to stderr in the shellHook,
     # otherwise direnv `use nix` does not work.
