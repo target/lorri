@@ -36,6 +36,7 @@ pub mod changelog;
 pub mod cli;
 pub mod locate_file;
 pub mod logging;
+pub mod mpsc;
 pub mod nix;
 pub mod ops;
 pub mod pathreduction;
