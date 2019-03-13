@@ -1,10 +1,11 @@
 //! Recursively watch paths for changes, in an extensible and
 //! cross-platform way.
 
+use crate::mpsc::FilterTimeoutIterator;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{channel, TryRecvError};
+use std::sync::mpsc::{channel, RecvError};
 use std::time::Duration;
 
 /// A dynamic list of paths to watch for changes, and
@@ -48,42 +49,57 @@ impl Watch {
 
     /// Block until we have at least one event
     pub fn block(&mut self) -> Result<usize, ()> {
-        match self.rx.recv() {
-            Ok(event) => self.handle_event(event),
-            Err(err) => {
-                debug!("Failure in watch recv: {:#?}", err);
-                return Err(());
-            }
+        if self.blocking_iter().next().is_none() {
+            debug!("No event received!");
+            return Err(());
         }
 
         Ok(1 + self.process_ready()?)
     }
 
     /// Block until we have at least one event
-    pub fn block_timeout(&mut self, timeout: Duration) -> Result<usize, ()> {
-        match self.rx.recv_timeout(timeout) {
-            Ok(event) => self.handle_event(event),
-            Err(err) => {
-                debug!("Failure in watch recv: {:#?}", err);
-                return Err(());
-            }
+    pub fn block_timeout(&self, timeout: Duration) -> Result<usize, ()> {
+        if let Some(Ok(_)) = self.timeout_iter(timeout).next() {
+            Ok(1 + self.process_ready()?)
+        } else {
+            Err(())
         }
+    }
 
-        Ok(1 + self.process_ready()?)
+    fn blocking_iter<'a>(&'a self) -> impl 'a + Iterator<Item = notify::RawEvent> {
+        self.rx
+            .iter()
+            .filter(move |event| self.event_is_interesting(event))
+            .inspect(move |event| self.handle_event(event))
+    }
+
+    fn timeout_iter<'a>(
+        &'a self,
+        timeout: Duration,
+    ) -> impl 'a + Iterator<Item = Result<notify::RawEvent, RecvError>> {
+        FilterTimeoutIterator::new(&self.rx, timeout, move |event| {
+            self.event_is_interesting(event)
+        })
+        .inspect(move |event| {
+            if let Ok(event) = event {
+                self.handle_event(event)
+            }
+        })
     }
 
     /// Non-blocking, read all the events already received -- draining
     /// the event queue.
-    pub fn process_ready(&mut self) -> Result<usize, ()> {
+    fn process_ready(&self) -> Result<usize, ()> {
         let mut events = 0;
+        let mut iter = self.timeout_iter(Duration::from_millis(100));
         loop {
-            match self.rx.try_recv() {
-                Ok(event) => {
-                    self.handle_event(event);
+            match iter.next() {
+                Some(Ok(event)) => {
+                    debug!("Received event: {:#?}", event);
                     events += 1;
                 }
-                Err(TryRecvError::Disconnected) => return Err(()),
-                Err(TryRecvError::Empty) => {
+                Some(Err(RecvError)) => return Err(()),
+                None => {
                     info!("Found {} events", events);
                     return Ok(events);
                 }
@@ -91,8 +107,16 @@ impl Watch {
         }
     }
 
-    fn handle_event(&mut self, event: notify::RawEvent) {
+    fn handle_event(&self, event: &notify::RawEvent) {
         debug!("Watch Event: {:#?}", event);
+        match (&event.op, &event.path) {
+            (Ok(notify::op::REMOVE), Some(path)) => {
+                info!("identified file removal: {:?}", path);
+            }
+            otherwise => {
+                debug!("watch event: {:#?}", otherwise);
+            }
+        }
     }
 
     fn add_path_recursively(&mut self, path: &PathBuf) -> Result<(), notify::Error> {
@@ -121,7 +145,32 @@ impl Watch {
             self.watches.insert(path.clone());
         }
 
+        if let Some(parent) = path.parent() {
+            if !self.watches.contains(parent) {
+                debug!("Watching parent path {:?}", parent);
+
+                self.notify.watch(&parent, RecursiveMode::NonRecursive)?;
+            }
+        }
+
         Ok(())
+    }
+
+    fn event_is_interesting(&self, event: &notify::RawEvent) -> bool {
+        match event.path {
+            Some(ref path) => {
+                if self.watches.contains(path) {
+                    println!("Eventmatches a watched file: {:?}", event);
+                    true
+                } else if self.watches.iter().any(|p| path.parent() == Some(p)) {
+                    debug!("Event matches a watched directory: {:?}", event);
+                    true
+                } else {
+                    false
+                }
+            }
+            None => false,
+        }
     }
 }
 
@@ -133,7 +182,7 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn trivial_watch() {
+    fn trivial_watch_whole_directory() {
         let mut watcher = Watch::init().expect("failed creating Watch");
         let temp = tempdir().unwrap();
 
@@ -141,6 +190,20 @@ mod tests {
         watcher.extend(&[temp.path().to_path_buf()]).unwrap();
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
         assert!(watcher.block_timeout(Duration::from_secs(1)).is_ok());
+
+        expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
+        assert!(watcher.block_timeout(Duration::from_secs(1)).is_ok());
+    }
+
+    #[test]
+    fn trivial_watch_specific_file() {
+        let mut watcher = Watch::init().expect("failed creating Watch");
+        let temp = tempdir().unwrap();
+
+        expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
+        expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
+        watcher.extend(&[temp.path().join("foo")]).unwrap();
+        assert!(watcher.block_timeout(Duration::from_secs(1)).is_err());
 
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
         assert!(watcher.block_timeout(Duration::from_secs(1)).is_ok());
