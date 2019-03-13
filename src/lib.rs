@@ -26,6 +26,8 @@ extern crate notify;
 extern crate tempfile;
 extern crate vec1;
 
+extern crate proptest;
+
 pub mod build;
 pub mod build_loop;
 pub mod builder;
