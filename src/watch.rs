@@ -158,20 +158,67 @@ impl Watch {
 
     fn event_is_interesting(&self, event: &notify::RawEvent) -> bool {
         match event.path {
-            Some(ref path) => {
-                if self.watches.contains(path) {
-                    println!("Eventmatches a watched file: {:?}", event);
-                    true
-                } else if self.watches.iter().any(|p| path.parent() == Some(p)) {
-                    debug!("Event matches a watched directory: {:?}", event);
-                    true
-                } else {
-                    false
-                }
-            }
+            Some(ref path) => path_match(&self.watches, path),
             None => false,
         }
     }
+}
+
+/// Determine if the event path is covered by our list of watched
+/// paths.
+///
+/// Returns true if:
+///   - the event's path directly names a path in our
+///     watch list
+///   - the event's path names a canonicalized path in our watch list
+///   - the event's path's parent directly names a path in our watch
+///     list
+///   - the event's path's parent names a canonicalized path in our
+///     watch list
+fn path_match(watched_paths: &HashSet<PathBuf>, event_path: &Path) -> bool {
+    let event_parent = event_path.parent();
+
+    watched_paths.iter().any(|watched| {
+        if watched == event_path {
+            debug!(
+                "Event path ({:?}) directly matches watched path",
+                event_path
+            );
+            return true;
+        }
+
+        if let Some(parent) = event_parent {
+            if watched == parent {
+                debug!(
+                    "Event path ({:?}) parent ({:?}) matches watched path",
+                    event_path, parent
+                );
+                return true;
+            }
+        }
+
+        if let Ok(canonicalized_watch) = watched.canonicalize() {
+            if canonicalized_watch == event_path {
+                debug!(
+                    "Event path ({:?}) matches canonicalized watch path ({:?}) ",
+                    event_path, canonicalized_watch
+                );
+                return true;
+            }
+
+            if let Some(parent) = event_parent {
+                if canonicalized_watch == parent {
+                    debug!(
+                        "Event path ({:?}) parent ({:?}) matches canonicalized watch path ({:?}) ",
+                        event_path, parent, canonicalized_watch
+                    );
+                    return true;
+                }
+            }
+        }
+
+        false
+    })
 }
 
 #[cfg(test)]
