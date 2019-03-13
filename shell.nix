@@ -10,9 +10,9 @@ pkgs.mkShell {
     pkgs.git
   ] ++
   pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
-    pkgs.darwin.cf-private
     pkgs.darwin.Security
     pkgs.darwin.apple_sdk.frameworks.CoreServices
+    pkgs.darwin.apple_sdk.frameworks.CoreFoundation
   ];
   # Keep project-specific shell commands local
   HISTFILE = "${toString ./.}/.bash_history";
@@ -75,5 +75,8 @@ pkgs.mkShell {
 
     # restore stdout and close 3
     exec 1>&3-
-  '';
+  '' + (if !pkgs.stdenv.isDarwin then "" else ''
+    # Cargo wasn't able to find CF during a `cargo test` run on Darwin.
+    export NIX_LDFLAGS="-F${pkgs.darwin.apple_sdk.frameworks.CoreFoundation}/Library/Frameworks -framework CoreFoundation $NIX_LDFLAGS"
+  '');
 }
