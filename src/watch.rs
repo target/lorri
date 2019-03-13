@@ -228,6 +228,31 @@ mod tests {
     use std::time::Duration;
     use tempfile::tempdir;
 
+    #[cfg(target_os = "macos")]
+    fn macos_eat_late_notifications(watcher: &mut Watch) {
+        // Sometimes a brand new watch will send a CREATE notification
+        // for a file which was just created, even if the watch was
+        // created after the file was made.
+        //
+        // Our tests want to be very precise about which events are
+        // received when, so expect these initial events and swallow
+        // them.
+        //
+        // Note, this is racey in the kernel. Otherwise I'd assert
+        // this is_ok().
+        watcher.block_timeout(Duration::from_secs(1)).is_ok();
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    fn macos_eat_late_notifications(watcher: &mut Watch) {
+        // If we're supposedly dealing with a late notification on
+        // macOS, we'd better not receive any messages on other
+        // platforms.
+        //
+        // If we do receive any notifications, our test is broken.
+        assert!(watcher.block_timeout(Duration::from_secs(1)).is_err());
+    }
+
     #[test]
     fn trivial_watch_whole_directory() {
         let mut watcher = Watch::init().expect("failed creating Watch");
@@ -250,7 +275,7 @@ mod tests {
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
         watcher.extend(&[temp.path().join("foo")]).unwrap();
-        assert!(watcher.block_timeout(Duration::from_secs(1)).is_err());
+        macos_eat_late_notifications(&mut watcher);
 
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
         assert!(watcher.block_timeout(Duration::from_secs(1)).is_ok());
@@ -265,6 +290,7 @@ mod tests {
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
         watcher.extend(&[temp.path().join("foo")]).unwrap();
+        macos_eat_late_notifications(&mut watcher);
 
         // bar is not watched, expect error
         expect_bash(r#"echo 1 > "$1/bar""#, &[temp.path().as_os_str()]);
