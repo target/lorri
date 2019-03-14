@@ -178,17 +178,18 @@ impl Watch {
 fn path_match(watched_paths: &HashSet<PathBuf>, event_path: &Path) -> bool {
     let event_parent = event_path.parent();
 
-    watched_paths.iter().any(|watched| {
-        if watched == event_path {
+    let matches = |watched: &Path| {
+        if event_path == watched {
             debug!(
                 "Event path ({:?}) directly matches watched path",
                 event_path
             );
+
             return true;
         }
 
         if let Some(parent) = event_parent {
-            if watched == parent {
+            if parent == watched {
                 debug!(
                     "Event path ({:?}) parent ({:?}) matches watched path",
                     event_path, parent
@@ -197,23 +198,17 @@ fn path_match(watched_paths: &HashSet<PathBuf>, event_path: &Path) -> bool {
             }
         }
 
-        if let Ok(canonicalized_watch) = watched.canonicalize() {
-            if canonicalized_watch == event_path {
-                debug!(
-                    "Event path ({:?}) matches canonicalized watch path ({:?}) ",
-                    event_path, canonicalized_watch
-                );
-                return true;
-            }
+        return false;
+    };
 
-            if let Some(parent) = event_parent {
-                if canonicalized_watch == parent {
-                    debug!(
-                        "Event path ({:?}) parent ({:?}) matches canonicalized watch path ({:?}) ",
-                        event_path, parent, canonicalized_watch
-                    );
-                    return true;
-                }
+    watched_paths.iter().any(|watched| {
+        if matches(watched) {
+            return true;
+        }
+
+        if let Ok(canonicalized_watch) = watched.canonicalize() {
+            if matches(&canonicalized_watch) {
+                return true;
             }
         }
 
