@@ -87,18 +87,25 @@ impl Watch {
         })
     }
 
+    fn try_iter<'a>(&'a self) -> impl 'a + Iterator<Item = notify::RawEvent> {
+        self.rx
+            .try_iter()
+            .filter(move |event| self.event_is_interesting(event))
+            .inspect(move |event| self.handle_event(event))
+    }
+
     /// Non-blocking, read all the events already received -- draining
     /// the event queue.
     fn process_ready(&self) -> Result<(), ()> {
         let mut events = 0;
-        let mut iter = self.timeout_iter(Duration::from_millis(100));
+        let mut iter = self.try_iter();
+
         loop {
             match iter.next() {
-                Some(Ok(event)) => {
+                Some(event) => {
                     debug!("Received event: {:#?}", event);
                     events += 1;
                 }
-                Some(Err(RecvError)) => return Err(()),
                 None => {
                     info!("Found {} events", events);
                     return Ok(());
