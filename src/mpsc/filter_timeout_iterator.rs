@@ -24,15 +24,21 @@ use std::sync::mpsc::RecvError;
 use std::sync::mpsc::RecvTimeoutError;
 use std::time::{Duration, Instant};
 
-
-/// A FilterTimeoutIterator iterates over an MPSC Receiver, where the
-/// next() call can timeout returning None, attached to a filter.
-/// Similar to a blend of Receiver's try_iter(), but with recv_timeout
-/// and filter().
+/// A FilterTimeoutIterator is an abstraction over an MPSC Receiver.
 ///
-/// A given call to `FilterTimeoutIterator.next()` will repeatedly
-/// call the `receiver`'s `recv_timeout()` function, until either a
-/// filtered-in value is received, or the Duration has passed.
+/// The iterator returns a Some value if a message is selected
+/// by the `predicate` function within the duration specified
+/// by `timeout`.
+///
+/// Each call to the iterator's `next()` function will restart
+/// the timeout.
+///
+/// `next()` does not return `None` immediately if a received message
+/// is rejected by the `predicate`. Instead, it retries until a
+/// relevant message is received or the timeout is reached.
+///
+/// Because of the timeout, this iterator can return `None`, even if
+/// more messages could be received in the future.
 ///
 /// # Basic Example:
 ///
@@ -69,18 +75,22 @@ use std::time::{Duration, Instant};
 ///     use std::time::Duration;
 ///     use lorri::mpsc::FilterTimeoutIterator;
 ///
-///     let (sender, receiver) = channel::<usize>();
+///     let (sender, receiver) = channel::<String>();
 ///
 ///     let thread = thread::spawn(move || {
 ///        thread::sleep(Duration::from_millis(750));
-///         sender.send(1).unwrap();
+///         sender.send(String::from("Tag!")).unwrap();
 ///         thread::sleep(Duration::from_millis(750));
-///         sender.send(2).unwrap();
+///         sender.send(String::from("Hello!")).unwrap();
 ///     });
 ///
-///     let mut iter = FilterTimeoutIterator::new(&receiver, Duration::from_secs(1), |v| *v == 2);
+///     let mut iter = FilterTimeoutIterator::new(
+///         &receiver,
+///         Duration::from_secs(1),
+///         |msg| msg.starts_with("H")
+///     );
 ///
-///     // will return None in 1s because `1` didn't match and `2` won't
+///     // will return None in 1s because `Tag!` didn't match and `Hello!` won't
 ///     // arrive in time.
 ///     assert_eq!(iter.next(), None);
 pub struct FilterTimeoutIterator<'a, T, P>
