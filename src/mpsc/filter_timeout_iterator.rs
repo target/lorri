@@ -24,10 +24,15 @@ use std::sync::mpsc::RecvError;
 use std::sync::mpsc::RecvTimeoutError;
 use std::time::{Duration, Instant};
 
+
 /// A FilterTimeoutIterator iterates over an MPSC Receiver, where the
 /// next() call can timeout returning None, attached to a filter.
 /// Similar to a blend of Receiver's try_iter(), but with recv_timeout
 /// and filter().
+///
+/// A given call to `FilterTimeoutIterator.next()` will repeatedly
+/// call the `receiver`'s `recv_timeout()` function, until either a
+/// filtered-in value is received, or the Duration has passed.
 ///
 /// # Basic Example:
 ///
@@ -48,9 +53,6 @@ use std::time::{Duration, Instant};
 ///     assert_eq!(iter.next(), Some(Ok(String::from("Hello!"))));
 ///
 /// # Internal Timeout Semantics
-///
-/// A given call to `next()` call will continue trying to find a
-/// filtered-in value until Duration has passed.
 ///
 /// When `next()` receives a message the message is checked to see if
 /// it is filtered in. If the message does not match, the elapsed time
