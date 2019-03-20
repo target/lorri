@@ -235,7 +235,7 @@ mod tests {
         //
         // Note, this is racey in the kernel. Otherwise I'd assert
         // this is_ok().
-        watcher.block_timeout(Duration::from_secs(1)).is_ok();
+        watcher.block_timeout(Duration::from_millis(250)).is_ok();
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -245,7 +245,7 @@ mod tests {
         // platforms.
         //
         // If we do receive any notifications, our test is broken.
-        assert!(watcher.block_timeout(Duration::from_secs(1)).is_err());
+        assert!(watcher.block_timeout(Duration::from_millis(250)).is_err());
     }
 
     #[test]
@@ -256,10 +256,10 @@ mod tests {
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
         watcher.extend(&[temp.path().to_path_buf()]).unwrap();
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(Duration::from_secs(1)).is_ok());
+        assert!(watcher.block_timeout(Duration::from_millis(50)).is_ok());
 
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(Duration::from_secs(1)).is_ok());
+        assert!(watcher.block_timeout(Duration::from_millis(50)).is_ok());
     }
 
     #[test]
@@ -273,7 +273,7 @@ mod tests {
         macos_eat_late_notifications(&mut watcher);
 
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(Duration::from_secs(1)).is_ok());
+        assert!(watcher.block_timeout(Duration::from_millis(50)).is_ok());
     }
 
     #[test]
@@ -289,18 +289,18 @@ mod tests {
 
         // bar is not watched, expect error
         expect_bash(r#"echo 1 > "$1/bar""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(Duration::from_secs(1)).is_err());
+        assert!(watcher.block_timeout(Duration::from_millis(50)).is_err());
 
         // Rename bar to foo, expect a notification
         expect_bash(r#"mv "$1/bar" "$1/foo""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(Duration::from_secs(1)).is_ok());
+        assert!(watcher.block_timeout(Duration::from_millis(50)).is_ok());
 
         // Do it a second time
         expect_bash(r#"echo 1 > "$1/bar""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(Duration::from_secs(1)).is_err());
+        assert!(watcher.block_timeout(Duration::from_millis(50)).is_err());
 
         // Rename bar to foo, expect a notification
         expect_bash(r#"mv "$1/bar" "$1/foo""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(Duration::from_secs(1)).is_ok());
+        assert!(watcher.block_timeout(Duration::from_millis(50)).is_ok());
     }
 }
