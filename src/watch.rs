@@ -198,7 +198,7 @@ fn path_match(watched_paths: &HashSet<PathBuf>, event_path: &Path) -> bool {
             }
         }
 
-        return false;
+        false
     };
 
     watched_paths.iter().any(|watched| {
