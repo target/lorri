@@ -43,24 +43,24 @@ impl Watch {
     }
 
     /// Wait for a batch of changes to arrive, returning when they do.
-    pub fn wait_for_change(&mut self) -> Result<usize, ()> {
+    pub fn wait_for_change(&mut self) -> Result<(), ()> {
         self.block()
     }
 
     /// Block until we have at least one event
-    pub fn block(&mut self) -> Result<usize, ()> {
+    pub fn block(&mut self) -> Result<(), ()> {
         if self.blocking_iter().next().is_none() {
             debug!("No event received!");
             return Err(());
         }
 
-        Ok(1 + self.process_ready()?)
+        self.process_ready()
     }
 
     /// Block until we have at least one event
-    pub fn block_timeout(&self, timeout: Duration) -> Result<usize, ()> {
+    pub fn block_timeout(&self, timeout: Duration) -> Result<(), ()> {
         if let Some(Ok(_)) = self.timeout_iter(timeout).next() {
-            Ok(1 + self.process_ready()?)
+            self.process_ready()
         } else {
             Err(())
         }
@@ -89,7 +89,7 @@ impl Watch {
 
     /// Non-blocking, read all the events already received -- draining
     /// the event queue.
-    fn process_ready(&self) -> Result<usize, ()> {
+    fn process_ready(&self) -> Result<(), ()> {
         let mut events = 0;
         let mut iter = self.timeout_iter(Duration::from_millis(100));
         loop {
@@ -101,7 +101,7 @@ impl Watch {
                 Some(Err(RecvError)) => return Err(()),
                 None => {
                     info!("Found {} events", events);
-                    return Ok(events);
+                    return Ok(());
                 }
             }
         }
