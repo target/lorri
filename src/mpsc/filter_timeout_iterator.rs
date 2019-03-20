@@ -210,9 +210,9 @@ mod tests {
 
         let thread = thread::spawn(move || {
             sender.send(1).unwrap();
-            thread::sleep(Duration::from_secs(1));
+            thread::sleep(Duration::from_millis(100));
             sender.send(2).unwrap();
-            thread::sleep(Duration::from_secs(1));
+            thread::sleep(Duration::from_millis(100));
             sender.send(3).unwrap();
         });
 
@@ -224,7 +224,7 @@ mod tests {
         assert_eq!(iter.next(), Some(Ok(3)));
         assert_range(
             start.elapsed(),
-            Duration::from_secs(2),
+            Duration::from_millis(200),
             Duration::from_millis(50),
         );
 
