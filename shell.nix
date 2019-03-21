@@ -100,4 +100,7 @@ pkgs.mkShell rec {
     # Cargo wasn't able to find CF during a `cargo test` run on Darwin.
     export NIX_LDFLAGS="-F${pkgs.darwin.apple_sdk.frameworks.CoreFoundation}/Library/Frameworks -framework CoreFoundation $NIX_LDFLAGS"
   '');
+
+  preferLocalBuild = true;
+  buildUseSubstitutes = false;
 }
