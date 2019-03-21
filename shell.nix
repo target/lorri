@@ -49,6 +49,12 @@ pkgs.mkShell rec {
     alias newlorri="(cd $LORRI_ROOT; cargo run -- shell)"
     alias ci="ci_check"
 
+    # this is mirrored from .envrc to make available from nix-shell
+    # pick up cargo plugins
+    export PATH="$LORRI_ROOT/.cargo/bin:$PATH"
+    # watch the output to add lorri once it's built
+    export PATH="$LORRI_ROOT/target/debug:$PATH"
+
     function ci_check() (
       cd "$LORRI_ROOT";
 
