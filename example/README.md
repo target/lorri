@@ -174,6 +174,13 @@ Follow [the `emacs-direnv` setup
 guide](https://github.com/wbolster/emacs-direnv/blob/master/README.rst)
 now.
 
+Note: There are direnv plugins for _many_ editors. Just a few,
+[vscode](https://github.com/direnv/direnv/wiki/VSCode),
+[Sublime](https://github.com/zchee/sublime-direnv),
+[vim](https://github.com/direnv/direnv.vim),
+[Atom](https://atom.io/packages/000-project-shell-env).
+
+
 Once you have it installed, hit `M-x` and enter `direnv-mode`.
 This activates direnv integration for every buffer.
 

@@ -1,12 +1,16 @@
 # lorri
 
+[![built with nix](https://builtwithnix.org/badge.svg)](https://builtwithnix.org)
 
-Usage: `lorri [general options] <command> [...args]`
+lorri is a `nix-shell` replacement for project development. lorri is
+based around fast direnv integration for robust CLI and editor
+integration.
 
-Lorri is a build tool based on Nix, specialized to build small projects and monorepos.
+The project is about experimenting with and improving the developer's
+experience with Nix. A particular focus is managing your project's
+external dependencies, editor integration, and quick feedback.
 
-Usable both on the developer’s machine and on CI.
-
+Lorri supports Linux and macOS.
 
 ## Tutorial
 
@@ -16,11 +20,66 @@ directory](./example).
 
 ## Install
 
+### Install direnv
+
+You will need [direnv v2.19.2 or later][direnv-2-19-2].
+
+On NixOS, we have a simple service for installing and enabling the
+needed direnv version at [./direnv/nixos.nix](./direnv/nixos.nix).
+Download this file and add `imports = [ ./direnv.nix ];` to your
+system's `configuration.nix`.
+
+For Nix on Linux or macOS, you can install the needed version of
+direnv with:
+
 ```
-$ git clone https://github.com/target/lorri.git
-$ cd lorri
-$ nix-env -i -f .
+$ curl -o direnv.nix https://github.com/target/lorri/raw/master/direnv/nix.nix
+$ nix-env -if ./direnv.nix
 ```
+
+then enable it according to [direnv's setup instructions][direnv-setup].
+
+### Installing lorri
+
+Install with nix-env:
+
+```
+$ nix-env -if https://github.com/target/lorri/tarball/rolling-release
+```
+
+## Usage
+
+Create a file named `.envrc` in your project's root with the contents:
+
+```
+eval "$(lorri direnv)"
+```
+
+Then, run `lorri watch`. The first time you run `lorri watch` on a
+project, wait for it to print `Completed` before continuing. Leave
+this terminal open.
+
+In a new terminal:
+
+1. enter the project directory
+2. run `direnv allow`
+3. watch as direnv loads the environment
+
+The `lorri watch` process will continue monitoring and evaluating
+the Nix expressions, and direnv will automatically reload the
+environment as it changes. If you close `lorri watch`, direnv will
+still load the cached environment when you enter the directory,
+but the environment will not reload.
+
+## Debugging
+
+Set these environment variables when debugging:
+
+```
+RUST_LOG=lorri=debug RUST_BACKTRACE=1 lorri watch
+```
+
+---
 
 ## Upgrading
 
@@ -32,60 +91,6 @@ By default, the upgrade command will upgrade from the
 Other upgrade options are available, including upgrading from a
 local clone. See `lorri self-upgrade --help` for more details.
 
-## Setup
-
-Lorri works on any `shell.nix` automatically.
-
-Add `.lorri` to your projects version-control ignore list, like
-`.gitignore`.
-
-See [the example](./example/) for a tutorial!
-
-## Commands
-
-### Direnv
-
-Lorri has full support for Direnv. It is a bit tedious to setup, but
-is much nicer than the `lorri shell` option.
-
-1. Install direnv v2.19.2 or later
-2. Create a `.envrc` with contents like this:
-
-```
-eval "$(lorri direnv)"
-```
-
-3. Open a terminal, enter the project directory, and run
-`lorri watch`. Leave this terminal open.
-4. Use direnv like normal.
-
-The `lorri watch` process will continue monitoring and evaluating
-the Nix expressions, and direnv will automatically reload the
-environment as it changes.
-
-### Project Shell
-
-Note: `lorri shell` still functions, but the `direnv` support is much
-nicer.
-
-    lorri shell
-
-or if you're working inside a `nix-shell` with `cargo`:
-
-    cargo run -- shell
-
-for more logs:
-
-    RUST_LOG=lorri=debug RUST_BACKTRACE=1 cargo run -- shell
-
-Open a project shell for your Lorri project.
-
-## Project Root
-
-The root of your project the directory containing the `shell.nix`.
-Lorri will not look in parent directories for a `shell.nix`.
-
----
 
 # Evaluator + watch design
 
@@ -96,13 +101,13 @@ stages.
 ## Initial evaluation
 
 `builder::run()` instantiates (and builds) the Nix expression with
-`nix-build -vv`. The evalutor prints each imported Nix file, and
-each copied source file. `builder::run()` parses the log and noteseach
+`nix-build -vv`. The evaluator prints each imported Nix file, and
+each copied source file. `builder::run()` parses the log and notes each
 of these paths out as an "input" path.
 
 Each input path is the absolute path which Nix examined.
 
-Each "input" path is then passed to `PathReduction` which examines each
+Each input path is then passed to `PathReduction` which examines each
 path referenced, and reduces it to a minimum set of paths with the
 following rules:
 
@@ -120,17 +125,19 @@ Initial testing collapses over 2,000 paths to just five.
 
 ## Loop
 
-Each identified path is watched for changes with inotify. If the
-watched path is a directory, all of its sub-directories are also
-watched for changes.
+Each identified path is watched for changes with inotify (Linux) or
+fsevent (macOS). If the watched path is a directory, all of its
+sub-directories are also watched for changes.
 
 Each new batch of change notifications triggers a fresh evaluation.
-Newly discovered paths are added to the inotify watch list.
+Newly discovered paths are added to the watch list.
 
-## Rooting
+## Garbage Collection Roots
 
-Each evaluation, lorry creates an indirect GC root for each .drv in
-`./.lorri/gc_roots/`.
+lorri creates an indirect garbage collection root for each .drv in
+`$XDG_CACHE_HOME/lorri` (`~/.cache/lorri/` by default) each time it
+evaluates your project.
+
 
 ---
 
@@ -160,4 +167,7 @@ Each evaluation, lorry creates an indirect GC root for each .drv in
     ################################################################
     ################################################################
 
-_(Nix as observed by LORRI on 2015-07-13)_
+_([Nix as observed by LORRI on 2015-07-13](https://www.nasa.gov/newhorizons/lorri-gallery))_
+
+[direnv-2-19-2]: https://github.com/direnv/direnv/releases/tag/v2.19.2
+[direnv-setup]: https://direnv.net/index.html#setup
