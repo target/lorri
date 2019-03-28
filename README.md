@@ -53,7 +53,7 @@ For Nix on Linux or macOS, you can install the needed version of
 direnv with:
 
 ```
-$ curl -o direnv.nix https://github.com/target/lorri/raw/master/direnv/nix.nix
+$ curl -o direnv.nix -L https://github.com/target/lorri/raw/master/direnv/nix.nix
 $ nix-env -if ./direnv.nix
 ```
 
