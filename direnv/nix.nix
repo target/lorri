@@ -3,7 +3,7 @@ let
     let
       parsedVersion = builtins.parseDrvName package.name;
       pkgVersion = package.version or (parsedVersion.version or 0);
-    in (builtins.compareVersions wantedVersion pkgVersion) == 0;
+    in (builtins.compareVersions wantedVersion pkgVersion) == 1;
 
   pkgs = import <nixpkgs> {
     overlays = [(self: super: {

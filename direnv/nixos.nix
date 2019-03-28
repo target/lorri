@@ -4,7 +4,7 @@ let
     let
       parsedVersion = builtins.parseDrvName package.name;
       pkgVersion = package.version or (parsedVersion.version or 0);
-    in (builtins.compareVersions wantedVersion pkgVersion) == 0;
+    in (builtins.compareVersions wantedVersion pkgVersion) == 1;
 in {
   nixpkgs.overlays = [(self: super: {
     direnv = if isOlderThan "2.19.2" super.direnv
