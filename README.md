@@ -1,5 +1,7 @@
 # lorri
 
+https://github.com/target/lorri
+
 [![built with nix](https://builtwithnix.org/badge.svg)](https://builtwithnix.org)
 
 lorri is a `nix-shell` replacement for project development. lorri is
@@ -10,13 +12,31 @@ The project is about experimenting with and improving the developer's
 experience with Nix. A particular focus is managing your project's
 external dependencies, editor integration, and quick feedback.
 
-Lorri supports Linux and macOS.
+lorri supports Linux and macOS.
 
 ## Tutorial
 
 You can find the **lorri tutorial** [in the `./example`
-directory](./example).
+directory](./example). After following this tutorial, you will have
+a working setup of `lorri`, `direnv`, and working basic editor
+integration into Emacs.
 
+## Support & Questions
+
+Please use the [issue tracker](https://github.com/target/lorri/issues)
+for any problems or bugs you encounter. We are on `#lorri` on
+`freenode` ([Webchat][]), though we might not be responsive at all
+times.
+
+[Webchat]: https://kiwiirc.com/nextclient/#irc://irc.freenode.net:+6697/#lorri
+
+## How To Help
+
+All development on lorri happens on the Github repository, in the
+open. You can propose a change in an issue, then create a pull request
+after some discussion. Some issues are marked with the “good first
+issue” label, those are a good place to start. Just remember to leave
+a comment when you start working on something.
 
 ## Install
 
@@ -138,6 +158,11 @@ lorri creates an indirect garbage collection root for each .drv in
 `$XDG_CACHE_HOME/lorri` (`~/.cache/lorri/` by default) each time it
 evaluates your project.
 
+
+## License & Copyright
+
+Copyright 2019 Target
+License: Apache 2.0 (see [`LICENSE` file](./LICENSE))
 
 ---
 
