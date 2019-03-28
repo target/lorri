@@ -64,7 +64,9 @@ then enable it according to [direnv's setup instructions][direnv-setup].
 Install with nix-env:
 
 ```
-$ nix-env -if https://github.com/target/lorri/tarball/rolling-release
+$ git clone -b rolling-release https://github.com/target/lorri.git
+$ cd lorri
+$ nix-env -if .
 ```
 
 ## Usage
