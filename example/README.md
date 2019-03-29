@@ -33,7 +33,7 @@ $ cd lorri/example
 [`direnv`](https://direnv.net/) is a tool to automatically load an
 environment. You need at least version 2.19.2 of direnv.
 
-To install it into your local nix profile, use our povided pin of
+To install it into your local nix profile, use our provided pin of
 `nixpkgs`:
 
 ```bash
