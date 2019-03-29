@@ -1,4 +1,4 @@
-{ enableMozillaOverlay }:
+{ enableMozillaOverlay ? false }:
 let
   hostpkgs = import <nixpkgs> {};
 
