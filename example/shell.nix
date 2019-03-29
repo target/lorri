@@ -1,4 +1,4 @@
-with import ../nix/nixpkgs.nix { enableMozillaOverlay = false; };
+with import ../nix/nixpkgs.nix { };
 
 mkShell {
   buildInputs = [

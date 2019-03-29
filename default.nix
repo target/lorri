@@ -1,5 +1,5 @@
 {
-  pkgs ? import ./nix/nixpkgs.nix { enableMozillaOverlay = false; },
+  pkgs ? import ./nix/nixpkgs.nix { },
   src ? builtins.fetchGit {
     url = ./.;
     ref = "HEAD";
