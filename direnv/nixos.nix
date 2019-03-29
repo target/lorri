@@ -31,7 +31,7 @@ in {
       eval "$(${pkgs.direnv}/bin/direnv hook zsh)"
     '';
     fish.interactiveShellInit = ''
-      eval "$(${pkgs.direnv}/bin/direnv hook fish)"
+      eval (${pkgs.direnv}/bin/direnv hook fish)
     '';
   };
 }
