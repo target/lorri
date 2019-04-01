@@ -101,6 +101,27 @@ Set these environment variables when debugging:
 RUST_LOG=lorri=debug RUST_BACKTRACE=1 lorri watch
 ```
 
+### `lorri` reevaluates more than expected
+
+`lorri` sometimes recursively watches a directory that the user did
+not expect. This can happen for a number of reasons:
+
+1. When using a local checkout instead of a channel for `nixpkgs`,
+   `lorri` watches that directory recursively, and will trigger on
+   any file change.
+2. When specifying `src` via a path, (like the much-used `src = ./.;`)
+   `lorri` watches that path recursively (see 
+   https://github.com/target/lorri/issues/6 for details).
+   To get around this, use a `builtins.filterSource`-based function
+   to filter `src`, e.g., use
+   [`nix-gitignore`](https://github.com/NixOS/nixpkgs/blob/8c1f1b2324bb90f8e1ea33db3253eb30c330ed99/pkgs/build-support/nix-gitignore/default.nix):
+   `src = pkgs.nix-gitignore.gitignoreSource [] ./.`, or one of the
+   functions in
+   [`nixpkgs/lib/sources.nix`](https://github.com/NixOS/nixpkgs/blob/8c1f1b2324bb90f8e1ea33db3253eb30c330ed99/lib/sources.nix)
+3. When using a construct like `import ./.` to import a `default.nix`
+   file, `lorri` watches the current directory recursively. To get
+   around it, use `import ./default.nix`.
+
 ---
 
 ## Upgrading
