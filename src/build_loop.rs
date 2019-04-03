@@ -78,6 +78,10 @@ impl BuildLoop {
                 Ok(())
             };
             match go() {
+                // TODO: Make err use Display instead of Debug.
+                // Otherwise user errors (especially for IO errors)
+                // are pretty hard to debug. Might need to review
+                // whether we can handle some errors earlier than here.
                 Err(err) => panic!("{}: {:?}", "Builder failed", err),
                 Ok(()) => {}
             }
