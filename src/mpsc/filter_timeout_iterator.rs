@@ -236,7 +236,7 @@ mod tests {
         assert_eq!(iter.next(), Some(Ok(3)));
         assert_range(
             start.elapsed(),
-            Duration::from_millis(300),
+            Duration::from_millis(375),
             Duration::from_millis(75),
         );
 
