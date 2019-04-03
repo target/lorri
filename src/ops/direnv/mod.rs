@@ -15,6 +15,10 @@ pub fn main(project: Project) -> OpResult {
     let mut shell_root = project.gc_root_path().unwrap();
     shell_root.push("build-0"); // !!!
 
+    if !shell_root.exists() {
+        return ExitError::errmsg("Please run 'lorri watch' before using direnv integration.");
+    }
+
     println!(
         r#"
 EVALUATION_ROOT="{}"
