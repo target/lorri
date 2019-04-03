@@ -25,8 +25,14 @@ impl Roots {
         path.push(name);
 
         debug!("Adding root from {:?} to {:?}", store_path, path,);
-        ignore_missing(std::fs::remove_file(&path))?;
-        symlink(&store_path, &path)?;
+        check_permission(
+            ignore_missing(std::fs::remove_file(&path)),
+            &format!("Can’t remove {}", path.display())
+        )?;
+        check_permission(
+            symlink(&store_path, &path),
+            &format!("Can’t symlink {} to {}", store_path.display(), path.display())
+        )?;
 
         // this is bad.
         let mut root = PathBuf::from("/nix/var/nix/gcroots/per-user");
@@ -40,8 +46,14 @@ impl Roots {
         root.push(format!("{}-{}", self.id, name));
 
         debug!("Connecting root from {:?} to {:?}", path, root,);
-        ignore_missing(std::fs::remove_file(&root))?;
-        symlink(&path, &root)?;
+        check_permission(
+            ignore_missing(std::fs::remove_file(&root)),
+            &format!("Can’t remove {}", root.display())
+        )?;
+        check_permission(
+            symlink(&path, &root),
+            &format!("Can’t symlink {} to {}", path.display(), root.display())
+        )?;
 
         Ok(path)
     }
@@ -68,16 +80,34 @@ fn ensure_directory_exists(dir: &PathBuf) {
     }
 }
 
-fn ignore_missing(err: Result<(), std::io::Error>) -> Result<(), std::io::Error> {
-    if let Err(e) = err {
-        match e.kind() {
-            std::io::ErrorKind::NotFound => Ok(()),
-            _ => Err(e),
-        }
-    } else {
-        Ok(())
-    }
+/// Handle a subset of `ErrorKind`, or return the original error
+/// if the handler can’t match on anything (that is returns `None`).
+fn handle_io_error<T, O>(err: std::io::Result<T>, handler: O) -> std::io::Result<T>
+    where O: FnOnce(std::io::ErrorKind) -> Option<T> {
+    err.or_else(|e| handler(e.kind()).ok_or(e))
 }
+
+/// Ignore a `NotFound` error.
+fn ignore_missing(
+    err: std::io::Result<()>,
+) -> std::io::Result<()> {
+    handle_io_error(err, |k| match k {
+        std::io::ErrorKind::NotFound => Some(()),
+        _ => None
+    })
+}
+
+/// Take a result and panic if there was a `PermissionDenied` error.
+fn check_permission(
+        err: std::io::Result<()>,
+        permission_errormsg: &str
+) -> std::io::Result<()> {
+    handle_io_error(err, move |k| match k {
+        std::io::ErrorKind::PermissionDenied => panic!(
+            format!("Permission denied. {}", permission_errormsg)),
+        _ => None
+            })
+        }
 
 /// Error conditions encountered when adding roots
 #[derive(Debug)]
