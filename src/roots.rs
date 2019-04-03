@@ -30,7 +30,13 @@ impl Roots {
 
         // this is bad.
         let mut root = PathBuf::from("/nix/var/nix/gcroots/per-user");
+        // TODO: check on start
         root.push(env::var("USER").expect("env var 'USER' must be set"));
+
+        // The user directory sometimes doesn’t exist,
+        // but we can create it (it’s root but `rwxrwxrwx`)
+        ensure_directory_exists(&root);
+
         root.push(format!("{}-{}", self.id, name));
 
         debug!("Connecting root from {:?} to {:?}", path, root,);
@@ -38,6 +44,27 @@ impl Roots {
         symlink(&path, &root)?;
 
         Ok(path)
+    }
+
+}
+
+/// Check if a directory exists and is a directory.
+/// Try to create it if nothing’s there.
+/// Panic for everything else.
+fn ensure_directory_exists(dir: &PathBuf) {
+    match std::fs::metadata(dir) {
+        Err(e) => {
+            match e.kind() {
+                std::io::ErrorKind::NotFound =>
+                    std::fs::create_dir(dir)
+                    .expect(format!("directory {} does not exist and we can’t create it",
+                                    dir.display()).as_str()),
+                _ => {}
+            }
+        },
+        Ok(meta) => {
+            if !meta.is_dir() { panic!("{} is not a directory", dir.display()) }
+        }
     }
 }
 
@@ -57,9 +84,6 @@ fn ignore_missing(err: Result<(), std::io::Error>) -> Result<(), std::io::Error>
 pub enum AddRootError {
     /// IO-related errors
     Io(std::io::Error),
-
-    /// Execution time errors
-    FailureToAdd,
 }
 
 impl From<std::io::Error> for AddRootError {

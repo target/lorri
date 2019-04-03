@@ -68,6 +68,10 @@ impl BuildLoop {
     /// still running, it is finished first before starting a new build.
     pub fn forever(&mut self, tx: Sender<Event>) {
         loop {
+            // TODO: Make err use Display instead of Debug.
+            // Otherwise user errors (especially for IO errors)
+            // are pretty hard to debug. Might need to review
+            // whether we can handle some errors earlier than here.
             tx.send(Event::Started)
                 .expect("Failed to notify a started evaluation");
 
