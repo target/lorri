@@ -14,7 +14,7 @@ immediately picks it up, and your editor does as well.
 
 These are the major setup steps described below:
 
-1. Set up `direnv` > 2.19.2.
+1. Set up `direnv` >= 2.19.2.
 1. Set up `lorri`.
 1. Change the environment of a shell with lorri & direnv.
 1. Add it to Emacs via `direnv-mode`.
