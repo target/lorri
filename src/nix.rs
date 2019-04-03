@@ -171,6 +171,8 @@ impl CallOpts {
     /// extern crate tempfile;
     /// use lorri::nix;
     /// use std::path::{Path, PathBuf};
+    /// # use std::env;
+    /// # env::set_var("NIX_PATH", "nixpkgs=./nix/bogus-nixpkgs/");
     ///
     /// let tempdir = tempfile::tempdir().unwrap();
     /// let location = nix::CallOpts::expression(r#"
@@ -196,6 +198,8 @@ impl CallOpts {
     /// extern crate tempfile;
     /// use lorri::nix;
     /// use std::path::{Path, PathBuf};
+    /// # use std::env;
+    /// # env::set_var("NIX_PATH", "nixpkgs=./nix/bogus-nixpkgs/");
     ///
     /// let tempdir = tempfile::tempdir().unwrap();
     /// let paths = nix::CallOpts::expression(r#"
@@ -230,6 +234,8 @@ impl CallOpts {
     /// extern crate tempfile;
     /// use lorri::nix;
     /// use std::path::{Path, PathBuf};
+    /// # use std::env;
+    /// # env::set_var("NIX_PATH", "nixpkgs=./nix/bogus-nixpkgs/");
     ///
     /// let tempdir = tempfile::tempdir().unwrap();
     /// let mut paths = nix::CallOpts::expression(r#"
