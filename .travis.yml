@@ -1,0 +1,47 @@
+languge: nix
+matrix:
+  include:
+  - language: nix
+    name: cargo build & linters
+    nix: 2.2.1
+    os: linux
+    script: 'nix-shell --run ci_check
+
+      cat $(nix-build ./.travis.yml.nix --no-out-link) > .travis.yml
+
+      git diff -q ./.travis.yml
+
+      '
+  - language: nix
+    name: cargo build & linters
+    nix: '2.0'
+    os: osx
+    script: 'nix-shell --run ci_check
+
+      cat $(nix-build ./.travis.yml.nix --no-out-link) > .travis.yml
+
+      git diff -q ./.travis.yml
+
+      '
+  - language: nix
+    name: nix-build
+    nix: 2.2.1
+    os: linux
+    script: 'nix-build
+
+      nix-env -i ./result
+
+      lorri self-upgrade local $(pwd)
+
+      '
+  - language: nix
+    name: nix-build
+    nix: '2.0'
+    os: osx
+    script: 'nix-build
+
+      nix-env -i ./result
+
+      lorri self-upgrade local $(pwd)
+
+      '
