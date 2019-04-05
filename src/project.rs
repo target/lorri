@@ -86,7 +86,11 @@ impl Project {
         let mut path = pdirs.cache_dir().to_path_buf();
         path.push(self.name());
         path.push("gc_root");
-        std::fs::create_dir_all(&path)?;
+        if !path.is_dir() {
+            debug!("Creating all directories for GC roots in {:?}", path);
+            std::fs::create_dir_all(&path)?;
+        }
+
         Ok(path.to_path_buf())
     }
 
