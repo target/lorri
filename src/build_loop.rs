@@ -89,7 +89,11 @@ impl BuildLoop {
         }
     }
 
-    fn once(&mut self) -> Result<BuildResults, BuildError> {
+    /// Execute a single build of the environment.
+    ///
+    /// This will create GC roots and expand the file watch list for
+    /// the evaluation.
+    pub fn once(&mut self) -> Result<BuildResults, BuildError> {
         let build = builder::run(&self.nix_root_path)?;
 
         let paths = build.paths;
@@ -130,14 +134,30 @@ impl BuildLoop {
     }
 }
 
+/// Error classes returnable from a build.
+///
+/// Callers should probably exit on Unrecoverable errors, but retry
+/// with Recoverable errors.
 #[derive(Debug)]
-enum BuildError {
+pub enum BuildError {
+    /// Recoverable errors are caused by failures to evaluate or build
+    /// the Nix expression itself.
     Recoverable(BuildExitFailure),
+
+    /// Unrecoverable errors are anything else: a broken Nix,
+    /// permission problems, etc.
     Unrecoverable(UnrecoverableErrors),
 }
 
+/// Unrecoverable errors due to internal failures of the plumbing.
+/// For example `exec` failing, permissions problems, kernel faults,
+/// etc.
+///
+/// See the corresponding Error struct documentation for further
+/// information.
 #[derive(Debug)]
-enum UnrecoverableErrors {
+#[allow(missing_docs)]
+pub enum UnrecoverableErrors {
     Build(builder::Error),
     AddRoot(roots::AddRootError),
     Notify(notify::Error),
