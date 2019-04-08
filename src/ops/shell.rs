@@ -17,16 +17,16 @@ pub fn main(project: Project) -> OpResult {
     let roots = Roots::new(project.gc_root_path().unwrap(), project.id());
     let mut build_loop = BuildLoop::new(root_nix_file.clone(), roots.clone());
 
-    let build_thread = {
-        thread::spawn(move || {
-            build_loop.forever(tx);
-        })
-    };
-
     println!(
         "WARNING: lorri shell is very simplistic and not suppported at the moment. \
          Please use the other commands."
     );
+
+    let initial_build_thread = thread::spawn(move || {
+        let result = build_loop.once();
+
+        (result, build_loop)
+    });
 
     debug!("Building bash...");
     let bash = NixBuild::build(&BuildInstruction::Expression(
@@ -40,6 +40,14 @@ pub fn main(project: Project) -> OpResult {
     roots.add("bash", &bash).unwrap();
 
     println!("Waiting for the builder to produce a drv for the 'shell' attribute.");
+
+    let (initial_result, mut build_loop) = initial_build_thread.join().unwrap();
+
+    let build_thread = {
+        thread::spawn(move || {
+            build_loop.forever(tx);
+        })
+    };
 
     // Log all failing builds, return an iterator of the first
     // build that succeeds.
