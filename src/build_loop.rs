@@ -46,8 +46,6 @@ pub struct BuildLoop {
     /// A nix source file which can be built
     nix_root_path: PathBuf,
     roots: Roots,
-    /// A channel that build results are sent back over
-    tx: Sender<Event>,
     /// Watches all input files for changes.
     /// As new input files are discovered, they are added to the watchlist.
     watch: Watch,
@@ -56,11 +54,10 @@ pub struct BuildLoop {
 impl BuildLoop {
     /// Instatiate a new BuildLoop. Uses an internal filesystem
     /// watching implementation.
-    pub fn new(nix_root_path: PathBuf, roots: Roots, tx: Sender<Event>) -> BuildLoop {
+    pub fn new(nix_root_path: PathBuf, roots: Roots) -> BuildLoop {
         BuildLoop {
             nix_root_path,
             roots,
-            tx,
             watch: Watch::init().expect("Failed to initialize watch"),
         }
     }
@@ -69,21 +66,18 @@ impl BuildLoop {
     /// Sends `Event`s over `Self.tx` once they happen.
     /// When new filesystem changes are detected while a build is
     /// still running, it is finished first before starting a new build.
-    pub fn forever(&mut self) {
+    pub fn forever(&mut self, tx: Sender<Event>) {
         loop {
-            self.tx
-                .send(Event::Started)
+            tx.send(Event::Started)
                 .expect("Failed to notify a started evaluation");
 
             match self.once() {
                 Ok(result) => {
-                    self.tx
-                        .send(Event::Completed(result))
+                    tx.send(Event::Completed(result))
                         .expect("Failed to notify the results of a completed evaluation");
                 }
                 Err(SingleBuildError::Recoverable(failure)) => {
-                    self.tx
-                        .send(Event::Failure(failure))
+                    tx.send(Event::Failure(failure))
                         .expect("Failed to notify the results of a failed evaluation");
                 }
                 otherwise => {
