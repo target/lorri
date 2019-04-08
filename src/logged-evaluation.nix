@@ -46,7 +46,7 @@ let
     origPATH = drv.PATH or "";
     PATH = builtins.storePath nixConfig.coreutils;
 
-    origArgs = drv.args;
+    origArgs = drv.args or [];
     args = [ (builtins.toFile "lorri-keep-env-hack" ''
       # Export IN_NIX_SHELL to trick various Nix tooling to export
       # shell-friendly variables
