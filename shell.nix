@@ -1,5 +1,5 @@
 { pkgs ? import ./nix/nixpkgs.nix { enableMozillaOverlay = true; } }:
-pkgs.mkShell {
+pkgs.mkShell rec {
   name = "lorri";
   buildInputs = [
     # This rust comes from the Mozilla rust overlay so we can
@@ -14,11 +14,26 @@ pkgs.mkShell {
     pkgs.darwin.apple_sdk.frameworks.CoreServices
     pkgs.darwin.apple_sdk.frameworks.CoreFoundation
   ];
+
   # Keep project-specific shell commands local
   HISTFILE = "${toString ./.}/.bash_history";
-  RUST_BACKTRACE = 1;
-  ROOT = toString ./.;
+
+  # Lorri-specific
+
+  # The root directory of this project
+  LORRI_ROOT = toString ./.;
+  # Needed by the lorri build.rs to determine its own version
+  # for the development repository (non-release), we set it to 1
   BUILD_REV_COUNT = 1;
+
+  # Rust-specific
+
+  # Enable printing backtraces for rust binaries
+  RUST_BACKTRACE = 1;
+  # Set up a local directory to install binaries in
+  CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
+
+  # Executed when entering `nix-shell`
   shellHook = ''
     # we can only output to stderr in the shellHook,
     # otherwise direnv `use nix` does not work.
@@ -31,11 +46,17 @@ pkgs.mkShell {
     # nix-shell, you don't need this.
     export SHELL="${pkgs.bashInteractive}/bin/bash";
 
-    alias newlorri="(cd $ROOT; cargo run -- shell)"
+    alias newlorri="(cd $LORRI_ROOT; cargo run -- shell)"
     alias ci="ci_check"
 
+    # this is mirrored from .envrc to make available from nix-shell
+    # pick up cargo plugins
+    export PATH="$LORRI_ROOT/.cargo/bin:$PATH"
+    # watch the output to add lorri once it's built
+    export PATH="$LORRI_ROOT/target/debug:$PATH"
+
     function ci_check() (
-      cd "$ROOT";
+      cd "$LORRI_ROOT";
 
       set -x
 
@@ -79,4 +100,7 @@ pkgs.mkShell {
     # Cargo wasn't able to find CF during a `cargo test` run on Darwin.
     export NIX_LDFLAGS="-F${pkgs.darwin.apple_sdk.frameworks.CoreFoundation}/Library/Frameworks -framework CoreFoundation $NIX_LDFLAGS"
   '');
+
+  preferLocalBuild = true;
+  buildUseSubstitutes = false;
 }

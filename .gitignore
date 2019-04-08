@@ -1,5 +1,10 @@
+# `cargo build` dir
 /target
+# we set this as CARGO_INSTALL_ROOT
+/.cargo
+# lorri cache dir
+.lorri
+# nix-build symlink
+result
 **/*.rs.bk
 .bash_history
-.lorri
-result
