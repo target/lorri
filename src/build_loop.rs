@@ -76,7 +76,7 @@ impl BuildLoop {
                     tx.send(Event::Completed(result))
                         .expect("Failed to notify the results of a completed evaluation");
                 }
-                Err(SingleBuildError::Recoverable(failure)) => {
+                Err(BuildError::Recoverable(failure)) => {
                     tx.send(Event::Failure(failure))
                         .expect("Failed to notify the results of a failed evaluation");
                 }
@@ -89,7 +89,7 @@ impl BuildLoop {
         }
     }
 
-    fn once(&mut self) -> Result<BuildResults, SingleBuildError> {
+    fn once(&mut self) -> Result<BuildResults, BuildError> {
         let build = builder::run(&self.nix_root_path)?;
 
         let paths = build.paths;
@@ -123,7 +123,7 @@ impl BuildLoop {
         if build.exec_result.success() {
             Ok(event)
         } else {
-            Err(SingleBuildError::Recoverable(BuildExitFailure {
+            Err(BuildError::Recoverable(BuildExitFailure {
                 log_lines: build.log_lines,
             }))
         }
@@ -131,7 +131,7 @@ impl BuildLoop {
 }
 
 #[derive(Debug)]
-enum SingleBuildError {
+enum BuildError {
     Recoverable(BuildExitFailure),
     Unrecoverable(UnrecoverableErrors),
 }
@@ -142,18 +142,18 @@ enum UnrecoverableErrors {
     AddRoot(roots::AddRootError),
     Notify(notify::Error),
 }
-impl From<builder::Error> for SingleBuildError {
-    fn from(e: builder::Error) -> SingleBuildError {
-        SingleBuildError::Unrecoverable(UnrecoverableErrors::Build(e))
+impl From<builder::Error> for BuildError {
+    fn from(e: builder::Error) -> BuildError {
+        BuildError::Unrecoverable(UnrecoverableErrors::Build(e))
     }
 }
-impl From<roots::AddRootError> for SingleBuildError {
-    fn from(e: roots::AddRootError) -> SingleBuildError {
-        SingleBuildError::Unrecoverable(UnrecoverableErrors::AddRoot(e))
+impl From<roots::AddRootError> for BuildError {
+    fn from(e: roots::AddRootError) -> BuildError {
+        BuildError::Unrecoverable(UnrecoverableErrors::AddRoot(e))
     }
 }
-impl From<notify::Error> for SingleBuildError {
-    fn from(e: notify::Error) -> SingleBuildError {
-        SingleBuildError::Unrecoverable(UnrecoverableErrors::Notify(e))
+impl From<notify::Error> for BuildError {
+    fn from(e: notify::Error) -> BuildError {
+        BuildError::Unrecoverable(UnrecoverableErrors::Notify(e))
     }
 }
