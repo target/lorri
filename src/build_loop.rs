@@ -72,6 +72,7 @@ impl BuildLoop {
     pub fn forever(&mut self) {
         loop {
             let mut go = || -> Result<(), SingleBuildError> {
+                self.tx.send(Event::Started)?;
                 let event = self.once()?;
                 self.tx.send(event)?;
                 self.watch.wait_for_change().expect("Waiter exited");
@@ -85,7 +86,6 @@ impl BuildLoop {
     }
 
     fn once(&mut self) -> Result<Event, SingleBuildError> {
-        self.tx.send(Event::Started)?;
         let build = builder::run(&self.nix_root_path)?;
 
         let paths = build.paths;
