@@ -1,4 +1,5 @@
 //! TODO
+use crate::project::Project;
 use std::env;
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
@@ -17,6 +18,12 @@ impl Roots {
     /// `id` is a unique identifier for this project's checkout.
     pub fn new(root_dir: PathBuf, id: String) -> Roots {
         Roots { root_dir, id }
+    }
+
+    /// Construct a Roots struct based on a project's GC root directory
+    /// and ID.
+    pub fn from_project(project: &Project) -> Result<Roots, std::io::Error> {
+        Ok(Roots::new(project.gc_root_path()?, project.id()))
     }
 
     /// Store a new root under name
