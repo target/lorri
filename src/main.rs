@@ -24,7 +24,7 @@ fn main() {
 
         (Command::Build, Ok(project)) => build::main(&project),
 
-        (Command::Direnv, Ok(project)) => direnv::main(project),
+        (Command::Direnv, Ok(project)) => direnv::main(&project),
 
         (Command::Shell, Ok(project)) => shell::main(project),
 
