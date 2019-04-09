@@ -41,34 +41,17 @@ pub fn main(project: Project) -> OpResult {
 
     println!("Waiting for the builder to produce a drv for the 'shell' attribute.");
 
-    let (initial_result, mut build_loop) = initial_build_thread.join().unwrap();
+    let (initial_result, mut build_loop) = initial_build_thread
+        .join()
+        .expect("Failed to join the initial evaluation thread");
 
-    let build_thread = {
-        thread::spawn(move || {
-            build_loop.forever(tx);
-        })
-    };
-
-    // Log all failing builds, return an iterator of the first
-    // build that succeeds.
-    let first_build_opt = rx.iter().find_map(|mes| match mes {
-        Event::Completed(res) => Some(res),
-        s @ Event::Started => {
-            print_build_event(&s);
-            None
-        }
-        f @ Event::Failure(_) => {
-            print_build_event(&f);
-            None
-        }
-    });
-
-    let first_build = match first_build_opt {
-        Some(e) => e,
-        None => {
+    let first_build = match initial_result {
+        Ok(e) => e,
+        Err(e) => {
             return ExitError::errmsg(format!(
-                "Build for {} never produced a successful result",
-                root_nix_file.display()
+                "Build for {} never produced a successful result: {:#?}",
+                root_nix_file.display(),
+                e
             ));
         }
     };
@@ -79,6 +62,12 @@ pub fn main(project: Project) -> OpResult {
         .named_drvs
         .get("shell")
         .expect("Failed to start the shell: no \"shell\" derivation found");
+
+    let build_thread = {
+        thread::spawn(move || {
+            build_loop.forever(tx);
+        })
+    };
 
     // Move the channel to a new thread to log all remaining builds.
     let msg_handler_thread = thread::spawn(move || {
