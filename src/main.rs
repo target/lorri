@@ -53,9 +53,18 @@ You can use the following minimal `shell.nix` to get started:
         )),
     };
 
-    if let Err(err) = result {
-        eprintln!("{}", err.message());
-        std::process::exit(err.exitcode())
+    match result {
+        Err(err) => {
+            eprintln!("{}", err.message());
+            std::process::exit(err.exitcode());
+        }
+        Ok(Some(msg)) => {
+            println!("{}", msg);
+            std::process::exit(0);
+        }
+        Ok(None) => {
+            std::process::exit(0);
+        }
     }
 }
 
