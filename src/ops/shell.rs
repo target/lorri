@@ -84,8 +84,8 @@ pub fn main(project: Project) -> OpResult {
         .status()
         .expect("Failed to execute bash");
 
-    build_thread.join().unwrap();
-    msg_handler_thread.join().unwrap();
+    drop(build_thread);
+    drop(msg_handler_thread);
 
     Ok(())
 }
