@@ -1,11 +1,14 @@
 { pkgs ? import ./nix/nixpkgs.nix { enableMozillaOverlay = true; } }:
+let
+  rustChannel = pkgs.latest.rustChannels.stable;
+in
 pkgs.mkShell rec {
   name = "lorri";
   buildInputs = [
     # This rust comes from the Mozilla rust overlay so we can
     # get Clippy. Not suitable for production builds. See
     # ./nix/nixpkgs.nix for more details.
-    pkgs.latest.rustChannels.stable.rust
+    rustChannel.rust
     pkgs.bashInteractive
     pkgs.git
   ] ++
@@ -30,6 +33,11 @@ pkgs.mkShell rec {
 
   # Enable printing backtraces for rust binaries
   RUST_BACKTRACE = 1;
+  # Needed for racer “jump to definition” editor support
+  # In Emacs with `racer-mode`, you need to set
+  # `racer-rust-src-path` to `nil` for it to pick
+  # up the environment variable with `direnv`.
+  RUST_SRC_PATH = "${rustChannel.rust-src}/lib/rustlib/src/rust/src/";
   # Set up a local directory to install binaries in
   CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
 
