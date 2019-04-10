@@ -13,11 +13,11 @@ pub fn main(project: &Project) -> OpResult {
     let (tx, rx) = channel();
     let roots = Roots::new(project.gc_root_path().unwrap(), project.id());
 
-    let mut build_loop = BuildLoop::new(project.expression(), roots, tx);
+    let mut build_loop = BuildLoop::new(project.expression(), roots);
 
     let build_thread = {
         thread::spawn(move || {
-            build_loop.forever();
+            build_loop.forever(tx);
         })
     };
 

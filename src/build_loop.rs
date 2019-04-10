@@ -9,7 +9,7 @@ use crate::roots::Roots;
 use crate::watch::Watch;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::mpsc::{SendError, Sender};
+use std::sync::mpsc::Sender;
 
 /// Builder events sent back over `BuildLoop.tx`.
 #[derive(Clone, Debug)]
@@ -46,8 +46,6 @@ pub struct BuildLoop {
     /// A nix source file which can be built
     nix_root_path: PathBuf,
     roots: Roots,
-    /// A channel that build results are sent back over
-    tx: Sender<Event>,
     /// Watches all input files for changes.
     /// As new input files are discovered, they are added to the watchlist.
     watch: Watch,
@@ -56,11 +54,10 @@ pub struct BuildLoop {
 impl BuildLoop {
     /// Instatiate a new BuildLoop. Uses an internal filesystem
     /// watching implementation.
-    pub fn new(nix_root_path: PathBuf, roots: Roots, tx: Sender<Event>) -> BuildLoop {
+    pub fn new(nix_root_path: PathBuf, roots: Roots) -> BuildLoop {
         BuildLoop {
             nix_root_path,
             roots,
-            tx,
             watch: Watch::init().expect("Failed to initialize watch"),
         }
     }
@@ -69,23 +66,34 @@ impl BuildLoop {
     /// Sends `Event`s over `Self.tx` once they happen.
     /// When new filesystem changes are detected while a build is
     /// still running, it is finished first before starting a new build.
-    pub fn forever(&mut self) {
+    pub fn forever(&mut self, tx: Sender<Event>) {
         loop {
-            let mut go = || -> Result<(), SingleBuildError> {
-                let event = self.once()?;
-                self.tx.send(event)?;
-                self.watch.wait_for_change().expect("Waiter exited");
-                Ok(())
-            };
-            match go() {
-                Err(err) => panic!("{}: {:?}", "Builder failed", err),
-                Ok(()) => {}
+            tx.send(Event::Started)
+                .expect("Failed to notify a started evaluation");
+
+            match self.once() {
+                Ok(result) => {
+                    tx.send(Event::Completed(result))
+                        .expect("Failed to notify the results of a completed evaluation");
+                }
+                Err(BuildError::Recoverable(failure)) => {
+                    tx.send(Event::Failure(failure))
+                        .expect("Failed to notify the results of a failed evaluation");
+                }
+                otherwise => {
+                    otherwise.unwrap();
+                }
             }
+
+            self.watch.wait_for_change().expect("Waiter exited");
         }
     }
 
-    fn once(&mut self) -> Result<Event, SingleBuildError> {
-        self.tx.send(Event::Started)?;
+    /// Execute a single build of the environment.
+    ///
+    /// This will create GC roots and expand the file watch list for
+    /// the evaluation.
+    pub fn once(&mut self) -> Result<BuildResults, BuildError> {
         let build = builder::run(&self.nix_root_path)?;
 
         let paths = build.paths;
@@ -116,40 +124,56 @@ impl BuildLoop {
         // add all new (reduced) nix sources to the input source watchlist
         self.watch.extend(&paths.into_iter().collect::<Vec<_>>())?;
 
-        Ok(if build.exec_result.success() {
-            Event::Completed(event)
+        if build.exec_result.success() {
+            Ok(event)
         } else {
-            Event::Failure(BuildExitFailure {
+            Err(BuildError::Recoverable(BuildExitFailure {
                 log_lines: build.log_lines,
-            })
-        })
+            }))
+        }
     }
 }
 
+/// Error classes returnable from a build.
+///
+/// Callers should probably exit on Unrecoverable errors, but retry
+/// with Recoverable errors.
 #[derive(Debug)]
-enum SingleBuildError {
+pub enum BuildError {
+    /// Recoverable errors are caused by failures to evaluate or build
+    /// the Nix expression itself.
+    Recoverable(BuildExitFailure),
+
+    /// Unrecoverable errors are anything else: a broken Nix,
+    /// permission problems, etc.
+    Unrecoverable(UnrecoverableErrors),
+}
+
+/// Unrecoverable errors due to internal failures of the plumbing.
+/// For example `exec` failing, permissions problems, kernel faults,
+/// etc.
+///
+/// See the corresponding Error struct documentation for further
+/// information.
+#[derive(Debug)]
+#[allow(missing_docs)]
+pub enum UnrecoverableErrors {
     Build(builder::Error),
     AddRoot(roots::AddRootError),
     Notify(notify::Error),
-    ChannelSend(SendError<Event>),
 }
-impl From<builder::Error> for SingleBuildError {
-    fn from(e: builder::Error) -> SingleBuildError {
-        SingleBuildError::Build(e)
+impl From<builder::Error> for BuildError {
+    fn from(e: builder::Error) -> BuildError {
+        BuildError::Unrecoverable(UnrecoverableErrors::Build(e))
     }
 }
-impl From<roots::AddRootError> for SingleBuildError {
-    fn from(e: roots::AddRootError) -> SingleBuildError {
-        SingleBuildError::AddRoot(e)
+impl From<roots::AddRootError> for BuildError {
+    fn from(e: roots::AddRootError) -> BuildError {
+        BuildError::Unrecoverable(UnrecoverableErrors::AddRoot(e))
     }
 }
-impl From<notify::Error> for SingleBuildError {
-    fn from(e: notify::Error) -> SingleBuildError {
-        SingleBuildError::Notify(e)
-    }
-}
-impl From<SendError<Event>> for SingleBuildError {
-    fn from(e: SendError<Event>) -> SingleBuildError {
-        SingleBuildError::ChannelSend(e)
+impl From<notify::Error> for BuildError {
+    fn from(e: notify::Error) -> BuildError {
+        BuildError::Unrecoverable(UnrecoverableErrors::Notify(e))
     }
 }
