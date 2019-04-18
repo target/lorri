@@ -11,6 +11,7 @@ pkgs.mkShell rec {
     rustChannel.rust
     pkgs.bashInteractive
     pkgs.git
+    pkgs.direnv
   ] ++
   pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
     pkgs.darwin.Security
@@ -40,6 +41,8 @@ pkgs.mkShell rec {
   RUST_SRC_PATH = "${rustChannel.rust-src}/lib/rustlib/src/rust/src/";
   # Set up a local directory to install binaries in
   CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
+
+  COREUTILS = "${pkgs.coreutils}";
 
   # Executed when entering `nix-shell`
   shellHook = ''

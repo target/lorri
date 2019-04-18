@@ -35,6 +35,9 @@ pub fn run(root_nix_file: &PathBuf) -> Result<Info, Error> {
             include_str!("./logged-evaluation.nix"),
             "--no-out-link",
             "--arg",
+            "coreutils",
+            env!("COREUTILS"),
+            "--arg",
             "src",
         ])
         .arg(root_nix_file)

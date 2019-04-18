@@ -1,7 +1,5 @@
-{ src }:
+{ src, coreutils }:
 let
-  nixConfig = import <nix/config.nix>;
-
   # using scopedImport, replace readDir and readFile with
   # implementations which will log files and paths they see.
   overrides = {
@@ -38,13 +36,13 @@ let
     name = "lorri-keep-env-hack-${drv.name}";
 
     origBuilder = drv.builder;
-    builder = builtins.storePath nixConfig.shell;
+    builder = "/bin/sh";
 
     origSystem = drv.system;
     system = builtins.currentSystem;
 
     origPATH = drv.PATH or "";
-    PATH = builtins.storePath nixConfig.coreutils;
+    PATH = "${coreutils}/bin";
 
     origArgs = drv.args or [];
     args = [ (builtins.toFile "lorri-keep-env-hack" ''
@@ -54,7 +52,7 @@ let
       export IN_NIX_SHELL=1
 
       # https://github.com/NixOS/nix/blob/92d08c02c84be34ec0df56ed718526c382845d1a/src/nix-build/nix-build.cc#
-      [ -e $stdenv/setup ] && source $stdenv/setup
+      [ -e $stdenv/setup ] && . $stdenv/setup
       export > $out
     '') ];
   });
