@@ -1,3 +1,18 @@
+<!-- This tutorial’s contents can be automatically checked with mdsh,
+(https://github.com/zimbatm/mdsh). Lines that start with `$ <command>`
+are executed and their output inserted into a code block.
+We put “hidden” commands that are not relevant to the tutorial into
+HTML comments like this one, they should be skipped while following
+the tutorial.
+
+In lorri’s toplevel `shell.nix`, we provide a tool to run mdsh
+on this file in a sandboxed environment. Execute
+```
+$ env LORRI_REPO="$(pwd)/.. lorri-mdsh-sandbox -i $(realpath ./README.md)
+```
+from the project root.
+-->
+
 # How to set up lorri with direnv
 
 After following this tutorial, you will have a working setup of
@@ -22,11 +37,11 @@ These are the major setup steps described below:
 First, clone the `lorri` repository and `cd` into the directory which
 contains this tutorial:
 
-```bash
+<!-- mdsh: We assume this is already checked out. -->
+```
 $ git clone https://github.com/target/lorri
 $ cd lorri/example
 ```
-
 
 ## Set up `direnv`
 
@@ -36,13 +51,12 @@ environment. You need at least version 2.19.2 of direnv.
 To install it into your local nix profile, use our provided pin of
 `nixpkgs`:
 
-```bash
-$ nix-env -f ../nix/nixpkgs.nix -i -A direnv
-…
-$ direnv --version
-2.19.2
-```
+`$ nix-env -f ../nix/nixpkgs.nix -i -A direnv`
 
+`$ direnv --version`
+```
+2.20.0
+```
 Then hook `direnv` into your shell by evaluating the output of
 
 ```bash
@@ -63,7 +77,7 @@ $ direnv hook <myshell>
   ```fish
   $ eval (direnv hook fish)
   ```
-
+  
 Add that command to your shell’s init file (`$HOME/.bashrc` for `bash`).
 
 If you are still in the `lorri/example` directory, you should now see
@@ -72,6 +86,15 @@ a warning message:
 ```
 direnv: error .envrc is blocked. Run `direnv allow` to approve its content.
 ```
+
+<!-- mdsh
+We check for the error, which is the next best thing to checking
+the shell hook.
+`$ direnv exec $PWD true 2>&1 | grep ".envrc is blocked"`
+```
+[31mdirenv: error .envrc is blocked. Run `direnv allow` to approve its content.[0m
+```
+-->
 
 `direnv` has picked up the `.envrc` file which exists in the
 `lorri/example` directory. `direnv` uses `.envrc` files to determine
@@ -92,12 +115,22 @@ builds the new version.
 Install `lorri` by following the instructions [in the
 README](../README.md#install).
 
+<!-- mdsh
+`$ nix-env -if ../default.nix`
+
+-->
+
 Now that you have installed `lorri`, let’s take it for a spin.
 Start up the `lorri` watcher:
 
 ```bash
 $ lorri watch
 ```
+
+<!-- mdsh
+`$ lorri watch --once`
+
+-->
 
 As you can see, the watcher starts a build, which finishes after a
 short while.
@@ -114,6 +147,13 @@ mkShell {
 }
 ```
 
+<!-- mdsh
+`$ sed -ie "/buildInputs/a hello" shell.nix`
+
+`$ lorri watch --once`
+
+-->
+
 As soon as you save, `lorri` starts building the changes.
 
 
@@ -125,9 +165,7 @@ into `lorri/example`.
 You should see the direnv warning message again (`error .envrc is
 blocked …`). Type
 
-```bash
-$ direnv allow
-```
+`$ direnv allow`
 
 You should see a bunch of environment variable names prefixed by
 `+/-/~`, like `+shell +stdenv +system ~PATH`. This means `direnv` has
@@ -139,6 +177,13 @@ $ hello
 Hello, world.
 ```
 
+<!-- mdsh
+`$ direnv exec $PWD hello`
+```
+Hello, world!
+```
+-->
+
 Now, remove the `hello` package from your `shell.nix`:
 
 ```nix
@@ -149,6 +194,13 @@ mkShell {
 }
 ```
 
+<!-- mdsh
+`$ sed -ie "/hello/d" shell.nix`
+
+`$ lorri watch --once`
+
+-->
+
 After saving, `lorri` re-builds the file, notifies `direnv`,
 which reloads your environment after you hit enter to update
 your prompt. Now you see:
@@ -157,6 +209,13 @@ your prompt. Now you see:
 $ hello
 [127] Command not found.
 ```
+
+<!-- mdsh
+`$ direnv exec $PWD hello 2>&1 | grep 'executable file not found in $PATH'`
+```
+[31mdirenv: error executable file not found in $PATH[0m
+```
+-->
 
 Wonderful!
 
