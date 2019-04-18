@@ -1,12 +1,9 @@
 { enableMozillaOverlay ? false }:
 let
-  hostpkgs = import <nixpkgs> {};
-
   srcDef = builtins.fromJSON (builtins.readFile ./nixpkgs.json);
-  nixpkgs = hostpkgs.fetchFromGitHub {
-    owner = "NixOS";
-    repo = "nixpkgs";
-    inherit (srcDef) rev sha256;
+  nixpkgs = builtins.fetchTarball {
+    url = "https://github.com/NixOS/nixpkgs/archive/${srcDef.rev}.tar.gz";
+    sha256 = srcDef.sha256;
   };
 
 
@@ -27,5 +24,5 @@ let
     https://github.com/mozilla/nixpkgs-mozilla/archive/master.tar.gz
   );
 in import nixpkgs {
-  overlays = hostpkgs.lib.optional enableMozillaOverlay mozilla-overlay;
+  overlays = if enableMozillaOverlay then [ mozilla-overlay ] else [];
 }
