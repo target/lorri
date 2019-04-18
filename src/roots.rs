@@ -38,8 +38,14 @@ impl Roots {
 
         symlink(&store_path, &path).map_err(|e| AddRootError::symlink(e, &store_path, &path))?;
 
-        // this is bad.
-        let mut root = PathBuf::from("/nix/var/nix/gcroots/per-user");
+        let mut root = if let Ok(path) = env::var("NIX_STATE_DIR") {
+            PathBuf::from(path)
+        } else {
+            PathBuf::from("/nix/var/nix/")
+        };
+        root.push("gcroots");
+        root.push("per-user");
+
         // TODO: check on start
         root.push(env::var("USER").expect("env var 'USER' must be set"));
 
