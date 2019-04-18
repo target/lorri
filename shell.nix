@@ -99,7 +99,7 @@ pkgs.mkShell rec {
       cargotestexit=$?
 
       lorri_travis_fold cargo-fmt \
-        sh -c 'cargo fmt && git diff --exit-code'
+        cargo fmt -- --check
       cargofmtexit=$?
 
       RUSTFLAGS='-D warnings' \
