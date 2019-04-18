@@ -138,13 +138,13 @@ Other upgrade options are available, including upgrading from a
 local clone. See `lorri self-upgrade --help` for more details.
 
 
-# Evaluator + watch design
+## Evaluator + watch design
 
 The evaluator should eagerly reevaluate the Nix expressions as soon as
 anything material to their output changes. This takes place in a few
 stages.
 
-## Initial evaluation
+### Initial evaluation
 
 `builder::run()` instantiates (and builds) the Nix expression with
 `nix-build -vv`. The evaluator prints each imported Nix file, and
@@ -169,7 +169,7 @@ following rules:
 
 Initial testing collapses over 2,000 paths to just five.
 
-## Loop
+### Loop
 
 Each identified path is watched for changes with inotify (Linux) or
 fsevent (macOS). If the watched path is a directory, all of its
@@ -178,14 +178,14 @@ sub-directories are also watched for changes.
 Each new batch of change notifications triggers a fresh evaluation.
 Newly discovered paths are added to the watch list.
 
-## Garbage Collection Roots
+### Garbage Collection Roots
 
 lorri creates an indirect garbage collection root for each .drv in
 `$XDG_CACHE_HOME/lorri` (`~/.cache/lorri/` by default) each time it
 evaluates your project.
 
 
-## License & Copyright
+### License & Copyright
 
 Copyright 2019 Target
 License: Apache 2.0 (see [`LICENSE` file](./LICENSE))
