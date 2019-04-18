@@ -1,3 +1,13 @@
+<!-- This tutorial’s contents can be automatically checked with mdsh,
+(https://github.com/zimbatm/mdsh).
+
+Execute
+```
+$ env LORRI_REPO="$(pwd)" lorri-mdsh-sandbox -i $(realpath ./README.md)
+```
+to update.
+-->
+
 # lorri
 
 https://github.com/target/lorri
@@ -14,6 +24,39 @@ external dependencies, editor integration, and quick feedback.
 
 lorri supports Linux and macOS.
 
+`$ lorri --help`
+```
+lorri 0.1.0
+Graham Christensen <graham.christensen@target.com>
+Lorri is a build tool based on Nix, specialized to build small projects and monorepos.
+
+Usable both on the developer’s machine and on CI.
+
+USAGE:
+    lorri [FLAGS] <SUBCOMMAND>
+
+FLAGS:
+    -h, --help       
+            Prints help information
+
+    -V, --version    
+            Prints version information
+
+    -v, --verbose    
+            Increase debug logging, can be passed multiple times. Supports up to -vvvv, and this setting is ignored if
+            RUST_LOG is set.
+
+SUBCOMMANDS:
+    daemon          Start the multi-project daemon. Replaces `lorri watch`
+    direnv          Emit shell script intended to be evaluated as part of direnv's .envrc, via: `eval "$(lorri
+                    direnv)"`
+    help            Prints this message or the help of the given subcommand(s)
+    info            Show information about the current Lorri project
+    init            Bootstrap files for a new setup
+    ping_           (plumbing) Tell the lorri daemon to care about the current directory's project
+    self-upgrade    Upgrade Lorri
+    watch           Build `shell.nix` whenever an input file changes
+```
 ## Tutorial
 
 You can find the **lorri tutorial** [in the `./example`
@@ -21,6 +64,11 @@ directory](./example). After following this tutorial, you will have
 a working setup of `lorri`, `direnv`, and working basic editor
 integration into Emacs.
 
+`$ ls ./example`
+```
+README.md
+shell.nix
+```
 ## Support & Questions
 
 Please use the [issue tracker](https://github.com/target/lorri/issues)
@@ -32,8 +80,9 @@ times.
 
 ## How To Help
 
-All development on lorri happens on the Github repository, in the
-open. You can propose a change in an issue, then create a pull request
+All development on lorri happens on the
+[Github repository](https://github.com/target/lorri), in the open.
+You can propose a change in an issue, then create a pull request
 after some discussion. Some issues are marked with the “good first
 issue” label, those are a good place to start. Just remember to leave
 a comment when you start working on something.
@@ -52,6 +101,7 @@ system's `configuration.nix`. Then run `nixos-rebuild switch` to install and ena
 For Nix on Linux or macOS, you can install the needed version of
 direnv with:
 
+<!-- mdsh note: direnv setup tested in example/README.md -->
 ```
 $ curl -o direnv.nix -L https://github.com/target/lorri/raw/master/direnv/nix.nix
 $ nix-env -if ./direnv.nix
@@ -65,6 +115,7 @@ Enable direnv according to [its setup instructions][direnv-setup].
 
 Install with nix-env:
 
+<!-- mdsh note: lorri setup tested in example/README.md -->
 ```
 $ git clone -b rolling-release https://github.com/target/lorri.git
 $ cd lorri
@@ -72,6 +123,8 @@ $ nix-env -if .
 ```
 
 ## Usage
+
+<!-- mdsh note: lorri direnv usage tested in example/README.md -->
 
 Create a file named `.envrc` in your project's root with the contents:
 
@@ -179,6 +232,8 @@ Each new batch of change notifications triggers a fresh evaluation.
 Newly discovered paths are added to the watch list.
 
 ### Garbage Collection Roots
+
+<!-- mdsh TODO: check -->
 
 lorri creates an indirect garbage collection root for each .drv in
 `$XDG_CACHE_HOME/lorri` (`~/.cache/lorri/` by default) each time it

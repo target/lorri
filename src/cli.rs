@@ -5,8 +5,9 @@ use NixFile;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "lorri")]
-/// Global arguments which set global program state. Most
-/// arguments will be to sub-commands.
+/// Lorri is a build tool based on Nix, specialized to build small projects and monorepos.
+///
+/// Usable both on the developer’s machine and on CI.
 pub struct Arguments {
     /// Increase debug logging, can be passed multiple times.
     /// Supports up to -vvvv, and this setting is ignored if RUST_LOG
