@@ -47,25 +47,24 @@ impl Project {
     pub fn from_cwd() -> Result<Project, ProjectLoadError> {
         let shell_nix = locate_file::in_cwd("shell.nix")?;
 
-        Project::load(shell_nix, None)
+        Project::load(shell_nix, Project::default_gc_root_dir())
+    }
+
+    /// Default location in the user's XDG directories to keep
+    /// GC root pins
+    pub fn default_gc_root_dir() -> PathBuf {
+        let project_dir = ProjectDirs::from("com.github.target.lorri", "lorri", "lorri")
+            .expect("could not derive a gc root directory, please set XDG variables");
+
+        project_dir.cache_dir().to_path_buf()
     }
 
     /// Given a path to a shell.nix, construct a Project and a ProjectConfig.
-    pub fn load(
-        shell_nix: PathBuf,
-        gc_root_dir: Option<PathBuf>,
-    ) -> Result<Project, ProjectLoadError> {
+    pub fn load(shell_nix: PathBuf, gc_root: PathBuf) -> Result<Project, ProjectLoadError> {
         let project_root = shell_nix
             .parent()
             // only None if `shell_nix` is "/"
             .unwrap();
-
-        let gc_root = gc_root_dir.unwrap_or_else(|| {
-            let project_dir = ProjectDirs::from("com.github.target.lorri", "lorri", "lorri")
-                .expect("could not derive a gc root directory, please set XDG variables");
-
-            project_dir.cache_dir().to_path_buf()
-        });
 
         Ok(Project {
             project_root: project_root.to_path_buf(),
