@@ -57,7 +57,9 @@ $ curl -o direnv.nix -L https://github.com/target/lorri/raw/master/direnv/nix.ni
 $ nix-env -if ./direnv.nix
 ```
 
-then enable it according to [direnv's setup instructions][direnv-setup].
+### Enable direnv
+
+Enable direnv according to [its setup instructions][direnv-setup].
 
 ### Installing lorri
 
