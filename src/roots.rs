@@ -1,7 +1,7 @@
 //! TODO
 use std::env;
 use std::os::unix::fs::symlink;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Roots manipulation
 #[derive(Clone)]
@@ -25,30 +25,31 @@ impl Roots {
         path.push(name);
 
         debug!("Adding root from {:?} to {:?}", store_path, path,);
-        ignore_missing(std::fs::remove_file(&path))?;
-        symlink(&store_path, &path)?;
+        std::fs::remove_file(&path).or_else(|e| AddRootError::remove(e, &path))?;
+
+        std::fs::remove_file(&path).or_else(|e| AddRootError::remove(e, &path))?;
+
+        symlink(&store_path, &path).map_err(|e| AddRootError::symlink(e, &store_path, &path))?;
 
         // this is bad.
         let mut root = PathBuf::from("/nix/var/nix/gcroots/per-user");
+        // TODO: check on start
         root.push(env::var("USER").expect("env var 'USER' must be set"));
+
+        // The user directory sometimes doesn’t exist,
+        // but we can create it (it’s root but `rwxrwxrwx`)
+        if !root.is_dir() {
+            std::fs::create_dir_all(&root).map_err(|e| AddRootError::create_dir_all(e, &root))?;
+        }
+
         root.push(format!("{}-{}", self.id, name));
 
         debug!("Connecting root from {:?} to {:?}", path, root,);
-        ignore_missing(std::fs::remove_file(&root))?;
-        symlink(&path, &root)?;
+        std::fs::remove_file(&root).or_else(|e| AddRootError::remove(e, &root))?;
+
+        symlink(&path, &root).map_err(|e| AddRootError::symlink(e, &path, &root))?;
 
         Ok(path)
-    }
-}
-
-fn ignore_missing(err: Result<(), std::io::Error>) -> Result<(), std::io::Error> {
-    if let Err(e) = err {
-        match e.kind() {
-            std::io::ErrorKind::NotFound => Ok(()),
-            _ => Err(e),
-        }
-    } else {
-        Ok(())
     }
 }
 
@@ -56,14 +57,36 @@ fn ignore_missing(err: Result<(), std::io::Error>) -> Result<(), std::io::Error>
 #[derive(Debug)]
 pub enum AddRootError {
     /// IO-related errors
-    Io(std::io::Error),
-
-    /// Execution time errors
-    FailureToAdd,
+    Io(std::io::Error, String),
 }
 
-impl From<std::io::Error> for AddRootError {
-    fn from(e: std::io::Error) -> AddRootError {
-        AddRootError::Io(e)
+impl AddRootError {
+    /// Create a contextualized error around failing to create a directory
+    fn create_dir_all(err: std::io::Error, path: &Path) -> AddRootError {
+        AddRootError::Io(
+            err,
+            format!("Failed to recursively create directory {}", path.display()),
+        )
+    }
+
+    /// Ignore NotFound errors (it is after all a remove), and otherwise
+    /// return an error explaining a delete on path failed.
+    fn remove(err: std::io::Error, path: &Path) -> Result<(), AddRootError> {
+        if err.kind() == std::io::ErrorKind::NotFound {
+            Ok(())
+        } else {
+            Err(AddRootError::Io(
+                err,
+                format!("Failed to delete {}", path.display()),
+            ))
+        }
+    }
+
+    /// Return an error explaining what symlink failed
+    fn symlink(err: std::io::Error, src: &Path, dest: &Path) -> AddRootError {
+        AddRootError::Io(
+            err,
+            format!("Failed to symlink {} to {}", src.display(), dest.display()),
+        )
     }
 }
