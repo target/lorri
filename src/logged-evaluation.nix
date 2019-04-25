@@ -36,6 +36,9 @@ let
     name = "lorri-keep-env-hack-${drv.name}";
 
     origBuilder = drv.builder;
+    # We can do this because nix treats the string `"/bin/sh"` specifically
+    # and mounts the path w/ closure into its sandbox. It’s theoretically possible
+    # that a user compiles nix without that path, but we don’t support it.
     builder = "/bin/sh";
 
     origSystem = drv.system;
