@@ -1,17 +1,6 @@
 let
   pkgs = import <nixpkgs> {};
 
-  travisFold = ''
-    # fold a named ($1) command in travisCI
-    function travis_fold() {
-      name=$1
-      shift
-      echo "travis_fold:start:$name"
-      command "$@"
-      echo "travis_fold:end:$name"
-    }
-  '';
-
   hosts = {
     linux = {
       os = "linux";
@@ -31,7 +20,7 @@ let
       name = "nix-build";
       script = ''
         set -e
-        ${travisFold}
+        source ./.travis_fold.sh
         travis_fold lorri-nix-build \
           nix-build
         travis_fold lorri-install \
@@ -45,7 +34,7 @@ let
       name = "cargo build & linters";
       script = ''
         set -e
-        ${travisFold}
+        source ./.travis_fold.sh
         travis_fold ci_check \
           nix-shell --run ci_check
         travis_fold travis-yml-gen \

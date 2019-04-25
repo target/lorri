@@ -16,16 +16,7 @@
     "script": >
       set -e
 
-      # fold a named ($1) command in travisCI
-
-      function travis_fold() {
-        name=$1
-        shift
-        echo "travis_fold:start:$name"
-        command "$@"
-        echo "travis_fold:end:$name"
-      }
-
+      source ./.travis_fold.sh
 
       travis_fold ci_check \
         nix-shell --run ci_check
@@ -44,16 +35,7 @@
     "script": >
       set -e
 
-      # fold a named ($1) command in travisCI
-
-      function travis_fold() {
-        name=$1
-        shift
-        echo "travis_fold:start:$name"
-        command "$@"
-        echo "travis_fold:end:$name"
-      }
-
+      source ./.travis_fold.sh
 
       travis_fold ci_check \
         nix-shell --run ci_check
@@ -72,16 +54,7 @@
     "script": >
       set -e
 
-      # fold a named ($1) command in travisCI
-
-      function travis_fold() {
-        name=$1
-        shift
-        echo "travis_fold:start:$name"
-        command "$@"
-        echo "travis_fold:end:$name"
-      }
-
+      source ./.travis_fold.sh
 
       travis_fold lorri-nix-build \
         nix-build
@@ -100,16 +73,7 @@
     "script": >
       set -e
 
-      # fold a named ($1) command in travisCI
-
-      function travis_fold() {
-        name=$1
-        shift
-        echo "travis_fold:start:$name"
-        command "$@"
-        echo "travis_fold:end:$name"
-      }
-
+      source ./.travis_fold.sh
 
       travis_fold lorri-nix-build \
         nix-build
