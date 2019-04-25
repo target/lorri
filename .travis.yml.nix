@@ -38,6 +38,7 @@ let
   };
 
   jobs = {
+    git.depth = false;
     languge = "nix";
     matrix.include = [
       # Verifying lints on macOS and Linux ensures nix-shell works
