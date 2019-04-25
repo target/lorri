@@ -1,7 +1,7 @@
 //! Run a BuildLoop for `shell.nix`, watching for input file changes.
 //! Can be used together with `direnv`.
 use crate::build_loop::BuildLoop;
-use crate::ops::OpResult;
+use crate::ops::{ok, OpResult};
 use crate::project::Project;
 use crate::roots::Roots;
 use std::sync::mpsc::channel;
@@ -27,5 +27,5 @@ pub fn main(project: &Project) -> OpResult {
 
     build_thread.join().unwrap();
 
-    Ok(())
+    ok()
 }

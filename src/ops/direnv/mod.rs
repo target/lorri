@@ -3,13 +3,13 @@
 mod version;
 
 use self::version::{DirenvVersion, MIN_DIRENV_VERSION};
-use crate::ops::{ExitError, OpResult};
+use crate::ops::{ok, ok_msg, ExitError, OpResult};
 use crate::project::Project;
 use std::process::Command;
 
 /// See the documentation for lorri::cli::Command::Direnv for more
 /// details.
-pub fn main(project: Project) -> OpResult {
+pub fn main(project: &Project) -> OpResult {
     check_direnv_version()?;
 
     let mut shell_root = project.gc_root_path().unwrap();
@@ -19,7 +19,7 @@ pub fn main(project: Project) -> OpResult {
         return ExitError::errmsg("Please run 'lorri watch' before using direnv integration.");
     }
 
-    println!(
+    ok_msg(format!(
         r#"
 EVALUATION_ROOT="{}"
 
@@ -27,9 +27,7 @@ EVALUATION_ROOT="{}"
 "#,
         shell_root.display(),
         include_str!("envrc.bash")
-    );
-
-    Ok(())
+    ))
 }
 
 /// Checks `direnv version` against the minimal version lorri requires.
@@ -48,7 +46,7 @@ fn check_direnv_version() -> OpResult {
             version, MIN_DIRENV_VERSION
         ))
     } else {
-        Ok(())
+        ok()
     }
 }
 

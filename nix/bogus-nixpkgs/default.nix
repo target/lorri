@@ -12,8 +12,12 @@ let
   bogusPackage = bogusFO ./builder.sh;
 
 in {
-  mkShell = { buildInputs }:
-    bogusFO ./shell-builder.sh "shell";
+  mkShell = { name ? "shell", buildInputs ? [], env ? {} }: derivation
+    (env // {
+      inherit name;
+      builder = ./shell-builder.sh;
+      system = builtins.currentSystem;
+    });
 
   hello = bogusPackage "hello-1.0.0";
 

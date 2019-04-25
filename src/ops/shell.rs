@@ -2,7 +2,7 @@
 
 use crate::build::{BuildInstruction, NixBuild};
 use crate::build_loop::{BuildLoop, Event};
-use crate::ops::{ExitError, OpResult};
+use crate::ops::{ok, ExitError, OpResult};
 use crate::project::Project;
 use crate::roots::Roots;
 use std::process::Command;
@@ -87,7 +87,7 @@ pub fn main(project: Project) -> OpResult {
     drop(build_thread);
     drop(msg_handler_thread);
 
-    Ok(())
+    ok()
 }
 
 // Log all failing builds, return an iterator of the first

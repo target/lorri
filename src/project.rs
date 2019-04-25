@@ -16,6 +16,8 @@ pub struct Project {
 
     /// The root directory containing the project's files
     pub project_root: PathBuf,
+
+    gc_root: PathBuf,
 }
 
 /// Error conditions encountered when finding and loading a Lorri
@@ -45,11 +47,20 @@ impl Project {
     pub fn from_cwd() -> Result<Project, ProjectLoadError> {
         let shell_nix = locate_file::in_cwd("shell.nix")?;
 
-        Project::load(shell_nix)
+        Project::load(shell_nix, Project::default_gc_root_dir())
+    }
+
+    /// Default location in the user's XDG directories to keep
+    /// GC root pins
+    pub fn default_gc_root_dir() -> PathBuf {
+        let project_dir = ProjectDirs::from("com.github.target.lorri", "lorri", "lorri")
+            .expect("could not derive a gc root directory, please set XDG variables");
+
+        project_dir.cache_dir().to_path_buf()
     }
 
     /// Given a path to a shell.nix, construct a Project and a ProjectConfig.
-    pub fn load(shell_nix: PathBuf) -> Result<Project, ProjectLoadError> {
+    pub fn load(shell_nix: PathBuf, gc_root: PathBuf) -> Result<Project, ProjectLoadError> {
         let project_root = shell_nix
             .parent()
             // only None if `shell_nix` is "/"
@@ -58,6 +69,7 @@ impl Project {
         Ok(Project {
             project_root: project_root.to_path_buf(),
             shell_nix: shell_nix.clone(),
+            gc_root,
         })
     }
 
@@ -80,13 +92,13 @@ impl Project {
     /// Absolute path to the projects' gc root directory, for pinning
     /// build and evaluation products
     pub fn gc_root_path(&self) -> Result<PathBuf, std::io::Error> {
-        let pdirs = ProjectDirs::from("com.github.target.lorri", "lorri", "lorri")
-            .expect("could not derive a gc root directory, please set XDG variables");
+        let path = self.gc_root.join(self.name()).join("gc_root");
 
-        let mut path = pdirs.cache_dir().to_path_buf();
-        path.push(self.name());
-        path.push("gc_root");
-        std::fs::create_dir_all(&path)?;
+        if !path.is_dir() {
+            debug!("Creating all directories for GC roots in {:?}", path);
+            std::fs::create_dir_all(&path)?;
+        }
+
         Ok(path.to_path_buf())
     }
 

@@ -1,6 +1,6 @@
 //! The info callable is for printing
 
-use crate::ops::OpResult;
+use crate::ops::{ok, OpResult};
 use crate::project;
 use crate::VERSION_BUILD_REV;
 
@@ -16,5 +16,5 @@ pub fn main(project: &project::Project) -> OpResult {
     println!(" project name: {}", project.name());
     println!("   expression: {}", project.expression().display());
 
-    Ok(())
+    ok()
 }

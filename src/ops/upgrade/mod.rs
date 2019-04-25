@@ -68,8 +68,7 @@ pub fn main(upgrade_target: cli::UpgradeTo) -> OpResult {
                 .arg("--install")
                 .arg(build_result)
                 .status();
-            println!("{:?}", ret);
-            Ok(())
+            Ok(Some(format!("{:?}", ret)))
         }
         e => ExitError::errmsg(format!(
             "Failed to build the update! Please report a bug!\n\

@@ -13,6 +13,11 @@ mkdir -p $NIX_STATE_DIR
 export NIX_CONF_DIR=$TEST_ROOT/etc
 mkdir -p $NIX_CONF_DIR
 
+# https://github.com/NixOS/nix/blob/5112a33fb17f792ceb6d641738277cbbe6a58bfc/tests/common.sh.in#L15
+if [[ -n $NIX_STORE ]]; then
+    export _NIX_TEST_NO_SANDBOX=1
+fi
+
 # Avoid "sqlite is busy" errors in the single-user build mode
 echo 'use-sqlite-wal = false' > $NIX_CONF_DIR/nix.conf
 echo 'sandbox = false' >> $NIX_CONF_DIR/nix.conf

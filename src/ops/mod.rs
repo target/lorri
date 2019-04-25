@@ -18,7 +18,23 @@ pub struct ExitError {
 }
 
 /// Final result from a CLI operation
-pub type OpResult = Result<(), ExitError>;
+pub type OpResult = Result<Option<String>, ExitError>;
+
+/// Return an OpResult with a final message to print before exit 0
+/// Note, the final message is possibly intended to be consumed
+/// by automated tests.
+pub fn ok_msg<T>(message: T) -> OpResult
+where
+    T: Into<String>,
+{
+    Ok(Some(message.into()))
+}
+
+/// Return an OpResult with no message to be printed, producing
+/// a silent exit 0
+pub fn ok() -> OpResult {
+    Ok(None)
+}
 
 impl ExitError {
     /// Exit 1 with an exit message

@@ -15,16 +15,25 @@ pkgs.rustPlatform.buildRustPackage rec {
   cargoSha256 = "04v9k81rvnv3n3n5s1jwqxgq1sw83iim322ki28q1qp5m5z7canv";
 
   NIX_PATH = "nixpkgs=${./nix/bogus-nixpkgs}";
+  COREUTILS = pkgs.coreutils;
+  USER = "bogus";
 
   nativeBuildInputs = [ ];
-  buildInputs = [ pkgs.nix ] ++ pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
-    pkgs.darwin.cf-private
-    pkgs.darwin.Security
-    pkgs.darwin.apple_sdk.frameworks.CoreServices
-  ];
+  buildInputs = [ pkgs.nix pkgs.direnv pkgs.which ] ++
+    pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
+      pkgs.darwin.cf-private
+      pkgs.darwin.Security
+      pkgs.darwin.apple_sdk.frameworks.CoreServices
+    ];
 
-  preCheck = ''
+  preConfigure = ''
     . ${./nix/pre-check.sh}
+
+    # Do an immediate, light-weight test to ensure logged-evaluation
+    # is valid, prior to doing expensive compilations.
+    nix-build --show-trace ./src/logged-evaluation.nix \
+      --arg src ./tests/direnv/basic/shell.nix \
+      --arg coreutils "$COREUTILS" --no-out-link
   '';
 
   # Darwin fails to build doctests with:
