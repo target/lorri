@@ -5,6 +5,9 @@ function travis_fold() {
     echo "travis_fold:start:$name"
     command "$@"
     status="$?"
-    echo "travis_fold:end:$name"
+    # don’t fold when there was an error
+    if [ "$status" -eq 0 ]; then
+        echo "travis_fold:end:$name"
+    fi
     return "$status"
 }
