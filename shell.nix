@@ -68,17 +68,19 @@ pkgs.mkShell rec {
 
     function ci_check() (
       cd "$LORRI_ROOT";
+      source ./.travis_fold.sh
 
       set -x
 
-      cargo test
+      travis_fold cargo-test cargo test
       cargotestexit=$?
 
-      cargo fmt
-      git diff --exit-code
+      travis_fold cargo-fmt \
+        sh -c 'cargo fmt && git diff --exit-code'
       cargofmtexit=$?
 
-      RUSTFLAGS='-D warnings' cargo clippy
+      RUSTFLAGS='-D warnings' \
+        travis_fold cargo-clippy cargo clippy
       cargoclippyexit=$?
 
       set +x

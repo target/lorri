@@ -20,9 +20,13 @@ let
       name = "nix-build";
       script = ''
         set -e
-        nix-build
-        nix-env -i ./result
-        lorri self-upgrade local $(pwd)
+        source ./.travis_fold.sh
+        travis_fold lorri-nix-build \
+          nix-build
+        travis_fold lorri-install \
+          nix-env -i ./result
+        travis_fold lorri-self-upgrade \
+          lorri self-upgrade local $(pwd)
       '';
     };
 
@@ -30,9 +34,13 @@ let
       name = "cargo build & linters";
       script = ''
         set -e
-        nix-shell --run ci_check
-        cat $(nix-build ./.travis.yml.nix --no-out-link) > .travis.yml
-        git diff -q ./.travis.yml
+        source ./.travis_fold.sh
+        travis_fold ci_check \
+          nix-shell --quiet --run ci_check
+        travis_fold travis-yml-gen \
+          cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
+        travis_fold travis-yml-idempotent \
+          git diff -q ./.travis.yml
       '';
     };
   };
@@ -56,5 +64,5 @@ in pkgs.runCommand "travis.yml" {
   jobs = builtins.toJSON jobs;
 }
 ''
-  remarshal -if json -i $jobsPath -of yaml -o $out
+  remarshal -if json -i $jobsPath -of yaml -o $out --yaml-style ">"
 ''
