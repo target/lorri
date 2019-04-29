@@ -24,6 +24,10 @@ pkgs.mkShell rec {
     pkgs.direnv
     pkgs.shellcheck
     pkgs.carnix
+
+    # To ensure we always have a compatible nix in our shells.
+    # Travis doesn’t know `nix-env` otherwise.
+    pkgs.nix
   ] ++
   pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
     pkgs.darwin.Security
