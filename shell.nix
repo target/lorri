@@ -25,6 +25,10 @@ pkgs.mkShell rec {
     pkgs.shellcheck
     pkgs.carnix
     pkgs.nix-prefetch-git
+
+    # To ensure we always have a compatible nix in our shells.
+    # Travis doesn’t know `nix-env` otherwise.
+    pkgs.nix
   ] ++
   pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
     pkgs.darwin.Security
