@@ -19,6 +19,12 @@ pub fn main(project: &Project) -> OpResult {
         return ExitError::errmsg("Please run 'lorri watch' before using direnv integration.");
     }
 
+    if std::env::var("DIRENV_IN_ENVRC") != Ok(String::from("1")) {
+        eprintln!(
+            "Warning: 'lorri direnv' should be executed by direnv from within an `.envrc` file."
+        )
+    }
+
     ok_msg(format!(
         r#"
 EVALUATION_ROOT="{}"
