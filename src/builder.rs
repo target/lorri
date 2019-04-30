@@ -35,8 +35,8 @@ pub fn run(root_nix_file: &PathBuf) -> Result<Info, Error> {
             include_str!("./logged-evaluation.nix"),
             "--no-out-link",
             "--arg",
-            "coreutils",
-            env!("COREUTILS"),
+            "runTimeClosure",
+            crate::RUN_TIME_CLOSURE,
             "--arg",
             "src",
         ])

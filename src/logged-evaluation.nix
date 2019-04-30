@@ -1,5 +1,7 @@
-{ src, coreutils }:
+{ src, runTimeClosure }:
 let
+  runtimeCfg = import runTimeClosure;
+
   # using scopedImport, replace readDir and readFile with
   # implementations which will log files and paths they see.
   overrides = {
@@ -35,20 +37,20 @@ let
   keep-env-hack = drv: derivation (drv.drvAttrs // {
     name = "lorri-keep-env-hack-${drv.name}";
 
+    origExtraClosure = drv.extraClosure or [];
+    extraClosure = runtimeCfg.closure;
+
     origBuilder = drv.builder;
-    # We can do this because nix treats the string `"/bin/sh"` specifically
-    # and mounts the path w/ closure into its sandbox. It’s theoretically possible
-    # that a user compiles nix without that path, but we don’t support it.
-    builder = "/bin/sh";
+    builder = runtimeCfg.builder;
 
     origSystem = drv.system;
     system = builtins.currentSystem;
 
     origPATH = drv.PATH or "";
-    PATH = "${coreutils}/bin";
+    PATH = runtimeCfg.path;
 
     origArgs = drv.args or [];
-    args = [ (builtins.toFile "lorri-keep-env-hack" ''
+    args = [ "-e" (builtins.toFile "lorri-keep-env-hack" ''
       # Export IN_NIX_SHELL to trick various Nix tooling to export
       # shell-friendly variables
 

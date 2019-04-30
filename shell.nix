@@ -29,6 +29,9 @@ pkgs.mkShell rec {
   # Needed by the lorri build.rs to determine its own version
   # for the development repository (non-release), we set it to 1
   BUILD_REV_COUNT = 1;
+  # Needed by the lorri build.rs to access some tools used during
+  # the build of lorri's environment derivations.
+  RUN_TIME_CLOSURE = pkgs.callPackage ./nix/runtime.nix {};
 
   # Rust-specific
 
@@ -42,7 +45,6 @@ pkgs.mkShell rec {
   # Set up a local directory to install binaries in
   CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
 
-  COREUTILS = "${pkgs.coreutils}";
 
   # Executed when entering `nix-shell`
   shellHook = ''
