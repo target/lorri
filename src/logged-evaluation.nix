@@ -49,6 +49,13 @@ let
     origPATH = drv.PATH or "";
     PATH = runtimeCfg.path;
 
+    # The derivation we're examining may be multi-output. However,
+    # this builder only produces the «out» output. Not specifying a
+    # single output means we would fail to start a shell for those
+    # projects.
+    origOutputs = drv.outputs or [];
+    outputs = [ "out" ];
+
     origArgs = drv.args or [];
     args = [ "-e" (builtins.toFile "lorri-keep-env-hack" ''
       # Export IN_NIX_SHELL to trick various Nix tooling to export
