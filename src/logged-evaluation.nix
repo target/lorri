@@ -58,6 +58,8 @@ let
 
     origArgs = drv.args or [];
     args = [ "-e" (builtins.toFile "lorri-keep-env-hack" ''
+      mkdir -p "$out"
+
       # Export IN_NIX_SHELL to trick various Nix tooling to export
       # shell-friendly variables
 
@@ -72,7 +74,7 @@ let
        runHook shellHook;
       fi;
 
-      export > $out
+      export > $out/bash-export
     '') ];
   });
 

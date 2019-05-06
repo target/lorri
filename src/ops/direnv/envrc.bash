@@ -60,6 +60,6 @@ function declare() {
 }
 
 export IN_NIX_SHELL=1
-. "$EVALUATION_ROOT"
+. "$EVALUATION_ROOT/bash-export"
 
 unset declare
