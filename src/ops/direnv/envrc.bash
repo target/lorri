@@ -10,8 +10,13 @@ function declare() {
     function prepend() {
         varname=$1 # example: varname might contain the string "PATH"
 
-        # drop off the varname, so the remaining arguments are the
-        # arguments to export
+        # drop off the varname
+        shift
+
+        separator=$1 # example: separator would usually be the string ":"
+
+        # drop off the separator argument, so the remaining arguments
+        # are the arguments to export
         shift
 
         # set $original to the contents of the the variable $varname
@@ -23,7 +28,7 @@ function declare() {
 
         # re-set $varname's variable to the contents of varname's
         # reference, plus the current (updated on the export) contents.
-        eval $varname=\$$varname:$original
+        eval $varname=\$$varname$separator$original
     }
 
     # Some variables require special handling.
@@ -36,7 +41,7 @@ function declare() {
         "USER="*) punt;;
         "LOGNAME="*) punt;;
         "DISPLAY="*) punt;;
-        "PATH="*) prepend "PATH" "$@";;
+        "PATH="*) prepend "PATH" ":" "$@";;
         "TERM="*) punt;;
         "IN_NIX_SHELL="*) punt;;
         "TZ="*) punt;;
