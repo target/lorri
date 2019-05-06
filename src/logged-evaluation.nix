@@ -59,6 +59,7 @@ let
     origArgs = drv.args or [];
     args = [ "-e" (builtins.toFile "lorri-keep-env-hack" ''
       mkdir -p "$out"
+      touch "$out/varmap"
 
       # Export IN_NIX_SHELL to trick various Nix tooling to export
       # shell-friendly variables
@@ -67,6 +68,37 @@ let
 
       # https://github.com/NixOS/nix/blob/92d08c02c84be34ec0df56ed718526c382845d1a/src/nix-build/nix-build.cc#
       [ -e $stdenv/setup ] && . $stdenv/setup
+
+      if declare -f addToSearchPathWithCustomDelimiter > /dev/null 2>&1 ; then
+        # 1. Fetch the function body's definition using `head` and `tail`
+        # 2. Define our own version of the function, which
+        # 3. adds to the `varmap` file the arguments, and
+        # 4. calls the original function's body
+        #
+        # For example on how the `head | tail` bits work:
+        #
+        #     $ foo() { echo foo; }
+        #
+        #     $ declare -f foo
+        #     foo ()
+        #     {
+        #         echo foo
+        #     }
+        #
+        #     $ declare -f foo | head -n-1 | tail -n+3
+        #         echo foo
+        #
+        # While yes it is dirty, we have a precisely pinned version of
+        # bash which we can count on. Thus, if there is a problem or
+        # change in output, it will occur in CI, and not on a customer
+        # machine.
+
+        lorri_addToSearchPathWithCustomDelimiter="$(declare -f addToSearchPathWithCustomDelimiter | head -n-1 | tail -n+3)"
+        addToSearchPathWithCustomDelimiter() {
+          printf 'append\t%s\t%s\n' "$2" "$1" >> "$out/varmap"
+          eval "$lorri_addToSearchPathWithCustomDelimiter"
+        }
+      fi
 
       # target/lorri#23
       # https://github.com/NixOS/nix/blob/bfc6bdf222d00d3cb1b0e168a5d55d1a7c9cdb72/src/nix-build/nix-build.cc#L424

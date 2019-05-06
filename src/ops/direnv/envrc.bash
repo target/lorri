@@ -31,6 +31,30 @@ function declare() {
         eval $varname=\$$varname$separator$original
     }
 
+    function append() {
+        varname=$1 # example: varname might contain the string "PATH"
+
+        # drop off the varname
+        shift
+
+        separator=$1 # example: separator would usually be the string ":"
+        # drop off the separator argument, so the remaining arguments
+        # are the arguments to export
+        shift
+
+
+        # set $original to the contents of the the variable $varname
+        # refers to
+        eval original=\$$varname
+
+        # effectfully accept the new variable's contents
+        export "$@";
+
+        # re-set $varname's variable to the contents of varname's
+        # reference, plus the current (updated on the export) contents.
+        eval $varname=$original$separator\$$varname
+    }
+
     # Some variables require special handling.
     #
     # - punt:    don't set the variable at all
@@ -59,7 +83,29 @@ function declare() {
         "NIX_ENFORCE_PURITY="*) punt;;
 
         *)
-            export "$@"
+            IFS="="
+            varargs=($1)
+            handled=0
+            while read line; do
+                 IFS=$'\t'
+                 args=($line)
+                 unset IFS
+
+                 instruction=${args[0]}
+                 variable=${args[1]}
+                 separator=${args[2]}
+
+                 if [ "$variable" == "${varargs[0]}" ]; then
+                     if [ "$instruction" == "append" ]; then
+                         append "$variable" "$separator" "$@"
+                         handled=1
+                         break
+                     fi
+                 fi
+            done < "$EVALUATION_ROOT/varmap"
+            if [ $handled -eq 0 ]; then
+                export "$@"
+            fi
             ;;
     esac
 }
