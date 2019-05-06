@@ -10,6 +10,6 @@ fn bug23_gopath() {
     let env = testcase.get_direnv_variables();
     assert_eq!(
         env.get_env("GOPATH"),
-        DirenvValue::Value("my-neat-go-path:/bogus/bug-23/gopath")
+        DirenvValue::Value("my-neat-go-path:/tmp/foo/bar")
     );
 }

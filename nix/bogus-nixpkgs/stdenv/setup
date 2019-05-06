@@ -71,3 +71,13 @@ _eval() {
     fi
     # `run*Hook` reenables `set -u`
 }
+
+# This is from https://github.com/NixOS/nixpkgs/blob/e13808f6dee2d4538cfecb15636256d6703b9fc1/pkgs/stdenv/generic/setup.sh#L176
+addToSearchPathWithCustomDelimiter() {
+    local delimiter="$1"
+    local varName="$2"
+    local dir="$3"
+    if [ -d "$dir" ]; then
+        export "${varName}=${!varName:+${!varName}${delimiter}}${dir}"
+    fi
+}

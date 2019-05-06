@@ -2,7 +2,8 @@ with import ../../../nix/bogus-nixpkgs {};
 mkShell {
   env = {
     shellHook = ''
-      export GOPATH=$GOPATH:/bogus/bug-23/gopath
+      mkdir -p /tmp/foo/bar
+      addToSearchPathWithCustomDelimiter : GOPATH /tmp/foo/bar
     '';
   };
 }
