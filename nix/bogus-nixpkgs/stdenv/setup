@@ -1,0 +1,73 @@
+# help.
+
+# let's just use Nixpkgs, lol.
+
+# This is from https://github.com/NixOS/nixpkgs/blob/e13808f6dee2d4538cfecb15636256d6703b9fc1/pkgs/stdenv/generic/setup.sh#L19
+# Run all hooks with the specified name in the order in which they
+# were added, stopping if any fails (returns a non-zero exit
+# code). The hooks for <hookName> are the shell function or variable
+# <hookName>, and the values of the shell array ‘<hookName>Hooks’.
+runHook() {
+    local oldOpts="$(shopt -po nounset)"
+    set -u # May be called from elsewhere, so do `set -u`.
+
+    local hookName="$1"
+    shift
+    local hooksSlice="${hookName%Hook}Hooks[@]"
+
+    local hook
+    # Hack around old bash being bad and thinking empty arrays are
+    # undefined.
+    for hook in "_callImplicitHook 0 $hookName" ${!hooksSlice+"${!hooksSlice}"}; do
+        _eval "$hook" "$@"
+        set -u # To balance `_eval`
+    done
+
+    eval "${oldOpts}"
+    return 0
+}
+
+# This is from https://github.com/NixOS/nixpkgs/blob/e13808f6dee2d4538cfecb15636256d6703b9fc1/pkgs/stdenv/generic/setup.sh#L65
+# Run the named hook, either by calling the function with that name or
+# by evaluating the variable with that name. This allows convenient
+# setting of hooks both from Nix expressions (as attributes /
+# environment variables) and from shell scripts (as functions). If you
+# want to allow multiple hooks, use runHook instead.
+_callImplicitHook() {
+    set -u
+    local def="$1"
+    local hookName="$2"
+    case "$(type -t "$hookName")" in
+        (function|alias|builtin)
+            set +u
+            "$hookName";;
+        (file)
+            set +u
+            source "$hookName";;
+        (keyword) :;;
+        (*) if [ -z "${!hookName:-}" ]; then
+                return "$def";
+            else
+                set +u
+                eval "${!hookName}"
+            fi;;
+    esac
+    # `_eval` expects hook to need nounset disable and leave it
+    # disabled anyways, so Ok to to delegate. The alternative of a
+    # return trap is no good because it would affect nested returns.
+}
+
+# This is from https://github.com/NixOS/nixpkgs/blob/e13808f6dee2d4538cfecb15636256d6703b9fc1/pkgs/stdenv/generic/setup.sh#L95
+# A function wrapper around ‘eval’ that ensures that ‘return’ inside
+# hooks exits the hook, not the caller. Also will only pass args if
+# command can take them
+_eval() {
+    if [ "$(type -t "$1")" = function ]; then
+        set +u
+        "$@" # including args
+    else
+        set +u
+        eval "$1"
+    fi
+    # `run*Hook` reenables `set -u`
+}
