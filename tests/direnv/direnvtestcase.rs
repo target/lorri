@@ -95,7 +95,7 @@ impl DirenvTestCase {
 /// so the value type is `Option<String>`. This makes `.get()`
 /// operations clunky, so be prepared to check for `Some(None)` and
 /// `Some(Some("val"))`.
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct DirenvEnv(HashMap<String, Option<String>>);
 
 impl DirenvEnv {
