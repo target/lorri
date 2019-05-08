@@ -11,11 +11,12 @@ pkgs.rustPlatform.buildRustPackage rec {
   inherit src;
 
   BUILD_REV_COUNT = src.revCount or 1;
+  RUN_TIME_CLOSURE = pkgs.callPackage ./nix/runtime.nix {};
 
   cargoSha256 = "04v9k81rvnv3n3n5s1jwqxgq1sw83iim322ki28q1qp5m5z7canv";
 
   NIX_PATH = "nixpkgs=${./nix/bogus-nixpkgs}";
-  COREUTILS = pkgs.coreutils;
+
   USER = "bogus";
 
   nativeBuildInputs = [ ];
@@ -33,7 +34,8 @@ pkgs.rustPlatform.buildRustPackage rec {
     # is valid, prior to doing expensive compilations.
     nix-build --show-trace ./src/logged-evaluation.nix \
       --arg src ./tests/direnv/basic/shell.nix \
-      --arg coreutils "$COREUTILS" --no-out-link
+      --arg runTimeClosure "$RUN_TIME_CLOSURE" \
+      --no-out-link
   '';
 
   # Darwin fails to build doctests with:
