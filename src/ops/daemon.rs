@@ -78,22 +78,22 @@ impl Daemon {
 
     /// Start a build in a new thread
     pub fn start_build(&mut self, nix_file: PathBuf) {
-        // TODO: refactor Project/Roots stuff, a little bit too complicated
-        // TODO: all these clones are not needed
-        let project = Project::load(nix_file.clone(), Project::default_gc_root_dir()).unwrap();
-        // TODO
-        let roots = Roots::from_project(&project).unwrap();
-        let mut build_loop = BuildLoop::new(nix_file.clone(), roots);
+        let tx = self.build_events_tx.clone();
 
-        let build_thread = {
-            // cloning the tx means the daemon’s rx gets all
-            // messages from all builders.
-            let tx = self.build_events_tx.clone();
+        self.handlers.entry(nix_file.clone()).or_insert_with(|| {
+            // TODO: refactor Project/Roots stuff, a little bit too complicated
+            // TODO: all these clones are not needed
+            let project = Project::load(nix_file.clone(), Project::default_gc_root_dir()).unwrap();
+            // TODO
+            let roots = Roots::from_project(&project).unwrap();
+            let mut build_loop = BuildLoop::new(nix_file.clone(), roots);
+
             thread::spawn(move || {
+                // cloning the tx means the daemon’s rx gets all
+                // messages from all builders.
                 build_loop.forever(tx);
             })
-        };
-        let _ = self.handlers.insert(nix_file, build_thread);
+        });
     }
 }
 
