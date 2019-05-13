@@ -1,6 +1,4 @@
-# help.
-
-# let's just use Nixpkgs, lol.
+# Test-time implementation stubs for emulating Nixpkgs' setup hooks.
 
 # This is from https://github.com/NixOS/nixpkgs/blob/e13808f6dee2d4538cfecb15636256d6703b9fc1/pkgs/stdenv/generic/setup.sh#L19
 # Run all hooks with the specified name in the order in which they
