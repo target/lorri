@@ -1,5 +1,7 @@
 //! Talking to the `lorri` daemon / unix sockets.
 
+mod communicate;
+
 use std::io::Write;
 use std::marker::PhantomData;
 use std::os::unix::net::UnixStream;
