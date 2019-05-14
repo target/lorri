@@ -10,6 +10,7 @@ use lorri::{
 };
 use std::fs::File;
 use std::io::Write;
+use std::iter::FromIterator;
 use std::path::PathBuf;
 use std::process::Command;
 use tempfile::{tempdir, TempDir};
@@ -24,10 +25,8 @@ impl DirenvTestCase {
     pub fn new(name: &str) -> DirenvTestCase {
         let tempdir = tempdir().expect("tempfile::tempdir() failed us!");
 
-        let test_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests")
-            .join("integration")
-            .join(name);
+        let test_root =
+            PathBuf::from_iter(&[env!("CARGO_MANIFEST_DIR"), "tests", "integration", name]);
 
         let project =
             Project::load(test_root.join("shell.nix"), tempdir.path().to_path_buf()).unwrap();

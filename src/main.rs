@@ -4,7 +4,9 @@ extern crate structopt;
 extern crate log;
 
 use lorri::cli::{Arguments, Command};
-use lorri::ops::{build, daemon, direnv, info, init, ping, shell, upgrade, watch, ExitError, OpResult};
+use lorri::ops::{
+    build, daemon, direnv, info, init, ping, shell, upgrade, watch, ExitError, OpResult,
+};
 use lorri::project::{Project, ProjectLoadError};
 use std::env;
 use structopt::StructOpt;

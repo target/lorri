@@ -53,9 +53,10 @@ pub mod listener {
     pub struct Listener {
         /// Bound Unix socket.
         listener: UnixListener,
-        /// How long to wait for the client to send its
-        /// first message after opening the connection.
-        accept_timeout: Timeout,
+        // TODO: enable
+        // /// How long to wait for the client to send its
+        // /// first message after opening the connection.
+        // accept_timeout: Timeout,
     }
 
     /// Errors in `accept()`ing a new connection.
@@ -78,13 +79,17 @@ pub mod listener {
             Ok(Listener {
                 listener: UnixListener::bind(socket_path).map_err(BindError)?,
                 // TODO: set some timeout?
-                accept_timeout: None,
+                // accept_timeout: None,
             })
         }
 
         /// Accept a new connection on the socket,
         /// read the communication type and then delegate to the
         /// corresponding handling subroutine.
+        ///
+        /// The handler is start in a thread, the thread handle is returned.
+        ///
+        /// This method blocks until a client tries to connect.
         pub fn accept<F: 'static>(
             &self,
             handler: F,
