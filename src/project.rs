@@ -17,6 +17,7 @@ pub struct Project {
     /// The root directory containing the project's files
     pub project_root: PathBuf,
 
+    /// Directory, in which garbage collection roots will be stored
     gc_root: PathBuf,
 }
 

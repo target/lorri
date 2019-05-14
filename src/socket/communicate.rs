@@ -47,6 +47,7 @@ pub mod listener {
     #[derive(Debug, Serialize, Deserialize)]
     pub struct ConnectionAccepted();
 
+    // TODO: rename to Listener
     /// Server-side part of a socket transmission,
     /// listening for incoming messages.
     pub struct Listener {
