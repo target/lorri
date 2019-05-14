@@ -1,6 +1,6 @@
 //! Run a BuildLoop for `shell.nix`, watching for input file changes.
 //! Can be used together with `direnv`.
-use crate::ops::{ok, OpResult};
+use crate::ops::OpResult;
 
 use std::path::Path;
 
@@ -11,17 +11,18 @@ use crate::socket::{ReadError, ReadWriter};
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
 pub fn main() -> OpResult {
+    let listener = Listener::new(Path::new("/tmp/lorri-socket")).unwrap();
     // TODO: set up socket path, make it settable by the user
-    let handle = Listener::new(Path::new("/tmp/lorri-socket"))
-        .unwrap()
-        .accept(|unix_stream, comm_type| match comm_type {
-            CommunicationType::Ping => ping(ReadWriter::new(unix_stream)),
-        })
-        .unwrap();
+    loop {
+        let _handle = listener
+            .accept(|unix_stream, comm_type| match comm_type {
+                CommunicationType::Ping => ping(ReadWriter::new(unix_stream)),
+            })
+            .unwrap();
+    }
 
-    handle.join().unwrap();
-
-    ok()
+    // TODO: collect all handles and join at the end
+    // handle.join().unwrap();
 }
 
 /// Handle the ping

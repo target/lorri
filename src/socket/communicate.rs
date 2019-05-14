@@ -85,7 +85,7 @@ pub mod listener {
         /// read the communication type and then delegate to the
         /// corresponding handling subroutine.
         pub fn accept<F: 'static>(
-            self,
+            &self,
             handler: F,
         ) -> Result<std::thread::JoinHandle<()>, AcceptError>
         where
