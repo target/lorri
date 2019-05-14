@@ -1,9 +1,11 @@
 //! Ops are command-line callables.
 
 pub mod build;
+pub mod daemon;
 pub mod direnv;
 pub mod info;
 pub mod init;
+pub mod ping;
 pub mod shell;
 pub mod upgrade;
 pub mod watch;

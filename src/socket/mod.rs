@@ -1,6 +1,6 @@
 //! Talking to the `lorri` daemon / unix sockets.
 
-mod communicate;
+pub mod communicate;
 
 use std::io::Write;
 use std::marker::PhantomData;
@@ -22,6 +22,7 @@ pub struct ReadWriter<R, W> {
 pub type Timeout = Option<Duration>;
 
 /// Reading from a `ReadWriter<R, W>` failed.
+#[derive(Debug)]
 pub enum ReadError {
     /// Deserializing `R` failed.
     Deserialize(bincode::Error),
@@ -31,6 +32,7 @@ pub enum ReadError {
 
 // TODO: combine with ReadError?
 /// Writing to a `ReadWriter<R, W>` failed.
+#[derive(Debug)]
 pub enum WriteError {
     /// Serializing `W` failed.
     Serialize(bincode::Error),
@@ -45,6 +47,7 @@ impl From<bincode::Error> for WriteError {
 }
 
 /// Reading from or writing to a `ReadWriter<R, W>` failed.
+#[derive(Debug)]
 pub enum ReadWriteError {
     /// Reading failed.
     R(ReadError),
@@ -58,6 +61,7 @@ fn into_bincode_io_error<T>(res: std::io::Result<T>) -> bincode::Result<T> {
 }
 
 impl<R, W> ReadWriter<R, W> {
+    // TODO: &mut UnixStream
     /// Create from a unix socket.
     pub fn new(socket: UnixStream) -> ReadWriter<R, W> {
         ReadWriter {

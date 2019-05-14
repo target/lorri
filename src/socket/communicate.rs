@@ -10,8 +10,9 @@
 //! we support.
 
 use std::os::unix::net::UnixStream;
+use std::path::PathBuf;
 
-use crate::socket::{ReadError, ReadWriteError, ReadWriter, Timeout};
+use crate::socket::{ReadError, ReadWriteError, ReadWriter, Timeout, WriteError};
 
 /// Enum of all communication modes the lorri daemon supports.
 #[derive(Serialize, Deserialize)]
@@ -22,9 +23,10 @@ pub enum CommunicationType {
 
 /// Message sent by the client to ask the server to start
 /// watching `nix_file`. See `CommunicationType::Ping`.
+#[derive(Serialize, Deserialize)]
 pub struct Ping {
     /// The nix file to watch and build on changes.
-    nix_file: String,
+    pub nix_file: PathBuf,
 }
 
 /// No message can be sent through this socket end (empty type).
@@ -42,7 +44,7 @@ pub mod listener {
     /// this message as an ack.
     /// In all other cases the `Listener` returns no answer (the
     /// bad client should time out after some time).
-    #[derive(Serialize, Deserialize)]
+    #[derive(Debug, Serialize, Deserialize)]
     pub struct ConnectionAccepted();
 
     /// Server-side part of a socket transmission,
@@ -56,19 +58,22 @@ pub mod listener {
     }
 
     /// Errors in `accept()`ing a new connection.
+    #[derive(Debug)]
     pub enum AcceptError {
         /// something went wrong in the `accept()` syscall.
         Accept(std::io::Error),
         /// The client’s message could not be decoded.
-        Message(ReadError),
+        Message(ReadWriteError),
     }
 
     /// Binding to the socket failed.
+    #[derive(Debug)]
     pub struct BindError(std::io::Error);
 
     impl Listener {
+        // TODO: remove socket file when done
         /// Create a new `daemon` by binding to `socket_path`.
-        fn new(socket_path: &Path) -> Result<Listener, BindError> {
+        pub fn new(socket_path: &Path) -> Result<Listener, BindError> {
             Ok(Listener {
                 listener: UnixListener::bind(socket_path).map_err(BindError)?,
                 // TODO: set some timeout?
@@ -95,20 +100,14 @@ pub mod listener {
             //     .react(self.accept_timeout, |commType| -> ConnectionAccepted())
             //     .map_err(AcceptError::Message)?;
             let comm_type: CommunicationType = bincode::deserialize_from(&unix_stream)
-                .map_err(|e| AcceptError::Message(ReadError::Deserialize(e)))?;
+                .map_err(|e| AcceptError::Message(ReadWriteError::R(ReadError::Deserialize(e))))?;
             bincode::serialize_into(&unix_stream, &ConnectionAccepted())
                 // TODO WriteError
-                .map_err(|e| AcceptError::Message(ReadError::Deserialize(e)))?;
+                .map_err(|e| AcceptError::Message(ReadWriteError::W(WriteError::Serialize(e))))?;
             unix_stream.flush().map_err(AcceptError::Accept)?;
             // spawn a thread with the accept handler
             Ok(std::thread::spawn(move || handler(unix_stream, comm_type)))
         }
-    }
-
-    /// Handle the ping event
-    // the ReadWriter here has to be the inverse of the `Client.ping()`, which is `ReadWriter<!, Ping>`
-    pub fn ping(rw: ReadWriter<Ping, NoMessage>) {
-        // tx.send(rw.read())
     }
 
 }
@@ -122,6 +121,7 @@ pub mod listener {
 /// the pre-defined interactions with the `Listener` we support.
 pub mod client {
     use super::*;
+    use std::io::Write;
     use std::path::Path;
 
     /// A `Client` that can talk to a `Listener`.
@@ -135,6 +135,7 @@ pub mod client {
     }
 
     /// Error when talking to the `Listener`.
+    #[derive(Debug)]
     pub enum Error {
         /// Not connected to the `Listener` socket.
         NotConnected,
@@ -143,6 +144,7 @@ pub mod client {
     }
 
     /// Error when initializing connection with the `Listener`.
+    #[derive(Debug)]
     pub enum InitError {
         /// `connect()` syscall failed.
         SocketConnect(std::io::Error),
@@ -167,13 +169,22 @@ pub mod client {
         pub fn connect(self, socket_path: &Path) -> Result<Client<R, W>, InitError> {
             // TODO: check if the file exists and is a socket
             // - connect to `socket_path`
-            let socket = UnixStream::connect(socket_path).map_err(InitError::SocketConnect)?;
+            let mut socket = UnixStream::connect(socket_path).map_err(InitError::SocketConnect)?;
             // - send initial message with the CommunicationType
             // - wait for server to acknowledge connect
-            let _: listener::ConnectionAccepted = ReadWriter::new(socket)
-                .communicate(self.timeout, &self.comm_type)
-                .map_err(InitError::ServerHandshake)?;
-            Ok(self)
+            // TODO: use this
+            // let _: listener::ConnectionAccepted = ReadWriter::new(socket)
+            //     .communicate(self.timeout, &self.comm_type)
+            //     .map_err(InitError::ServerHandshake)?;
+            bincode::serialize_into(&socket, &self.comm_type).expect("hurr durr");
+            socket.flush().unwrap();
+            let _: listener::ConnectionAccepted =
+                bincode::deserialize_from(&socket).expect("hurr durr");
+            Ok(Client {
+                comm_type: self.comm_type,
+                rw: Some(ReadWriter::new(socket)),
+                timeout: self.timeout,
+            })
         }
 
         /// Read a message returned by the connected `Listener`.

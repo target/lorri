@@ -4,7 +4,7 @@ extern crate structopt;
 extern crate log;
 
 use lorri::cli::{Arguments, Command};
-use lorri::ops::{build, direnv, info, init, shell, upgrade, watch, ExitError, OpResult};
+use lorri::ops::{build, daemon, direnv, info, init, ping, shell, upgrade, watch, ExitError, OpResult};
 use lorri::project::{Project, ProjectLoadError};
 use std::env;
 use structopt::StructOpt;
@@ -30,6 +30,11 @@ fn main() {
         (Command::Shell, Ok(project)) => shell::main(project),
 
         (Command::Watch, Ok(project)) => watch::main(&project),
+
+        (Command::Daemon, Ok(_project)) => daemon::main(),
+
+        // TODO: remove
+        (Command::Ping(p), Ok(_project)) => ping::main(p.nix_file),
 
         (Command::Upgrade(args), _) => upgrade::main(args),
 

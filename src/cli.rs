@@ -42,6 +42,14 @@ pub enum Command {
     #[structopt(name = "watch")]
     Watch,
 
+    /// TODO
+    #[structopt(name = "daemon")]
+    Daemon,
+
+    /// TODO remove
+    #[structopt(name = "ping")]
+    Ping(Ping),
+
     /// Upgrade Lorri
     #[structopt(name = "self-upgrade", alias = "self-update")]
     Upgrade(UpgradeTo),
@@ -49,6 +57,16 @@ pub enum Command {
     /// Bootstrap files for a new setup
     #[structopt(name = "init")]
     Init,
+}
+
+// TODO remove
+#[derive(StructOpt, Debug)]
+/// Ping the daemon to start a build
+pub struct Ping {
+    // TODO
+    #[structopt(parse(from_os_str))]
+    /// The nix file to watch and build on changes.
+    pub nix_file: PathBuf,
 }
 
 /// A stub struct to represent how what we want to upgrade to.
