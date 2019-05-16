@@ -64,11 +64,17 @@ pub fn main(upgrade_target: cli::UpgradeTo) -> OpResult {
     let tmpdir = tempdir().unwrap();
     match expr.clone().attribute("package").path(&tmpdir.path()) {
         Ok(build_result) => {
-            let ret = Command::new("nix-env")
+            let status = Command::new("nix-env")
                 .arg("--install")
                 .arg(build_result)
-                .status();
-            Ok(Some(format!("{:?}", ret)))
+                .status()
+                .expect("Error: failed to execute nix-env --install");
+
+            if status.success() {
+                Ok(Some(String::from("\nUpgrade successful.")))
+            } else {
+                ExitError::errmsg(String::from("\nError: nix-env command was not successful!"))
+            }
         }
         e => ExitError::errmsg(format!(
             "Failed to build the update! Please report a bug!\n\
