@@ -4,12 +4,13 @@ extern crate structopt;
 extern crate log;
 
 use lorri::cli::{Arguments, Command};
-use lorri::ops::{build, direnv, info, shell, upgrade, watch, ExitError, OpResult};
+use lorri::ops::{build, direnv, info, init, shell, upgrade, watch, ExitError, OpResult};
 use lorri::project::{Project, ProjectLoadError};
 use std::env;
 use structopt::StructOpt;
 
 const TRIVIAL_SHELL_SRC: &str = include_str!("./trivial-shell.nix");
+const DEFAULT_ENVRC: &str = "eval \"$(lorri direnv)\"";
 
 fn main() {
     let opts = Arguments::from_args();
@@ -31,6 +32,8 @@ fn main() {
         (Command::Watch, Ok(project)) => watch::main(&project),
 
         (Command::Upgrade(args), _) => upgrade::main(args),
+
+        (Command::Init, _) => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
 
         (_, Err(ProjectLoadError::ConfigNotFound)) => {
             let current_dir_msg = match env::current_dir() {
