@@ -1,6 +1,6 @@
 //! Bootstrap a new lorri project
 
-use crate::ops::{ok, ExitError, OpResult};
+use crate::ops::{ok, ok_msg, ExitError, OpResult};
 use std::fs::File;
 use std::io;
 use std::io::Write;
@@ -33,5 +33,5 @@ pub fn main(default_shell: &str, default_envrc: &str) -> OpResult {
     to_op(create_if_missing(Path::new("./shell.nix"), default_shell))?;
     to_op(create_if_missing(Path::new("./.envrc"), default_envrc))?;
 
-    Ok(Some(String::from("\nSetup done.")))
+    ok_msg(String::from("\nSetup done."))
 }
