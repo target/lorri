@@ -28,8 +28,6 @@ fn to_op(e: Result<(), io::Error>) -> OpResult {
 /// See the documentation for lorri::cli::Command::Init for
 /// more details
 pub fn main(default_shell: &str, default_envrc: &str) -> OpResult {
-    println!("Bootstrapping a new lorri project\n");
-
     to_op(create_if_missing(Path::new("./shell.nix"), default_shell))?;
     to_op(create_if_missing(Path::new("./.envrc"), default_envrc))?;
 
