@@ -45,6 +45,10 @@ pub enum Command {
     /// Upgrade Lorri
     #[structopt(name = "self-upgrade", alias = "self-update")]
     Upgrade(UpgradeTo),
+
+    /// Bootstrap files for a new setup
+    #[structopt(name = "init")]
+    Init,
 }
 
 /// A stub struct to represent how what we want to upgrade to.

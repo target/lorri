@@ -3,6 +3,7 @@
 pub mod build;
 pub mod direnv;
 pub mod info;
+pub mod init;
 pub mod shell;
 pub mod upgrade;
 pub mod watch;
