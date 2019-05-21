@@ -52,6 +52,31 @@ function append() {
     eval $varname=$original$separator\$$varname
 }
 
+varmap() {
+    # Capture the name of the variable being set
+    IFS="=" read -r -a cur_varname <<< "$@"
+
+    while read line; do
+        IFS=$'\t'
+        args=($line)
+        unset IFS
+
+        map_instruction=${args[0]}
+        map_variable=${args[1]}
+        map_separator=${args[2]}
+
+        if [ "$map_variable" == "${cur_varname}" ]; then
+            if [ "$map_instruction" == "append" ]; then
+                append "$map_variable" "$map_separator" "$@"
+                return
+            fi
+        fi
+    done < "$EVALUATION_ROOT/varmap"
+
+
+    export "$@"
+}
+
 function declare() {
     if [ "$1" == "-x" ]; then shift; fi
 
@@ -82,31 +107,7 @@ function declare() {
         # vars from: https://github.com/NixOS/nix/blob/92d08c02c84be34ec0df56ed718526c382845d1a/src/nix-build/nix-build.cc#L421
         "NIX_ENFORCE_PURITY="*) punt;;
 
-        *)
-            IFS="="
-            varargs=($1)
-            handled=0
-            while read line; do
-                 IFS=$'\t'
-                 args=($line)
-                 unset IFS
-
-                 instruction=${args[0]}
-                 variable=${args[1]}
-                 separator=${args[2]}
-
-                 if [ "$variable" == "${varargs[0]}" ]; then
-                     if [ "$instruction" == "append" ]; then
-                         append "$variable" "$separator" "$@"
-                         handled=1
-                         break
-                     fi
-                 fi
-            done < "$EVALUATION_ROOT/varmap"
-            if [ $handled -eq 0 ]; then
-                export "$@"
-            fi
-            ;;
+        *) varmap "$@" ;;
     esac
 }
 
