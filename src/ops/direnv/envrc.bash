@@ -2,8 +2,6 @@
 # ^ shebang is unused as this file is sourced, but present for editor
 # integration. Note: Direnv guarantees it *will* be parsed using bash.
 
-watch_file "$EVALUATION_ROOT"
-
 function punt () {
     :
 }
