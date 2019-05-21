@@ -1,59 +1,59 @@
 watch_file "$EVALUATION_ROOT"
 
+function punt () {
+    :
+}
+
+function prepend() {
+    varname=$1 # example: varname might contain the string "PATH"
+
+    # drop off the varname
+    shift
+
+    separator=$1 # example: separator would usually be the string ":"
+
+    # drop off the separator argument, so the remaining arguments
+    # are the arguments to export
+    shift
+
+    # set $original to the contents of the the variable $varname
+    # refers to
+    eval original=\$$varname
+
+    # effectfully accept the new variable's contents
+    export "$@";
+
+    # re-set $varname's variable to the contents of varname's
+    # reference, plus the current (updated on the export) contents.
+    eval $varname=\$$varname$separator$original
+}
+
+function append() {
+    varname=$1 # example: varname might contain the string "PATH"
+
+    # drop off the varname
+    shift
+
+    separator=$1 # example: separator would usually be the string ":"
+    # drop off the separator argument, so the remaining arguments
+    # are the arguments to export
+    shift
+
+
+    # set $original to the contents of the the variable $varname
+    # refers to
+    eval original=\$$varname
+
+    # effectfully accept the new variable's contents
+    export "$@";
+
+    # re-set $varname's variable to the contents of varname's
+    # reference, plus the current (updated on the export) contents.
+    eval $varname=$original$separator\$$varname
+}
+
 function declare() {
     if [ "$1" == "-x" ]; then shift; fi
-
-    function punt () {
-        :
-    }
-
-    function prepend() {
-        varname=$1 # example: varname might contain the string "PATH"
-
-        # drop off the varname
-        shift
-
-        separator=$1 # example: separator would usually be the string ":"
-
-        # drop off the separator argument, so the remaining arguments
-        # are the arguments to export
-        shift
-
-        # set $original to the contents of the the variable $varname
-        # refers to
-        eval original=\$$varname
-
-        # effectfully accept the new variable's contents
-        export "$@";
-
-        # re-set $varname's variable to the contents of varname's
-        # reference, plus the current (updated on the export) contents.
-        eval $varname=\$$varname$separator$original
-    }
-
-    function append() {
-        varname=$1 # example: varname might contain the string "PATH"
-
-        # drop off the varname
-        shift
-
-        separator=$1 # example: separator would usually be the string ":"
-        # drop off the separator argument, so the remaining arguments
-        # are the arguments to export
-        shift
-
-
-        # set $original to the contents of the the variable $varname
-        # refers to
-        eval original=\$$varname
-
-        # effectfully accept the new variable's contents
-        export "$@";
-
-        # re-set $varname's variable to the contents of varname's
-        # reference, plus the current (updated on the export) contents.
-        eval $varname=$original$separator\$$varname
-    }
 
     # Some variables require special handling.
     #
