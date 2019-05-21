@@ -14,10 +14,11 @@ check() {
     rm -rf "$scratch"
     mkdir "$scratch"
     touch "$scratch/varmap"
-    echo "Test: $@"
+    echo "Test: $1"
 }
 
 with() (
+    # shellcheck disable=SC2016 # expressions don't expand in single quotes
     env -i bash -c \
         '
           envs=$1
@@ -31,6 +32,7 @@ with() (
 
 
 env_exports() (
+    # shellcheck disable=SC2016 # expressions don't expand in single quotes
     env -i bash -c \
         '
           envs=$1
@@ -51,6 +53,7 @@ var_test() (
     shift
 
     echo -n "~~> $msg ... "
+    # shellcheck disable=SC2016 # expressions don't expand in single quotes
     env -i bash -c \
         '
           set -eu

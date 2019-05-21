@@ -1,3 +1,7 @@
+#!/usr/bin/env bash
+# ^ shebang is unused as this file is sourced, but present for editor
+# integration. Note: Direnv guarantees it *will* be parsed using bash.
+
 watch_file "$EVALUATION_ROOT"
 
 function punt () {
@@ -18,14 +22,14 @@ function prepend() {
 
     # set $original to the contents of the the variable $varname
     # refers to
-    eval original=\$$varname
+    original="${!varname}"
 
     # effectfully accept the new variable's contents
-    export "$@";
+    export "${@?}";
 
     # re-set $varname's variable to the contents of varname's
     # reference, plus the current (updated on the export) contents.
-    eval $varname=\$$varname$separator$original
+    eval "$varname=${!varname}$separator$original"
 }
 
 function append() {
@@ -42,30 +46,29 @@ function append() {
 
     # set $original to the contents of the the variable $varname
     # refers to
-    eval original=\$$varname
+    original="${!varname}"
 
     # effectfully accept the new variable's contents
-    export "$@";
+    export "${@?}";
 
     # re-set $varname's variable to the contents of varname's
     # reference, plus the current (updated on the export) contents.
-    eval $varname=$original$separator\$$varname
+    eval "$varname=$original$separator${!varname}"
 }
 
 varmap() {
     # Capture the name of the variable being set
-    IFS="=" read -r -a cur_varname <<< "$@"
+    IFS="=" read -r -a cur_varname <<< "$1"
 
-    while read line; do
-        IFS=$'\t'
-        args=($line)
+    while read -r line; do
+        IFS=$'\t' read -r -a args <<< "$line"
         unset IFS
 
         map_instruction=${args[0]}
         map_variable=${args[1]}
         map_separator=${args[2]}
 
-        if [ "$map_variable" == "${cur_varname}" ]; then
+        if [ "$map_variable" == "${cur_varname[0]}" ]; then
             if [ "$map_instruction" == "append" ]; then
                 append "$map_variable" "$map_separator" "$@"
                 return
@@ -74,7 +77,7 @@ varmap() {
     done < "$EVALUATION_ROOT/varmap"
 
 
-    export "$@"
+    export "${@?}"
 }
 
 function declare() {
@@ -112,6 +115,7 @@ function declare() {
 }
 
 export IN_NIX_SHELL=1
+# shellcheck disable=SC1090
 . "$EVALUATION_ROOT/bash-export"
 
 unset declare
