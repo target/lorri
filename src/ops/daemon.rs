@@ -41,7 +41,7 @@ pub fn main() -> OpResult {
         let accept_messages_tx = accept_messages_tx.clone();
         let _handle = listener
             .accept(|unix_stream, comm_type| match comm_type {
-                CommunicationType::Ping => ping(ReadWriter::new(unix_stream), accept_messages_tx),
+                CommunicationType::Ping => ping(ReadWriter::new(&unix_stream), accept_messages_tx),
             })
             // TODO
             .unwrap();

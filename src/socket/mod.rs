@@ -11,9 +11,9 @@ use std::time::{Duration, Instant};
 ///
 /// `timeout` arguments set the socket timeout before reading/writing.
 /// `None` means no timeout.
-pub struct ReadWriter<R, W> {
+pub struct ReadWriter<'a, R, W> {
     // where R: serde::Deserialize {
-    socket: UnixStream,
+    socket: &'a UnixStream,
     phantom_r: PhantomData<R>,
     phantom_w: PhantomData<W>,
 }
@@ -21,7 +21,7 @@ pub struct ReadWriter<R, W> {
 /// A timeout. `None` means forever.
 pub type Timeout = Option<Duration>;
 
-/// Reading from a `ReadWriter<R, W>` failed.
+/// Reading from a `ReadWriter<'a, R, W>` failed.
 #[derive(Debug)]
 pub enum ReadError {
     /// Deserializing `R` failed.
@@ -31,7 +31,7 @@ pub enum ReadError {
 }
 
 // TODO: combine with ReadError?
-/// Writing to a `ReadWriter<R, W>` failed.
+/// Writing to a `ReadWriter<'a, R, W>` failed.
 #[derive(Debug)]
 pub enum WriteError {
     /// Serializing `W` failed.
@@ -46,7 +46,7 @@ impl From<bincode::Error> for WriteError {
     }
 }
 
-/// Reading from or writing to a `ReadWriter<R, W>` failed.
+/// Reading from or writing to a `ReadWriter<'a, R, W>` failed.
 #[derive(Debug)]
 pub enum ReadWriteError {
     /// Reading failed.
@@ -60,10 +60,10 @@ fn into_bincode_io_error<T>(res: std::io::Result<T>) -> bincode::Result<T> {
     res.map_err(|e| Box::new(bincode::ErrorKind::Io(e)))
 }
 
-impl<R, W> ReadWriter<R, W> {
+impl<'a, R, W> ReadWriter<'a, R, W> {
     // TODO: &mut UnixStream
     /// Create from a unix socket.
-    pub fn new(socket: UnixStream) -> ReadWriter<R, W> {
+    pub fn new(socket: &'a UnixStream) -> ReadWriter<'a, R, W> {
         ReadWriter {
             socket,
             phantom_r: PhantomData,
@@ -78,7 +78,7 @@ impl<R, W> ReadWriter<R, W> {
 
     /// Send a message to the other side and wait for a reply.
     /// The timeout counts for the whole roundtrip.
-    pub fn communicate(&self, timeout: Timeout, mes: &W) -> Result<R, ReadWriteError>
+    pub fn communicate(&mut self, timeout: Timeout, mes: &W) -> Result<R, ReadWriteError>
     where
         R: serde::de::DeserializeOwned,
         W: serde::Serialize,
@@ -114,7 +114,7 @@ impl<R, W> ReadWriter<R, W> {
 
         // XXX: “If this returns an Error, `reader` may be in an invalid state”.
         // what the heck does that mean.
-        bincode::deserialize_from(&self.socket).map_err(|e| {
+        bincode::deserialize_from(self.socket).map_err(|e| {
             if Self::is_timed_out(&e) {
                 ReadError::Timeout
             } else {
@@ -124,7 +124,7 @@ impl<R, W> ReadWriter<R, W> {
     }
 
     /// Send a message to the other side.
-    pub fn write(&self, timeout: Timeout, mes: &W) -> Result<(), WriteError>
+    pub fn write(&mut self, timeout: Timeout, mes: &W) -> Result<(), WriteError>
     where
         W: serde::Serialize,
     {
@@ -133,7 +133,7 @@ impl<R, W> ReadWriter<R, W> {
                 .set_write_timeout(Self::sanitize_timeout(timeout)),
         )?;
 
-        bincode::serialize_into(&self.socket, mes).map_err(|e| {
+        bincode::serialize_into(self.socket, mes).map_err(|e| {
             if Self::is_timed_out(&e) {
                 WriteError::Timeout
             } else {
@@ -141,7 +141,7 @@ impl<R, W> ReadWriter<R, W> {
             }
         })?;
 
-        into_bincode_io_error((&self.socket).flush())?;
+        into_bincode_io_error(self.socket.flush())?;
 
         Ok(())
     }

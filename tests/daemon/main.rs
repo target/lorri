@@ -38,7 +38,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
         listener
             .accept(|unix_stream, comm_type| match comm_type {
                 CommunicationType::Ping => {
-                    lorri::ops::daemon::ping(ReadWriter::new(unix_stream), accept_messages_tx)
+                    lorri::ops::daemon::ping(ReadWriter::new(&unix_stream), accept_messages_tx)
                 }
             })
             .unwrap()

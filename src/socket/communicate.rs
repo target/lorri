@@ -128,6 +128,7 @@ pub mod listener {
 pub mod client {
     use super::*;
     use std::io::Write;
+    use std::marker::PhantomData;
     use std::path::Path;
 
     /// A `Client` that can talk to a `Listener`.
@@ -135,9 +136,11 @@ pub mod client {
         /// Type of interaction with the `Listener`.
         comm_type: CommunicationType,
         /// Connected socket.
-        rw: Option<ReadWriter<R, W>>,
+        socket: Option<UnixStream>,
         /// Timeout for reads/writes.
         timeout: Timeout,
+        phantom_r: PhantomData<R>,
+        phantom_w: PhantomData<W>,
     }
 
     /// Error when talking to the `Listener`.
@@ -166,8 +169,10 @@ pub mod client {
         fn bake(timeout: Timeout, comm_type: CommunicationType) -> Client<R, W> {
             Client {
                 comm_type,
-                rw: None,
+                socket: None,
                 timeout,
+                phantom_r: PhantomData,
+                phantom_w: PhantomData,
             }
         }
 
@@ -188,8 +193,10 @@ pub mod client {
                 bincode::deserialize_from(&socket).expect("hurr durr");
             Ok(Client {
                 comm_type: self.comm_type,
-                rw: Some(ReadWriter::new(socket)),
+                socket: Some(socket),
                 timeout: self.timeout,
+                phantom_r: PhantomData,
+                phantom_w: PhantomData,
             })
         }
 
@@ -198,9 +205,9 @@ pub mod client {
         where
             R: serde::de::DeserializeOwned,
         {
-            self.rw
-                .ok_or(Error::NotConnected)?
-                .read(self.timeout)
+            let sock = &self.socket.ok_or(Error::NotConnected)?;
+            let rw: ReadWriter<R, W> = ReadWriter::new(sock);
+            rw.read(self.timeout)
                 .map_err(|e| Error::Message(ReadWriteError::R(e)))
         }
 
@@ -209,9 +216,9 @@ pub mod client {
         where
             W: serde::Serialize,
         {
-            self.rw
-                .ok_or(Error::NotConnected)?
-                .write(self.timeout, mes)
+            let sock = &self.socket.ok_or(Error::NotConnected)?;
+            let mut rw: ReadWriter<R, W> = ReadWriter::new(sock);
+            rw.write(self.timeout, mes)
                 .map_err(|e| Error::Message(ReadWriteError::W(e)))
         }
     }
