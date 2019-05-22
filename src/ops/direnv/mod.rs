@@ -7,6 +7,7 @@ use crate::ops::{ok, ok_msg, ExitError, OpResult};
 use crate::project::Project;
 use crate::socket::communicate::client;
 use crate::socket::communicate::Ping;
+use crate::socket::Timeout;
 use std::path::Path;
 use std::process::Command;
 
@@ -18,7 +19,8 @@ pub fn main(project: &Project) -> OpResult {
     let mut shell_root = project.gc_root_path().unwrap();
     shell_root.push("build-0"); // !!!
 
-    if let Ok(client) = client::ping(None).connect(Path::new("/tmp/lorri-socket")) {
+    // TODO: socket file, timeout
+    if let Ok(client) = client::ping(Timeout::Infinite).connect(Path::new("/tmp/lorri-socket")) {
         client
             .write(&Ping {
                 nix_file: project.expression().clone(),

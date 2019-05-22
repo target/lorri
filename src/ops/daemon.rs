@@ -6,7 +6,7 @@ use crate::project::Project;
 use crate::roots::Roots;
 use crate::socket::communicate::listener;
 use crate::socket::communicate::{CommunicationType, NoMessage, Ping};
-use crate::socket::{ReadError, ReadWriter};
+use crate::socket::{ReadError, ReadWriter, Timeout};
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
@@ -118,7 +118,7 @@ impl Daemon {
 // the ReadWriter here has to be the inverse of the `Client.ping()`, which is `ReadWriter<!, Ping>`
 pub fn ping(rw: ReadWriter<Ping, NoMessage>, build_chan: mpsc::Sender<StartBuild>) {
     // TODO: read timeout
-    let ping: Result<Ping, ReadError> = rw.read(None);
+    let ping: Result<Ping, ReadError> = rw.read(&Timeout::Infinite);
     match ping {
         Err(e) => eprintln!("didn’t receive a ping!! {:?}", e),
         Ok(p) => {

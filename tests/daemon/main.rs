@@ -5,7 +5,7 @@ use lorri::build_loop;
 use lorri::ops::daemon::Daemon;
 use lorri::socket::communicate::{client, listener};
 use lorri::socket::communicate::{CommunicationType, Ping};
-use lorri::socket::ReadWriter;
+use lorri::socket::{ReadWriter, Timeout};
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -48,7 +48,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     let (mut daemon, build_events_rx) = Daemon::new();
 
     // connect to socket and send a ping message
-    client::ping(None)
+    client::ping(Timeout::D(Duration::from_millis(100)))
         .connect(&socket_file)
         .unwrap()
         .write(&Ping {

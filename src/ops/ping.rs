@@ -6,12 +6,14 @@ use std::path::{Path, PathBuf};
 
 use crate::socket::communicate::client;
 use crate::socket::communicate::Ping;
+use crate::socket::Timeout;
 
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
 pub fn main(nix_file: PathBuf) -> OpResult {
     // TODO: set up socket path, make it settable by the user
-    client::ping(None)
+    // TODO timeout
+    client::ping(Timeout::Infinite)
         // TODO
         .connect(Path::new("/tmp/lorri-socket"))
         .unwrap()

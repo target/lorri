@@ -207,7 +207,7 @@ pub mod client {
         {
             let sock = &self.socket.ok_or(Error::NotConnected)?;
             let rw: ReadWriter<R, W> = ReadWriter::new(sock);
-            rw.read(self.timeout)
+            rw.read(&self.timeout)
                 .map_err(|e| Error::Message(ReadWriteError::R(e)))
         }
 
@@ -218,7 +218,7 @@ pub mod client {
         {
             let sock = &self.socket.ok_or(Error::NotConnected)?;
             let mut rw: ReadWriter<R, W> = ReadWriter::new(sock);
-            rw.write(self.timeout, mes)
+            rw.write(&self.timeout, mes)
                 .map_err(|e| Error::Message(ReadWriteError::W(e)))
         }
     }
