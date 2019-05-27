@@ -128,17 +128,35 @@ impl<'a, R, W> ReadWriter<'a, R, W> {
     }
 
     /// Send a message to the other side and wait for a reply.
+    ///
     /// The timeout counts for the whole roundtrip.
     pub fn communicate(&mut self, timeout: Timeout, mes: &W) -> Result<R, ReadWriteError>
     where
         R: serde::de::DeserializeOwned,
         W: serde::Serialize,
     {
-        let (timeout, write) =
+        let (timeout, write_res) =
             with_timeout(timeout, |t| self.write(t, mes)).map_err(|()| WriteError::Timeout)?;
-        write?;
+        write_res?;
         let e = self.read(&timeout)?;
         Ok(e)
+    }
+
+    /// Listen for a message from the other side and immediately
+    /// send a reply based on the message.
+    ///
+    /// The timeout counts for the whole roundtrip.
+    pub fn react<F>(&mut self, timeout: Timeout, reaction: F) -> Result<R, ReadWriteError>
+    where
+        R: serde::de::DeserializeOwned,
+        W: serde::Serialize,
+        F: FnOnce(&R) -> W,
+    {
+        let (timeout, read_res) =
+            with_timeout(timeout, |t| self.read(t)).map_err(|()| ReadError::Timeout)?;
+        let read = read_res?;
+        self.write(&timeout, &reaction(&read))?;
+        Ok(read)
     }
 
     /// Check if the underlying socket timed out when serializing/deserilizing.
