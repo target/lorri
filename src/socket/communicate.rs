@@ -1,4 +1,4 @@
-//! Communication with the `lorri` daemon.
+//! Communication with the lorri daemon.
 //!
 //! We provide a fixed number of `CommunicationType`s that are sent
 //! between the lorri daemon and lorri clients wishing to connect to it.

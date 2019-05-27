@@ -11,7 +11,6 @@ use std::time::{Duration, Instant};
 /// Wrapper around a socket that can send and receive structured messages.
 ///
 /// `timeout` arguments set the socket timeout before reading/writing.
-/// `None` means no timeout.
 pub struct ReadWriter<'a, R, W> {
     // where R: serde::Deserialize {
     socket: &'a UnixStream,
@@ -19,7 +18,7 @@ pub struct ReadWriter<'a, R, W> {
     phantom_w: PhantomData<W>,
 }
 
-/// Milliseconds accepted by a timeout.
+/// Milliseconds accepted by a `Timeout`.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Millis(u16);
 
@@ -40,9 +39,9 @@ impl TryFrom<Duration> for Millis {
 /// A (possible) timeout.
 #[derive(Clone)]
 pub enum Timeout {
-    /// do not time out
+    /// Do not time out.
     Infinite,
-    /// Time out after `Duration`
+    /// Time out after `Duration`.
     D(Millis),
 }
 
@@ -53,7 +52,7 @@ impl Timeout {
     }
 }
 
-/// Reading from a `ReadWriter<'a, R, W>` failed.
+/// Reading from a `ReadWriter<R, W>` failed.
 #[derive(Debug)]
 pub enum ReadError {
     /// Deserializing `R` failed.
@@ -63,7 +62,7 @@ pub enum ReadError {
 }
 
 // TODO: combine with ReadError?
-/// Writing to a `ReadWriter<'a, R, W>` failed.
+/// Writing to a `ReadWriter<R, W>` failed.
 #[derive(Debug)]
 pub enum WriteError {
     /// Serializing `W` failed.
@@ -78,7 +77,7 @@ impl From<bincode::Error> for WriteError {
     }
 }
 
-/// Reading from or writing to a `ReadWriter<'a, R, W>` failed.
+/// Reading from or writing to a `ReadWriter<R, W>` failed.
 #[derive(Debug)]
 pub enum ReadWriteError {
     /// Reading failed.
@@ -224,7 +223,7 @@ impl<'a, R, W> ReadWriter<'a, R, W> {
     }
 }
 
-/// Wrap a socket with a timeout. Inspired by https://docs.rs/crate/timeout-readwrite/0.2.0/
+/// Wrap a socket with a timeout. Inspired by https://docs.rs/crate/timeout-readwrite/0.2.0/.
 mod timeout {
     extern crate nix;
 
@@ -262,6 +261,7 @@ mod timeout {
         timeout: libc::c_int,
     }
 
+    /// Convert timeout to the form that `poll(2)` expects.
     fn to_poll_2_timeout(t: &Timeout) -> libc::c_int {
         match t {
             // negative number is infinite timeout
