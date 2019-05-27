@@ -2,6 +2,7 @@
 
 pub mod communicate;
 
+use std::convert::TryFrom;
 use std::io::Write;
 use std::marker::PhantomData;
 use std::os::unix::net::UnixStream;
@@ -18,26 +19,49 @@ pub struct ReadWriter<'a, R, W> {
     phantom_w: PhantomData<W>,
 }
 
-/// A (possible) timeout
+/// Milliseconds accepted by a timeout.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct Millis(u16);
+
+impl From<Millis> for Duration {
+    fn from(m: Millis) -> Duration {
+        let Millis(u) = m;
+        Duration::from_millis(u64::from(u))
+    }
+}
+
+impl TryFrom<Duration> for Millis {
+    type Error = ();
+    fn try_from(d: Duration) -> Result<Millis, Self::Error> {
+        Ok(Millis(u16::try_from(d.as_millis()).map_err(|_| ())?))
+    }
+}
+
+/// A (possible) timeout.
 #[derive(Clone)]
 pub enum Timeout {
     /// do not time out
     Infinite,
     /// Time out after `Duration`
-    D(Duration),
+    D(Millis),
 }
 
 impl Timeout {
-    /// Convert to a timeout understood by `UnixStream`s
+    /// Construct from a millisecond u16.
+    pub fn from_millis(m: u16) -> Timeout {
+        Timeout::D(Millis(m))
+    }
+
+    /// Convert to a timeout understood by `UnixStream`s.
     fn to_socket_timeout(&self) -> Option<Duration> {
         match self {
             Timeout::Infinite => None,
             // Socket timeout must not be 0 (or it crashes).
             // instead, use a very short duration
-            Timeout::D(d) => Some(if d == &Duration::new(0, 0) {
+            Timeout::D(m) => Some(if *m == Millis(0) {
                 Duration::from_millis(1)
             } else {
-                *d
+                Duration::from(*m)
             }),
         }
     }
@@ -107,11 +131,16 @@ where
     let res = action(&timeout);
     match timeout {
         Timeout::Infinite => Ok((Timeout::Infinite, res)),
-        Timeout::D(d) => match d.checked_sub(i.elapsed()) {
-            // no time remaining
-            None => Err(()),
-            // return a new timeout with remaining time
-            Some(d2) => Ok((Timeout::D(d2), res)),
+        Timeout::D(Millis(u)) => match Millis::try_from(i.elapsed()) {
+            // more time elapsed than we can hold in a timeout
+            // so it must have blown the allowed timeout
+            Err(_) => Err(()),
+            Ok(Millis(elapsed)) => match u.checked_sub(elapsed) {
+                // no time remaining
+                None => Err(()),
+                // return a new timeout with remaining time
+                Some(u2) => Ok((Timeout::D(Millis(u2)), res)),
+            },
         },
     }
 }

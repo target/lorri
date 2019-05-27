@@ -48,7 +48,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     let (mut daemon, build_events_rx) = Daemon::new();
 
     // connect to socket and send a ping message
-    client::ping(Timeout::D(Duration::from_millis(100)))
+    client::ping(Timeout::from_millis(100))
         .connect(&socket_file)
         .unwrap()
         .write(&Ping {
