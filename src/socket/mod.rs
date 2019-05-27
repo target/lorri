@@ -51,20 +51,6 @@ impl Timeout {
     pub fn from_millis(m: u16) -> Timeout {
         Timeout::D(Millis(m))
     }
-
-    /// Convert to a timeout understood by `UnixStream`s.
-    fn to_socket_timeout(&self) -> Option<Duration> {
-        match self {
-            Timeout::Infinite => None,
-            // Socket timeout must not be 0 (or it crashes).
-            // instead, use a very short duration
-            Timeout::D(m) => Some(if *m == Millis(0) {
-                Duration::from_millis(1)
-            } else {
-                Duration::from(*m)
-            }),
-        }
-    }
 }
 
 /// Reading from a `ReadWriter<'a, R, W>` failed.
@@ -204,12 +190,11 @@ impl<'a, R, W> ReadWriter<'a, R, W> {
     where
         R: serde::de::DeserializeOwned,
     {
-        into_bincode_io_error(self.socket.set_read_timeout(timeout.to_socket_timeout()))
-            .map_err(ReadError::Deserialize)?;
+        let timeout_socket = timeout::TimeoutReadWriter::new(self.socket, timeout);
 
         // XXX: “If this returns an Error, `reader` may be in an invalid state”.
         // what the heck does that mean.
-        bincode::deserialize_from(self.socket).map_err(|e| {
+        bincode::deserialize_from(timeout_socket).map_err(|e| {
             if Self::is_timed_out(&e) {
                 ReadError::Timeout
             } else {
@@ -223,9 +208,9 @@ impl<'a, R, W> ReadWriter<'a, R, W> {
     where
         W: serde::Serialize,
     {
-        into_bincode_io_error(self.socket.set_write_timeout(timeout.to_socket_timeout()))?;
+        let timeout_socket = timeout::TimeoutReadWriter::new(self.socket, timeout);
 
-        bincode::serialize_into(self.socket, mes).map_err(|e| {
+        bincode::serialize_into(timeout_socket, mes).map_err(|e| {
             if Self::is_timed_out(&e) {
                 WriteError::Timeout
             } else {
@@ -236,5 +221,81 @@ impl<'a, R, W> ReadWriter<'a, R, W> {
         into_bincode_io_error(self.socket.flush())?;
 
         Ok(())
+    }
+}
+
+/// Wrap a socket with a timeout. Inspired by https://docs.rs/crate/timeout-readwrite/0.2.0/
+mod timeout {
+    extern crate nix;
+
+    use self::nix::libc;
+    use self::nix::poll;
+    use super::{Millis, Timeout};
+    use std::os::unix::io::AsRawFd;
+    use std::os::unix::net::UnixStream;
+
+    /// Wait until `to_fd` receives the poll event from `events`, up to `timeout` length
+    /// of time.
+    /// Copied from https://docs.rs/crate/timeout-readwrite/0.2.0/source/src/utils.rs
+    /// written by Jonathan Creekmore and published under Apache-2.0.
+    fn wait_until_ready<R: AsRawFd>(
+        timeout: libc::c_int,
+        to_fd: &R,
+        events: poll::PollFlags,
+    ) -> std::io::Result<()> {
+        let mut pfd = poll::PollFd::new(to_fd.as_raw_fd(), events);
+        let mut s = unsafe { std::slice::from_raw_parts_mut(&mut pfd, 1) };
+
+        let retval = poll::poll(&mut s, timeout)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        if retval == 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out waiting for fd to be ready",
+            ));
+        }
+        Ok(())
+    }
+
+    pub struct TimeoutReadWriter<'a> {
+        socket: &'a UnixStream,
+        timeout: libc::c_int,
+    }
+
+    fn to_poll_2_timeout(t: &Timeout) -> libc::c_int {
+        match t {
+            // negative number is infinite timeout
+            Timeout::Infinite => -1,
+            // otherwise a duration in milliseconds
+            Timeout::D(Millis(u)) => libc::c_int::from(*u),
+        }
+    }
+
+    impl<'a> TimeoutReadWriter<'a> {
+        pub fn new(socket: &'a UnixStream, timeout: &Timeout) -> TimeoutReadWriter<'a> {
+            TimeoutReadWriter {
+                socket,
+                timeout: to_poll_2_timeout(timeout),
+            }
+        }
+    }
+
+    impl<'a> std::io::Read for TimeoutReadWriter<'a> {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            wait_until_ready(self.timeout, self.socket, poll::PollFlags::POLLIN)?;
+            self.socket.read(buf)
+        }
+    }
+
+    impl<'a> std::io::Write for TimeoutReadWriter<'a> {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            wait_until_ready(self.timeout, self.socket, poll::PollFlags::POLLOUT)?;
+            self.socket.write(buf)
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            wait_until_ready(self.timeout, self.socket, poll::PollFlags::POLLOUT)?;
+            self.socket.flush()
+        }
     }
 }
