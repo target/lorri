@@ -12,7 +12,7 @@
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 
-use crate::socket::{ReadError, ReadWriteError, ReadWriter, Timeout, WriteError};
+use crate::socket::{ReadWriteError, ReadWriter, Timeout};
 
 /// Enum of all communication modes the lorri daemon supports.
 #[derive(Serialize, Deserialize)]
@@ -35,7 +35,6 @@ pub enum NoMessage {}
 /// `Listener` and possible errors.
 pub mod listener {
     use super::*;
-    use std::io::Write;
     use std::os::unix::net::{UnixListener, UnixStream};
     use std::path::Path;
 
@@ -53,10 +52,9 @@ pub mod listener {
     pub struct Listener {
         /// Bound Unix socket.
         listener: UnixListener,
-        // TODO: enable
         // /// How long to wait for the client to send its
         // /// first message after opening the connection.
-        // accept_timeout: Timeout,
+        accept_timeout: Timeout,
     }
 
     /// Errors in `accept()`ing a new connection.
@@ -79,7 +77,7 @@ pub mod listener {
             Ok(Listener {
                 listener: UnixListener::bind(socket_path).map_err(BindError)?,
                 // TODO: set some timeout?
-                // accept_timeout: None,
+                accept_timeout: Timeout::Infinite,
             })
         }
 
@@ -99,18 +97,12 @@ pub mod listener {
             F: std::marker::Send,
         {
             // - socket accept
-            let (mut unix_stream, _) = self.listener.accept().map_err(AcceptError::Accept)?;
+            let (unix_stream, _) = self.listener.accept().map_err(AcceptError::Accept)?;
             // - read first message as a `CommunicationType`
-            // TODO: move to this
-            // let commType: CommunicationType = ReadWriter::<CommunicationType, ConnectionAccepted>::new(unixStream)
-            //     .react(self.accept_timeout, |commType| -> ConnectionAccepted())
-            //     .map_err(AcceptError::Message)?;
-            let comm_type: CommunicationType = bincode::deserialize_from(&unix_stream)
-                .map_err(|e| AcceptError::Message(ReadWriteError::R(ReadError::Deserialize(e))))?;
-            bincode::serialize_into(&unix_stream, &ConnectionAccepted())
-                // TODO WriteError
-                .map_err(|e| AcceptError::Message(ReadWriteError::W(WriteError::Serialize(e))))?;
-            unix_stream.flush().map_err(AcceptError::Accept)?;
+            let comm_type: CommunicationType =
+                ReadWriter::<CommunicationType, ConnectionAccepted>::new(&unix_stream)
+                    .react(self.accept_timeout.clone(), |_| ConnectionAccepted())
+                    .map_err(AcceptError::Message)?;
             // spawn a thread with the accept handler
             Ok(std::thread::spawn(move || handler(unix_stream, comm_type)))
         }
@@ -127,7 +119,6 @@ pub mod listener {
 /// the pre-defined interactions with the `Listener` we support.
 pub mod client {
     use super::*;
-    use std::io::Write;
     use std::marker::PhantomData;
     use std::path::Path;
 
@@ -179,18 +170,16 @@ pub mod client {
         /// Connect to the `Listener` listening on `socket_path`.
         pub fn connect(self, socket_path: &Path) -> Result<Client<R, W>, InitError> {
             // TODO: check if the file exists and is a socket
+
             // - connect to `socket_path`
-            let mut socket = UnixStream::connect(socket_path).map_err(InitError::SocketConnect)?;
+            let socket = UnixStream::connect(socket_path).map_err(InitError::SocketConnect)?;
+
             // - send initial message with the CommunicationType
             // - wait for server to acknowledge connect
-            // TODO: use this
-            // let _: listener::ConnectionAccepted = ReadWriter::new(socket)
-            //     .communicate(self.timeout, &self.comm_type)
-            //     .map_err(InitError::ServerHandshake)?;
-            bincode::serialize_into(&socket, &self.comm_type).expect("hurr durr");
-            socket.flush().unwrap();
-            let _: listener::ConnectionAccepted =
-                bincode::deserialize_from(&socket).expect("hurr durr");
+            let _: listener::ConnectionAccepted = ReadWriter::new(&socket)
+                .communicate(self.timeout.clone(), &self.comm_type)
+                .map_err(InitError::ServerHandshake)?;
+
             Ok(Client {
                 comm_type: self.comm_type,
                 socket: Some(socket),
