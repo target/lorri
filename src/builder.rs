@@ -28,23 +28,27 @@ pub fn run(root_nix_file: &PathBuf) -> Result<Info, Error> {
     // to determine which files we should setup watches on.
     // Increasing verbosity by two levels via `-vv` satisfies that.
 
-    let mut child = Command::new("nix-build")
-        .args(&[
-            "-vv",
-            "--expr",
-            include_str!("./logged-evaluation.nix"),
-            "--no-out-link",
-            "--arg",
-            "runTimeClosure",
-            crate::RUN_TIME_CLOSURE,
-            "--arg",
-            "src",
-        ])
-        .arg(root_nix_file)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
+    let mut cmd = Command::new("nix-build");
+
+    cmd.args(&[
+        "-vv",
+        "--expr",
+        include_str!("./logged-evaluation.nix"),
+        "--no-out-link",
+        "--argstr",
+        "runTimeClosure",
+        crate::RUN_TIME_CLOSURE,
+        "--argstr",
+        "src",
+    ])
+    .arg(root_nix_file)
+    .stdin(Stdio::null())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped());
+
+    debug!("$ {:?}", cmd);
+
+    let mut child = cmd.spawn()?;
 
     let stdout = child
         .stdout
