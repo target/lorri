@@ -33,7 +33,9 @@ pub fn main(project: &Project) -> OpResult {
     }
 
     if !shell_root.exists() {
-        return ExitError::errmsg("Please run 'lorri watch' before using direnv integration.");
+        return Err(ExitError::errmsg(
+            "Please run 'lorri watch' before using direnv integration.",
+        ));
     }
 
     if std::env::var("DIRENV_IN_ENVRC") != Ok(String::from("1")) {
@@ -66,10 +68,10 @@ fn check_direnv_version() -> OpResult {
             message: "Could not figure out the current `direnv` version (parse error)".to_string(),
         })?;
     if version < MIN_DIRENV_VERSION {
-        ExitError::errmsg(format!(
+        Err(ExitError::errmsg(format!(
             "`direnv` is version {}, but >= {} is required for lorri to function",
             version, MIN_DIRENV_VERSION
-        ))
+        )))
     } else {
         ok()
     }

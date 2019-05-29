@@ -48,11 +48,11 @@ pub fn main(project: Project) -> OpResult {
     let first_build = match initial_result {
         Ok(e) => e,
         Err(e) => {
-            return ExitError::errmsg(format!(
+            return Err(ExitError::errmsg(format!(
                 "Build for {} never produced a successful result: {:#?}",
                 root_nix_file.display(),
                 e
-            ));
+            )));
         }
     };
 

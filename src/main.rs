@@ -48,19 +48,19 @@ fn main() {
                 Ok(pb) => format!(" ({})", pb.display()),
             };
 
-            ExitError::errmsg(format!(
+            Err(ExitError::errmsg(format!(
                 "There is no `shell.nix` in the current directory{}
 You can use the following minimal `shell.nix` to get started:
 
 {}",
                 current_dir_msg, TRIVIAL_SHELL_SRC
-            ))
+            )))
         }
 
-        (cmd, Err(err)) => ExitError::errmsg(format!(
+        (cmd, Err(err)) => Err(ExitError::errmsg(format!(
             "Can't run {:?}, because of the following project load error: {:?}",
             cmd, err
-        )),
+        ))),
     };
 
     match result {

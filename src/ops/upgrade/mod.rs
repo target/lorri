@@ -73,13 +73,15 @@ pub fn main(upgrade_target: cli::UpgradeTo) -> OpResult {
             if status.success() {
                 Ok(Some(String::from("\nUpgrade successful.")))
             } else {
-                ExitError::errmsg(String::from("\nError: nix-env command was not successful!"))
+                Err(ExitError::errmsg(String::from(
+                    "\nError: nix-env command was not successful!",
+                )))
             }
         }
-        e => ExitError::errmsg(format!(
+        e => Err(ExitError::errmsg(format!(
             "Failed to build the update! Please report a bug!\n\
              {:?}",
             e
-        )),
+        ))),
     }
 }
