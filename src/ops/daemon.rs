@@ -1,7 +1,7 @@
 //! Run a BuildLoop for `shell.nix`, watching for input file changes.
 //! Can be used together with `direnv`.
 use crate::build_loop::{self, BuildLoop};
-use crate::ops::{ok, OpResult};
+use crate::ops::{ok, ExitError, OpResult};
 use crate::project::Project;
 use crate::roots::Roots;
 use crate::socket::communicate::listener;
@@ -27,9 +27,14 @@ pub struct StartBuild {
 pub fn main() -> OpResult {
     let socket_path = ::socket::path::SocketPath::from(Path::new(SOCKET_FILE_NAME));
     // TODO: move listener into Daemon struct?
-    let listener = listener::Listener::new(&socket_path)
-        // TODO
-        .unwrap();
+    let listener = listener::Listener::new(&socket_path).map_err(|e| match e {
+        ::socket::path::BindError::OtherProcessListening => ExitError::errmsg(format!(
+            "Another daemon is already listening on the socket at {}.",
+            socket_path.display()
+        )),
+        e => panic!(e),
+    })?;
+
     // TODO: set up socket path, make it settable by the user
     let (mut daemon, build_messages_rx) = Daemon::new();
 
@@ -120,7 +125,7 @@ pub fn ping(rw: ReadWriter<Ping, NoMessage>, build_chan: mpsc::Sender<StartBuild
     // TODO: read timeout
     let ping: Result<Ping, ReadError> = rw.read(&Timeout::Infinite);
     match ping {
-        Err(e) => eprintln!("didn’t receive a ping!! {:?}", e),
+        Err(e) => debug!("didn’t receive a ping!! {:?}", e),
         Ok(p) => {
             eprintln!("pinged with {}", p.nix_file.display());
             build_chan

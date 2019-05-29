@@ -19,6 +19,7 @@ use crate::socket::{ReadWriteError, ReadWriter, Timeout};
 #[derive(Serialize, Deserialize)]
 pub enum CommunicationType {
     /// Ping the daemon from a project to tell it to watch & evaluate
+    // TODO: rename to BuildProject or something?
     Ping,
 }
 

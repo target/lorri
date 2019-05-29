@@ -36,6 +36,11 @@ impl<'a> SocketPath<'a> {
         SocketPath(socket_path)
     }
 
+    /// Display the underlying `Path`.
+    pub fn display(&self) -> std::path::Display {
+        self.0.display()
+    }
+
     /// Return lockfile path.
     pub fn lockfile(&self) -> PathBuf {
         self.0.with_file_name({
