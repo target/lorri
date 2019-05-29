@@ -5,6 +5,7 @@ use lorri::build_loop;
 use lorri::ops::daemon::Daemon;
 use lorri::socket::communicate::{client, listener};
 use lorri::socket::communicate::{CommunicationType, Ping};
+use lorri::socket::path::SocketPath;
 use lorri::socket::{ReadWriter, Timeout};
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
@@ -27,10 +28,11 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     let (accept_messages_tx, accept_messages_rx) = mpsc::channel();
 
     let tempdir = tempfile::tempdir()?;
-    let socket_file = tempdir.path().join("socket");
 
     // create unix socket file
-    let listener = listener::Listener::new(&socket_file).unwrap();
+    let p = &tempdir.path().join("socket");
+    let socket_path = SocketPath::from(p);
+    let listener = listener::Listener::new(&socket_path).unwrap();
 
     // listen for incoming messages
     // TODO: put this listener stuff into the Daemon
@@ -49,7 +51,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
 
     // connect to socket and send a ping message
     client::ping(Timeout::from_millis(100))
-        .connect(&socket_file)
+        .connect(&socket_path)
         .unwrap()
         .write(&Ping {
             nix_file: PathBuf::from("/who/cares"),
@@ -77,5 +79,26 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
 
     drop(tempdir);
     daemon_subroutine_handle.join().unwrap();
+    Ok(())
+}
+
+#[test]
+pub fn start_two_listeners_on_same_socket() -> std::io::Result<()> {
+    let tempdir = tempfile::tempdir()?;
+
+    // create unix socket file
+    let p = &tempdir.path().join("socket");
+    let socket_path = SocketPath::from(p);
+    let listener = listener::Listener::new(&socket_path).unwrap();
+
+    match listener::Listener::new(&socket_path) {
+        // check that we can’t listen because the socket is locked
+        Err(lorri::socket::path::BindError::OtherProcessListening) => Ok(()),
+        Ok(_) => panic!("other process should be listening"),
+        Err(e) => Err(e),
+    }
+    .unwrap();
+
+    drop(listener);
     Ok(())
 }

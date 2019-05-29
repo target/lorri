@@ -15,7 +15,9 @@ pub fn main(nix_file: PathBuf) -> OpResult {
     // TODO timeout
     client::ping(Timeout::Infinite)
         // TODO
-        .connect(Path::new("/tmp/lorri-socket"))
+        .connect(&::socket::path::SocketPath::from(Path::new(
+            "/tmp/lorri-socket",
+        )))
         .unwrap()
         .write(&Ping { nix_file })
         .unwrap();

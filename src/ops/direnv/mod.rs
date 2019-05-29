@@ -20,7 +20,9 @@ pub fn main(project: &Project) -> OpResult {
     shell_root.push("build-0"); // !!!
 
     // TODO: socket file, timeout
-    if let Ok(client) = client::ping(Timeout::Infinite).connect(Path::new("/tmp/lorri-socket")) {
+    if let Ok(client) = client::ping(Timeout::Infinite).connect(&::socket::path::SocketPath::from(
+        Path::new("/tmp/lorri-socket"),
+    )) {
         client
             .write(&Ping {
                 nix_file: project.expression().clone(),

@@ -12,6 +12,7 @@
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 
+use crate::socket::path::{BindError, BindLock, SocketPath};
 use crate::socket::{ReadWriteError, ReadWriter, Timeout};
 
 /// Enum of all communication modes the lorri daemon supports.
@@ -36,7 +37,6 @@ pub enum NoMessage {}
 pub mod listener {
     use super::*;
     use std::os::unix::net::{UnixListener, UnixStream};
-    use std::path::Path;
 
     /// If a connection on the socket is attempted and the first
     /// message is of a `ConnectionType`, the `Listener` returns
@@ -46,14 +46,19 @@ pub mod listener {
     #[derive(Debug, Serialize, Deserialize)]
     pub struct ConnectionAccepted();
 
-    // TODO: rename to Listener
     /// Server-side part of a socket transmission,
     /// listening for incoming messages.
     pub struct Listener {
         /// Bound Unix socket.
         listener: UnixListener,
-        // /// How long to wait for the client to send its
-        // /// first message after opening the connection.
+        /// Lock that keeps our socket exclusive.
+        // `bind_lock` is never actually used anywhere,
+        // it is released when `Listener`’s lifetime ends.
+        // We can ignore the “dead code” warning.
+        #[allow(dead_code)]
+        bind_lock: BindLock,
+        /// How long to wait for the client to send its
+        /// first message after opening the connection.
         accept_timeout: Timeout,
     }
 
@@ -66,16 +71,13 @@ pub mod listener {
         Message(ReadWriteError),
     }
 
-    /// Binding to the socket failed.
-    #[derive(Debug)]
-    pub struct BindError(std::io::Error);
-
     impl Listener {
-        // TODO: remove socket file when done
         /// Create a new `daemon` by binding to `socket_path`.
-        pub fn new(socket_path: &Path) -> Result<Listener, BindError> {
+        pub fn new(socket_path: &SocketPath) -> Result<Listener, BindError> {
+            let (l, lock) = socket_path.bind()?;
             Ok(Listener {
-                listener: UnixListener::bind(socket_path).map_err(BindError)?,
+                listener: l,
+                bind_lock: lock,
                 // TODO: set some timeout?
                 accept_timeout: Timeout::Infinite,
             })
@@ -120,7 +122,6 @@ pub mod listener {
 pub mod client {
     use super::*;
     use std::marker::PhantomData;
-    use std::path::Path;
 
     /// A `Client` that can talk to a `Listener`.
     pub struct Client<R, W> {
@@ -168,11 +169,11 @@ pub mod client {
         }
 
         /// Connect to the `Listener` listening on `socket_path`.
-        pub fn connect(self, socket_path: &Path) -> Result<Client<R, W>, InitError> {
+        pub fn connect(self, socket_path: &SocketPath) -> Result<Client<R, W>, InitError> {
             // TODO: check if the file exists and is a socket
 
             // - connect to `socket_path`
-            let socket = UnixStream::connect(socket_path).map_err(InitError::SocketConnect)?;
+            let socket = socket_path.connect().map_err(InitError::SocketConnect)?;
 
             // - send initial message with the CommunicationType
             // - wait for server to acknowledge connect

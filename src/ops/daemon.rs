@@ -25,9 +25,9 @@ pub struct StartBuild {
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
 pub fn main() -> OpResult {
-    let socket_path = Path::new(SOCKET_FILE_NAME);
+    let socket_path = ::socket::path::SocketPath::from(Path::new(SOCKET_FILE_NAME));
     // TODO: move listener into Daemon struct?
-    let listener = listener::Listener::new(socket_path)
+    let listener = listener::Listener::new(&socket_path)
         // TODO
         .unwrap();
     // TODO: set up socket path, make it settable by the user

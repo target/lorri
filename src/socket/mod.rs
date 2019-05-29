@@ -1,6 +1,7 @@
 //! Talking to the `lorri` daemon / unix sockets.
 
 pub mod communicate;
+pub mod path;
 
 use std::convert::TryFrom;
 use std::io::Write;
