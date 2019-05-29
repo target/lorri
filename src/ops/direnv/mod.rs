@@ -19,9 +19,10 @@ pub fn main(project: &Project) -> OpResult {
     let mut shell_root = project.gc_root_path().unwrap();
     shell_root.push("build-0"); // !!!
 
-    // TODO: socket file, timeout
+    // TODO: timeout
+    // TODO: don’t start build/evaluation automatically, let the user decide
     if let Ok(client) = client::ping(Timeout::Infinite).connect(&::socket::path::SocketPath::from(
-        Path::new("/tmp/lorri-socket"),
+        Path::new(crate::daemon::SOCKET_FILE_NAME),
     )) {
         client
             .write(&Ping {

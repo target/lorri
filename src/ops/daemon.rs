@@ -13,8 +13,6 @@ use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread;
 
-const SOCKET_FILE_NAME: &str = "/tmp/lorri-socket";
-
 // TODO: make private again
 /// Instructs the daemon to start a build
 pub struct StartBuild {
@@ -25,17 +23,17 @@ pub struct StartBuild {
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
 pub fn main() -> OpResult {
-    let socket_path = ::socket::path::SocketPath::from(Path::new(SOCKET_FILE_NAME));
+    let socket_path = ::socket::path::SocketPath::from(Path::new(crate::daemon::SOCKET_FILE_NAME));
     // TODO: move listener into Daemon struct?
     let listener = listener::Listener::new(&socket_path).map_err(|e| match e {
         ::socket::path::BindError::OtherProcessListening => ExitError::errmsg(format!(
-            "Another daemon is already listening on the socket at {}.",
+            "Another daemon is already listening on the socket at {}. \
+             We are currently only allowing one daemon to be running at the same time.",
             socket_path.display()
         )),
         e => panic!(e),
     })?;
 
-    // TODO: set up socket path, make it settable by the user
     let (mut daemon, build_messages_rx) = Daemon::new();
 
     // messages sent from accept handlers
