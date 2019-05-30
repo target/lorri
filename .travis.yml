@@ -5,7 +5,14 @@
   nix
 "matrix":
   "include":
-  - "language": >-
+  - "before_cache":
+    - >-
+      rm -rf /home/travis/.cargo/registry
+    "cache":
+      "directories":
+      - >-
+        /home/travis/cargo
+    "language": >-
       nix
     "name": >-
       cargo build & linters
@@ -24,7 +31,14 @@
         cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
       travis_fold travis-yml-idempotent \
         git diff -q ./.travis.yml
-  - "language": >-
+  - "before_cache":
+    - >-
+      rm -rf /home/travis/.cargo/registry
+    "cache":
+      "directories":
+      - >-
+        /home/travis/cargo
+    "language": >-
       nix
     "name": >-
       cargo build & linters

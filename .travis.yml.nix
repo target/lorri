@@ -42,6 +42,8 @@ let
         travis_fold travis-yml-idempotent \
           git diff -q ./.travis.yml
       '';
+      before_cache = [ "rm -rf /home/travis/.cargo/registry" ];
+      cache.directories = [ "/home/travis/cargo" ];
     };
   };
 
