@@ -1,5 +1,5 @@
 let
-  pkgs = import <nixpkgs> {};
+  pkgs = import ./nix/nixpkgs.nix {};
 
   projectname = "lorri";
 
@@ -87,6 +87,8 @@ in pkgs.runCommand "travis.yml" {
   buildInputs = [ pkgs.remarshal ];
   passAsFile = [ "jobs" ];
   jobs = builtins.toJSON jobs;
+  preferLocalBuild = true;
+  allowSubstitutes = false;
 }
 ''
   remarshal -if json -i $jobsPath -of yaml -o $out --yaml-style ">"

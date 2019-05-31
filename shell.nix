@@ -132,5 +132,5 @@ pkgs.mkShell rec {
   '');
 
   preferLocalBuild = true;
-  buildUseSubstitutes = false;
+  allowSubstitutes = false;
 }
