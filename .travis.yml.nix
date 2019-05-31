@@ -1,6 +1,8 @@
 let
   pkgs = import <nixpkgs> {};
 
+  projectname = "lorri";
+
   hosts = {
     linux = {
       os = "linux";
@@ -42,8 +44,29 @@ let
         lorri_travis_fold travis-yml-idempotent \
           git diff -q ./.travis.yml
       '';
-      before_cache = [ "rm -rf /home/travis/.cargo/registry" ];
-      cache.directories = [ "/home/travis/cargo" ];
+      # delete all our own artifacts from the cache dir
+      # based on https://gist.github.com/jkcclemens/000456ca646bd502cac0dbddcb8fa307
+    };
+
+    # cache rust dependency building
+    cache = {
+      before_cache =
+        let rmTarget = path: ''rm -rvf "$TRAVIS_BUILD_DIR/target/debug/${path}"'';
+        in (map rmTarget [
+          "lib${projectname}.rlib"
+          # our own binaries/libraries (keep all other deps)
+          "build/${projectname}-*"
+          "deps/${projectname}-*"
+          "deps/lib${projectname}-*"
+          "incremental/${projectname}-*"
+          ".fingerprint/${projectname}-*"
+          # build script executable
+          "incremental/build_script_build-*"
+        ]);
+        # TODO: this might improve things, but we don’t want
+        # to open another `nix-shell` (because it takes a few seconds)
+        # ++ [ "cargo clean -p ${projectname}" ];
+      cache.directories = [ "$HOME/.cargo" "$TRAVIS_BUILD_DIR/target" ];
     };
   };
 
@@ -53,8 +76,8 @@ let
     matrix.include = [
       # Verifying lints on macOS and Linux ensures nix-shell works
       # on both platforms.
-      (hosts.linux // scripts.lints)
-      (hosts.macos // scripts.lints)
+      (hosts.linux // scripts.lints // scripts.cache)
+      (hosts.macos // scripts.lints // scripts.cache)
 
       (hosts.linux // scripts.builds)
       (hosts.macos // scripts.builds)

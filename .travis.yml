@@ -7,11 +7,25 @@
   "include":
   - "before_cache":
     - >-
-      rm -rf /home/travis/.cargo/registry
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/build/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/liblorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/.fingerprint/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/build_script_build-*"
     "cache":
       "directories":
       - >-
-        /home/travis/cargo
+        $HOME/.cargo
+      - >-
+        $TRAVIS_BUILD_DIR/target
     "language": >-
       nix
     "name": >-
@@ -33,11 +47,25 @@
         git diff -q ./.travis.yml
   - "before_cache":
     - >-
-      rm -rf /home/travis/.cargo/registry
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/build/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/liblorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/.fingerprint/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/build_script_build-*"
     "cache":
       "directories":
       - >-
-        /home/travis/cargo
+        $HOME/.cargo
+      - >-
+        $TRAVIS_BUILD_DIR/target
     "language": >-
       nix
     "name": >-
