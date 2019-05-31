@@ -21,11 +21,11 @@ let
       script = ''
         set -e
         source ./.travis_fold.sh
-        travis_fold lorri-nix-build \
+        lorri_travis_fold lorri-nix-build \
           nix-build
-        travis_fold lorri-install \
+        lorri_travis_fold lorri-install \
           nix-env -i ./result
-        travis_fold lorri-self-upgrade \
+        lorri_travis_fold lorri-self-upgrade \
           lorri self-upgrade local $(pwd)
       '';
     };
@@ -35,11 +35,11 @@ let
       script = ''
         set -e
         source ./.travis_fold.sh
-        travis_fold ci_check \
+        lorri_travis_fold ci_check \
           nix-shell --quiet --arg isDevelopmentShell false --run ci_check
-        travis_fold travis-yml-gen \
+        lorri_travis_fold travis-yml-gen \
           cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
-        travis_fold travis-yml-idempotent \
+        lorri_travis_fold travis-yml-idempotent \
           git diff -q ./.travis.yml
       '';
       before_cache = [ "rm -rf /home/travis/.cargo/registry" ];
