@@ -49,7 +49,7 @@ let
     };
 
     # cache rust dependency building
-    cache = {
+    cache = name: {
       before_cache =
         let rmTarget = path: ''rm -rvf "$TRAVIS_BUILD_DIR/target/debug/${path}"'';
         in (map rmTarget [
@@ -67,6 +67,7 @@ let
         # to open another `nix-shell` (because it takes a few seconds)
         # ++ [ "cargo clean -p ${projectname}" ];
       cache.directories = [ "$HOME/.cargo" "$TRAVIS_BUILD_DIR/target" ];
+      env = [ "CACHE_NAME=${name}" ];
     };
   };
 
@@ -76,8 +77,8 @@ let
     matrix.include = [
       # Verifying lints on macOS and Linux ensures nix-shell works
       # on both platforms.
-      (hosts.linux // scripts.lints // scripts.cache)
-      (hosts.macos // scripts.lints // scripts.cache)
+      (hosts.linux // scripts.lints // (scripts.cache "linux"))
+      (hosts.macos // scripts.lints // (scripts.cache "macos"))
 
       (hosts.linux // scripts.builds)
       (hosts.macos // scripts.builds)
