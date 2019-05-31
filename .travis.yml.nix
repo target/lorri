@@ -55,6 +55,7 @@ let
         in (map rmTarget [
           "lib${projectname}.rlib"
           # our own binaries/libraries (keep all other deps)
+          "${projectname}*"
           "build/${projectname}-*"
           "deps/${projectname}-*"
           "deps/lib${projectname}-*"
@@ -62,6 +63,10 @@ let
           ".fingerprint/${projectname}-*"
           # build script executable
           "incremental/build_script_build-*"
+          # TODO: the direnv integration test is not deterministic
+          "direnv-*"
+          "deps/direnv-*"
+          "incremental/direnv-*"
         ]);
         # TODO: this might improve things, but we don’t want
         # to open another `nix-shell` (because it takes a few seconds)

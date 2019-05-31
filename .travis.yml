@@ -9,6 +9,8 @@
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
     - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/lorri*"
+    - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/build/lorri-*"
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/lorri-*"
@@ -20,6 +22,12 @@
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/.fingerprint/lorri-*"
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/build_script_build-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/direnv-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/direnv-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/direnv-*"
     "cache":
       "directories":
       - >-
@@ -52,6 +60,8 @@
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
     - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/lorri*"
+    - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/build/lorri-*"
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/lorri-*"
@@ -63,6 +73,12 @@
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/.fingerprint/lorri-*"
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/build_script_build-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/direnv-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/direnv-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/direnv-*"
     "cache":
       "directories":
       - >-
