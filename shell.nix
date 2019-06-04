@@ -105,18 +105,19 @@ pkgs.mkShell rec {
       fi
     )
 
-    echo "lorri" | ${pkgs.figlet}/bin/figlet | ${pkgs.lolcat}/bin/lolcat
-
-    (
-      format="  %-12s %s\n"
-      printf "$format" alias executes
-      printf "$format" ----- --------
-      IFS=$'\n'
-      for line in $(alias); do
-        [[ $line =~ ^alias\ ([^=]+)=(\'.*\') ]]
-        printf "$format" "''${BASH_REMATCH[1]}" "''${BASH_REMATCH[2]}"
-      done
-    )
+    ${pkgs.lib.optionalString isDevelopmentShell ''
+      echo "lorri" | ${pkgs.figlet}/bin/figlet | ${pkgs.lolcat}/bin/lolcat
+      (
+        format="  %-12s %s\n"
+        printf "$format" alias executes
+        printf "$format" ----- --------
+        IFS=$'\n'
+        for line in $(alias); do
+          [[ $line =~ ^alias\ ([^=]+)=(\'.*\') ]]
+          printf "$format" "''${BASH_REMATCH[1]}" "''${BASH_REMATCH[2]}"
+        done
+      )
+    ''}
 
     # restore stdout and close 3
     exec 1>&3-
