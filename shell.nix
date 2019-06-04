@@ -1,6 +1,12 @@
-{ pkgs ? import ./nix/nixpkgs.nix { enableMozillaOverlay = true; } }:
+{ pkgs ? import ./nix/nixpkgs.nix { enableMozillaOverlay = true; }
+, isDevelopmentShell ? true }:
+
+# Must have the stable rust overlay (enableMozillaOverlay)
+assert isDevelopmentShell -> pkgs ? latest;
+
 let
   rustChannel = pkgs.latest.rustChannels.stable;
+  rustChannelNightly = pkgs.latest.rustChannels.nightly;
 in
 pkgs.mkShell rec {
   name = "lorri";
@@ -17,6 +23,9 @@ pkgs.mkShell rec {
     pkgs.darwin.Security
     pkgs.darwin.apple_sdk.frameworks.CoreServices
     pkgs.darwin.apple_sdk.frameworks.CoreFoundation
+  ] ++
+  pkgs.stdenv.lib.optionals isDevelopmentShell [
+    (pkgs.callPackage ./nix/racer.nix { rustNightly = rustChannelNightly; })
   ];
 
   # Keep project-specific shell commands local
@@ -96,18 +105,19 @@ pkgs.mkShell rec {
       fi
     )
 
-    echo "lorri" | ${pkgs.figlet}/bin/figlet | ${pkgs.lolcat}/bin/lolcat
-
-    (
-      format="  %-12s %s\n"
-      printf "$format" alias executes
-      printf "$format" ----- --------
-      IFS=$'\n'
-      for line in $(alias); do
-        [[ $line =~ ^alias\ ([^=]+)=(\'.*\') ]]
-        printf "$format" "''${BASH_REMATCH[1]}" "''${BASH_REMATCH[2]}"
-      done
-    )
+    ${pkgs.lib.optionalString isDevelopmentShell ''
+      echo "lorri" | ${pkgs.figlet}/bin/figlet | ${pkgs.lolcat}/bin/lolcat
+      (
+        format="  %-12s %s\n"
+        printf "$format" alias executes
+        printf "$format" ----- --------
+        IFS=$'\n'
+        for line in $(alias); do
+          [[ $line =~ ^alias\ ([^=]+)=(\'.*\') ]]
+          printf "$format" "''${BASH_REMATCH[1]}" "''${BASH_REMATCH[2]}"
+        done
+      )
+    ''}
 
     # restore stdout and close 3
     exec 1>&3-

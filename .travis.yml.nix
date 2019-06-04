@@ -36,7 +36,7 @@ let
         set -e
         source ./.travis_fold.sh
         travis_fold ci_check \
-          nix-shell --quiet --run ci_check
+          nix-shell --quiet --arg isDevelopmentShell false --run ci_check
         travis_fold travis-yml-gen \
           cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
         travis_fold travis-yml-idempotent \
