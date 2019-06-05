@@ -5,7 +5,39 @@
   nix
 "matrix":
   "include":
-  - "language": >-
+  - "before_cache":
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/lorri*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/build/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/liblorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/.fingerprint/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/build_script_build-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/direnv-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/direnv-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/direnv-*"
+    "cache":
+      "directories":
+      - >-
+        $HOME/.cargo
+      - >-
+        $TRAVIS_BUILD_DIR/target
+    "env":
+    - >-
+      CACHE_NAME=linux
+    "language": >-
       nix
     "name": >-
       cargo build & linters
@@ -18,13 +50,45 @@
 
       source ./.travis_fold.sh
 
-      travis_fold ci_check \
+      lorri_travis_fold ci_check \
         nix-shell --quiet --arg isDevelopmentShell false --run ci_check
-      travis_fold travis-yml-gen \
+      lorri_travis_fold travis-yml-gen \
         cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
-      travis_fold travis-yml-idempotent \
+      lorri_travis_fold travis-yml-idempotent \
         git diff -q ./.travis.yml
-  - "language": >-
+  - "before_cache":
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/lorri*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/build/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/liblorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/.fingerprint/lorri-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/build_script_build-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/direnv-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/direnv-*"
+    - >-
+      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/direnv-*"
+    "cache":
+      "directories":
+      - >-
+        $HOME/.cargo
+      - >-
+        $TRAVIS_BUILD_DIR/target
+    "env":
+    - >-
+      CACHE_NAME=macos
+    "language": >-
       nix
     "name": >-
       cargo build & linters
@@ -37,11 +101,11 @@
 
       source ./.travis_fold.sh
 
-      travis_fold ci_check \
+      lorri_travis_fold ci_check \
         nix-shell --quiet --arg isDevelopmentShell false --run ci_check
-      travis_fold travis-yml-gen \
+      lorri_travis_fold travis-yml-gen \
         cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
-      travis_fold travis-yml-idempotent \
+      lorri_travis_fold travis-yml-idempotent \
         git diff -q ./.travis.yml
   - "language": >-
       nix
@@ -56,11 +120,11 @@
 
       source ./.travis_fold.sh
 
-      travis_fold lorri-nix-build \
+      lorri_travis_fold lorri-nix-build \
         nix-build
-      travis_fold lorri-install \
+      lorri_travis_fold lorri-install \
         nix-env -i ./result
-      travis_fold lorri-self-upgrade \
+      lorri_travis_fold lorri-self-upgrade \
         lorri self-upgrade local $(pwd)
   - "language": >-
       nix
@@ -75,9 +139,9 @@
 
       source ./.travis_fold.sh
 
-      travis_fold lorri-nix-build \
+      lorri_travis_fold lorri-nix-build \
         nix-build
-      travis_fold lorri-install \
+      lorri_travis_fold lorri-install \
         nix-env -i ./result
-      travis_fold lorri-self-upgrade \
+      lorri_travis_fold lorri-self-upgrade \
         lorri self-upgrade local $(pwd)

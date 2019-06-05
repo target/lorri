@@ -84,18 +84,18 @@ pkgs.mkShell rec {
 
       set -x
 
-      travis_fold script-tests ./script-tests/run-all.sh
+      lorri_travis_fold script-tests ./script-tests/run-all.sh
       scripttests=$?
 
-      travis_fold cargo-test cargo test
+      lorri_travis_fold cargo-test cargo test
       cargotestexit=$?
 
-      travis_fold cargo-fmt \
+      lorri_travis_fold cargo-fmt \
         sh -c 'cargo fmt && git diff --exit-code'
       cargofmtexit=$?
 
       RUSTFLAGS='-D warnings' \
-        travis_fold cargo-clippy cargo clippy
+        lorri_travis_fold cargo-clippy cargo clippy
       cargoclippyexit=$?
 
       set +x
@@ -132,5 +132,5 @@ pkgs.mkShell rec {
   '');
 
   preferLocalBuild = true;
-  buildUseSubstitutes = false;
+  allowSubstitutes = false;
 }
