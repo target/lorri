@@ -100,7 +100,11 @@ impl Daemon {
         self.handlers.entry(nix_file.clone()).or_insert_with(|| {
             // TODO: refactor Project/Roots stuff, a little bit too complicated
             // TODO: all these clones are not needed
-            let project = Project::load(nix_file.clone(), Project::default_gc_root_dir()).unwrap();
+            let project = Project::load(
+                nix_file.clone(),
+                ::constants::Paths::new().gc_root_dir().to_owned(),
+            )
+            .unwrap();
             // TODO
             let roots = Roots::from_project(&project).unwrap();
             let mut build_loop = BuildLoop::new(nix_file.clone(), roots);

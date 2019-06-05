@@ -20,7 +20,6 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 
-extern crate directories;
 extern crate futures;
 extern crate notify;
 extern crate tempfile;
@@ -34,6 +33,7 @@ pub mod build_loop;
 pub mod builder;
 pub mod changelog;
 pub mod cli;
+pub mod constants;
 pub mod daemon;
 pub mod locate_file;
 pub mod logging;

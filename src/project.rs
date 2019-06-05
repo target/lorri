@@ -1,7 +1,6 @@
 //! Project-level functions, like preferred configuration
 //! and on-disk locations.
 
-use directories::ProjectDirs;
 use locate_file;
 use locate_file::FileLocationError;
 use std::io;
@@ -48,16 +47,10 @@ impl Project {
     pub fn from_cwd() -> Result<Project, ProjectLoadError> {
         let shell_nix = locate_file::in_cwd("shell.nix")?;
 
-        Project::load(shell_nix, Project::default_gc_root_dir())
-    }
-
-    /// Default location in the user's XDG directories to keep
-    /// GC root pins
-    pub fn default_gc_root_dir() -> PathBuf {
-        let project_dir = ProjectDirs::from("com.github.target.lorri", "lorri", "lorri")
-            .expect("could not derive a gc root directory, please set XDG variables");
-
-        project_dir.cache_dir().to_path_buf()
+        Project::load(
+            shell_nix,
+            ::constants::Paths::new().gc_root_dir().to_owned(),
+        )
     }
 
     /// Given a path to a shell.nix, construct a Project and a ProjectConfig.
