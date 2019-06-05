@@ -26,7 +26,7 @@ impl DirenvTestCase {
 
         let test_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests")
-            .join("direnv")
+            .join("integration")
             .join(name);
 
         let project =
