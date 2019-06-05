@@ -3,8 +3,15 @@
   package = import ./default.nix { inherit src; };
 
   changelog = {
-    # Find the current version number with `git log --prety=%h | wc -l`
+    # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
+      {
+        version = 171;
+        changes = ''
+          gc_root dirs move from `~/.cache/lorri` to `~/.cache/lorri/gc_roots`.
+          You can delete every file in `~/.cache/lorri`.
+        '';
+       }
       {
         version = 132;
         changes = ''
