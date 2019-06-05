@@ -55,24 +55,26 @@ function append() {
 }
 
 varmap() {
-    # Capture the name of the variable being set
-    IFS="=" read -r -a cur_varname <<< "$1"
+    if [ -f "$EVALUATION_ROOT/varmap" ]; then
+        # Capture the name of the variable being set
+        IFS="=" read -r -a cur_varname <<< "$1"
 
-    while read -r line; do
-        IFS=$'\t' read -r -a args <<< "$line"
-        unset IFS
+        while read -r line; do
+            IFS=$'\t' read -r -a args <<< "$line"
+            unset IFS
 
-        map_instruction=${args[0]}
-        map_variable=${args[1]}
-        map_separator=${args[2]}
+            map_instruction=${args[0]}
+            map_variable=${args[1]}
+            map_separator=${args[2]}
 
-        if [ "$map_variable" == "${cur_varname[0]}" ]; then
-            if [ "$map_instruction" == "append" ]; then
-                append "$map_variable" "$map_separator" "$@"
-                return
+            if [ "$map_variable" == "${cur_varname[0]}" ]; then
+                if [ "$map_instruction" == "append" ]; then
+                    append "$map_variable" "$map_separator" "$@"
+                    return
+                fi
             fi
-        fi
-    done < "$EVALUATION_ROOT/varmap"
+        done < "$EVALUATION_ROOT/varmap"
+    fi
 
 
     export "${@?}"
@@ -113,7 +115,13 @@ function declare() {
 }
 
 export IN_NIX_SHELL=1
-# shellcheck disable=SC1090
-. "$EVALUATION_ROOT/bash-export"
+
+if [ -f "$EVALUATION_ROOT/bash-export" ]; then
+    # shellcheck disable=SC1090
+    . "$EVALUATION_ROOT/bash-export"
+else
+    # shellcheck disable=SC1090
+    . "$EVALUATION_ROOT"
+fi
 
 unset declare
