@@ -59,7 +59,7 @@ let
     origArgs = drv.args or [];
     args = [ "-e" (builtins.toFile "lorri-keep-env-hack" ''
       mkdir -p "$out"
-      touch "$out/varmap"
+      touch "$out/varmap-v1"
 
       # Export IN_NIX_SHELL to trick various Nix tooling to export
       # shell-friendly variables
@@ -75,7 +75,7 @@ let
       if declare -f addToSearchPathWithCustomDelimiter > /dev/null 2>&1 ; then
         # 1. Fetch the function body's definition using `head` and `tail`
         # 2. Define our own version of the function, which
-        # 3. adds to the `varmap` file the arguments, and
+        # 3. adds to the `varmap-v1` file the arguments, and
         # 4. calls the original function's body
         #
         # For example on how the `head | tail` bits work:
@@ -98,7 +98,9 @@ let
 
         lorri_addToSearchPathWithCustomDelimiter="$(declare -f addToSearchPathWithCustomDelimiter | head -n-1 | tail -n+3)"
         addToSearchPathWithCustomDelimiter() {
-          printf 'append\t%s\t%s\n' "$2" "$1" >> "$out/varmap"
+          local delimiter=$1
+          local varname=$2
+          printf 'append\0%s\0%s\0' "$varname" "$delimiter" >> "$out/varmap-v1"
           eval "$lorri_addToSearchPathWithCustomDelimiter"
         }
       fi

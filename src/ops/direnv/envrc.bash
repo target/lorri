@@ -55,17 +55,23 @@ function append() {
 }
 
 varmap() {
-    if [ -f "$EVALUATION_ROOT/varmap" ]; then
+    if [ -f "$EVALUATION_ROOT/varmap-v1" ]; then
         # Capture the name of the variable being set
         IFS="=" read -r -a cur_varname <<< "$1"
 
-        while read -r line; do
-            IFS=$'\t' read -r -a args <<< "$line"
+        # With IFS='' and the `read` delimiter being '', we achieve
+        # splitting on \0 bytes while also preserving leading
+        # whitespace:
+        #
+        #    bash-3.2$ printf ' <- leading space\0bar\0baz\0' \
+        #                  | (while IFS='' read -d $'\0' -r x; do echo ">$x<"; done)
+        #    > <- leading space<
+        #    >bar<
+        #    >baz<```
+        while IFS='' read -r -d '' map_instruction \
+           && IFS='' read -r -d '' map_variable \
+           && IFS='' read -r -d '' map_separator; do
             unset IFS
-
-            map_instruction=${args[0]}
-            map_variable=${args[1]}
-            map_separator=${args[2]}
 
             if [ "$map_variable" == "${cur_varname[0]}" ]; then
                 if [ "$map_instruction" == "append" ]; then
@@ -73,7 +79,7 @@ varmap() {
                     return
                 fi
             fi
-        done < "$EVALUATION_ROOT/varmap"
+        done < "$EVALUATION_ROOT/varmap-v1"
     fi
 
 

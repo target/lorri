@@ -127,14 +127,14 @@ impl ProjectEnv for ProjectEnvBuilderV2 {
 
         File::create(&destination.join("bash-export"))?.write_all(&output.stdout)?;
 
-        let mut writer = BufWriter::new(File::create(&destination.join("varmap"))?);
+        let mut writer = BufWriter::new(File::create(&destination.join("varmap-v1"))?);
         for (variable, separator) in self.append.iter() {
             writer.write_all(b"append").unwrap();
-            writer.write_all(b"\t").unwrap();
+            writer.write_all(b"\0").unwrap();
             writer.write_all(&variable.as_bytes()).unwrap();
-            writer.write_all(b"\t").unwrap();
+            writer.write_all(b"\0").unwrap();
             writer.write_all(separator.as_bytes()).unwrap();
-            writer.write_all(b"\n").unwrap();
+            writer.write_all(b"\0").unwrap();
         }
 
         Ok(())
