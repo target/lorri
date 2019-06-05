@@ -8,7 +8,6 @@ use crate::socket::communicate::listener;
 use crate::socket::communicate::{CommunicationType, NoMessage, Ping};
 use crate::socket::{ReadError, ReadWriter, Timeout};
 use std::collections::HashMap;
-use std::path::Path;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread;
@@ -23,7 +22,8 @@ pub struct StartBuild {
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
 pub fn main() -> OpResult {
-    let socket_path = ::socket::path::SocketPath::from(Path::new(crate::daemon::SOCKET_FILE_NAME));
+    let paths = ::constants::Paths::new();
+    let socket_path = ::socket::path::SocketPath::from(paths.daemon_socket_file());
     // TODO: move listener into Daemon struct?
     let listener = listener::Listener::new(&socket_path).map_err(|e| match e {
         ::socket::path::BindError::OtherProcessListening => ExitError::errmsg(format!(

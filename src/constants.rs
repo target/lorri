@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 
 /// Path constants like the GC root directory.
 pub struct Paths {
-    // project_dir: ProjectDirs,
     gc_root_dir: PathBuf,
+    daemon_socket_file: PathBuf,
 }
 
 impl Paths {
@@ -16,10 +16,9 @@ impl Paths {
     pub fn new() -> Paths {
         let pd = ProjectDirs::from("com.github.target.lorri", "lorri", "lorri")
             .expect("Could not determine lorri project/cache directories, please set $HOME");
-        let gcrd = pd.cache_dir().join("gc_roots");
         Paths {
-            // project_dir: pd,
-            gc_root_dir: gcrd,
+            gc_root_dir: pd.cache_dir().join("gc_roots"),
+            daemon_socket_file: pd.cache_dir().join("daemon.socket"),
         }
     }
 
@@ -27,5 +26,13 @@ impl Paths {
     /// GC root pins
     pub fn gc_root_dir(&self) -> &Path {
         &self.gc_root_dir
+    }
+
+    /// Path to the socket file.
+    ///
+    /// The daemon uses this path to create its Unix socket on
+    /// (see `::daemon` and `::socket::communicate`).
+    pub fn daemon_socket_file(&self) -> &Path {
+        &self.daemon_socket_file
     }
 }

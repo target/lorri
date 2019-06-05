@@ -8,7 +8,6 @@ use crate::project::Project;
 use crate::socket::communicate::client;
 use crate::socket::communicate::Ping;
 use crate::socket::Timeout;
-use std::path::Path;
 use std::process::Command;
 
 /// See the documentation for lorri::cli::Command::Direnv for more
@@ -22,7 +21,7 @@ pub fn main(project: &Project) -> OpResult {
     // TODO: timeout
     // TODO: don’t start build/evaluation automatically, let the user decide
     if let Ok(client) = client::ping(Timeout::Infinite).connect(&::socket::path::SocketPath::from(
-        Path::new(crate::daemon::SOCKET_FILE_NAME),
+        ::constants::Paths::new().daemon_socket_file(),
     )) {
         client
             .write(&Ping {

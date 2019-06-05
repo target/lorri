@@ -2,7 +2,7 @@
 //! Can be used together with `direnv`.
 use crate::ops::{ok, OpResult};
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::socket::communicate::client;
 use crate::socket::communicate::Ping;
@@ -15,9 +15,9 @@ pub fn main(nix_file: PathBuf) -> OpResult {
     // TODO timeout
     client::ping(Timeout::Infinite)
         // TODO
-        .connect(&::socket::path::SocketPath::from(Path::new(
-            crate::daemon::SOCKET_FILE_NAME,
-        )))
+        .connect(&::socket::path::SocketPath::from(
+            ::constants::Paths::new().daemon_socket_file(),
+        ))
         .unwrap()
         .write(&Ping { nix_file })
         .unwrap();
