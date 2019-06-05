@@ -29,6 +29,8 @@ pub fn main(project: &Project) -> OpResult {
         r#"
 EVALUATION_ROOT="{}"
 
+watch_file "$EVALUATION_ROOT"
+
 {}
 "#,
         shell_root.display(),

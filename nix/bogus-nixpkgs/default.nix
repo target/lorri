@@ -17,6 +17,7 @@ in {
       inherit name;
       builder = ./shell-builder.sh;
       system = builtins.currentSystem;
+      stdenv = ./stdenv;
     });
 
   hello = bogusPackage "hello-1.0.0";

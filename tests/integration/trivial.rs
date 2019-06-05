@@ -1,4 +1,5 @@
-use direnvtestcase::{DirenvTestCase, DirenvValue};
+use direnv::DirenvValue;
+use direnvtestcase::DirenvTestCase;
 
 #[test]
 fn trivial() {

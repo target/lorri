@@ -18,6 +18,7 @@ pkgs.mkShell rec {
     pkgs.bashInteractive
     pkgs.git
     pkgs.direnv
+    pkgs.shellcheck
   ] ++
   pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
     pkgs.darwin.Security
@@ -83,6 +84,9 @@ pkgs.mkShell rec {
 
       set -x
 
+      travis_fold script-tests ./script-tests/run-all.sh
+      scripttests=$?
+
       travis_fold cargo-test cargo test
       cargotestexit=$?
 
@@ -95,6 +99,7 @@ pkgs.mkShell rec {
       cargoclippyexit=$?
 
       set +x
+      echo "script tests: $scripttests"
       echo "cargo test: $cargotestexit"
       echo "cargo fmt: $cargofmtexit"
       echo "cargo clippy: $cargoclippyexit"

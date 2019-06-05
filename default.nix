@@ -33,7 +33,7 @@ pkgs.rustPlatform.buildRustPackage rec {
     # Do an immediate, light-weight test to ensure logged-evaluation
     # is valid, prior to doing expensive compilations.
     nix-build --show-trace ./src/logged-evaluation.nix \
-      --arg src ./tests/direnv/basic/shell.nix \
+      --arg src ./tests/integration/basic/shell.nix \
       --arg runTimeClosure "$RUN_TIME_CLOSURE" \
       --no-out-link
   '';
