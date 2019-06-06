@@ -1,5 +1,7 @@
 //! The info callable is for printing
 
+// TODO: move to ../info.rs
+
 use crate::ops::{ok, OpResult};
 use crate::project;
 use crate::VERSION_BUILD_REV;
@@ -13,7 +15,6 @@ pub fn main(project: &project::Project) -> OpResult {
 
     println!(" project root: {}", project.project_root.display());
 
-    println!(" project name: {}", project.name());
     println!("   expression: {}", project.expression().display());
 
     ok()

@@ -74,17 +74,6 @@ impl Project {
         })
     }
 
-    // TODO: get rid of this, with project_root
-    /// The project's human readable name
-    pub fn name(&self) -> &str {
-        &self
-            .project_root
-            .file_name()
-            .expect("unable to identify directory name of the project root")
-            .to_str()
-            .unwrap()
-    }
-
     /// Absolute path to the the project's primary entry points
     /// expression
     pub fn expression(&self) -> PathBuf {
@@ -96,7 +85,7 @@ impl Project {
     pub fn gc_root_path(&self) -> Result<PathBuf, std::io::Error> {
         // TODO: use a hash of the project’s abolute path here
         // to avoid collisions
-        let path = self.gc_root.join(self.name()).join("gc_root");
+        let path = self.gc_root.join(self.hash()).join("gc_root");
 
         if !path.is_dir() {
             debug!("Creating all directories for GC roots in {:?}", path);
@@ -106,12 +95,10 @@ impl Project {
         Ok(path.to_path_buf())
     }
 
-    // TODO: only use the nix_file name for generating this hash
     /// Generate a "unique" ID for this project based on its absolute path
-    pub fn id(&self) -> String {
+    pub fn hash(&self) -> String {
         format!(
-            "{:x}-{:x}",
-            md5::compute(self.name()),
+            "{:x}",
             md5::compute(self.project_root.as_os_str().as_bytes())
         )
     }

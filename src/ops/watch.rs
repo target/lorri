@@ -11,7 +11,7 @@ use std::thread;
 /// details.
 pub fn main(project: &Project) -> OpResult {
     let (tx, rx) = channel();
-    let roots = Roots::new(project.gc_root_path().unwrap(), project.id());
+    let roots = Roots::new(project.gc_root_path().unwrap(), project.hash());
 
     let mut build_loop = BuildLoop::new(project.expression(), roots);
 
