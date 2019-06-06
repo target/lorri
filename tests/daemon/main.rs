@@ -2,7 +2,6 @@ extern crate lorri;
 extern crate tempfile;
 
 use lorri::build_loop;
-use lorri::ops::daemon::Daemon;
 use lorri::socket::communicate::{client, listener};
 use lorri::socket::communicate::{CommunicationType, Ping};
 use lorri::socket::path::SocketPath;
@@ -42,14 +41,14 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
         listener
             .accept(|unix_stream, comm_type| match comm_type {
                 CommunicationType::Ping => {
-                    lorri::ops::daemon::ping(ReadWriter::new(&unix_stream), accept_messages_tx)
+                    lorri::daemon::ping(ReadWriter::new(&unix_stream), accept_messages_tx)
                 }
             })
             .unwrap()
     });
 
     // The daemon knows how to build stuff
-    let (mut daemon, build_events_rx) = Daemon::new(&paths);
+    let (mut daemon, build_events_rx) = ::lorri::daemon::Daemon::new(&paths);
 
     // connect to socket and send a ping message
     client::ping(Timeout::from_millis(100))
