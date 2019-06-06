@@ -11,8 +11,10 @@ use std::path::PathBuf;
 #[derive(Debug)]
 pub struct Project {
     /// The file on disk to the shell.nix
-    pub shell_nix: PathBuf,
+    pub nix_file: PathBuf,
 
+    // TODO: completely superfluous, lorri only needs
+    // to know about the nix file
     /// The root directory containing the project's files
     pub project_root: PathBuf,
 
@@ -57,20 +59,22 @@ impl Project {
         )
     }
 
-    /// Given a path to a shell.nix, construct a Project and a ProjectConfig.
-    pub fn load(shell_nix: PathBuf, gc_root: PathBuf) -> Result<Project, ProjectLoadError> {
-        let project_root = shell_nix
+    /// Given an absolute path to a shell.nix,
+    /// construct a Project and a ProjectConfig.
+    pub fn load(nix_file: PathBuf, gc_root: PathBuf) -> Result<Project, ProjectLoadError> {
+        let project_root = nix_file
             .parent()
             // only None if `shell_nix` is "/"
             .unwrap();
 
         Ok(Project {
             project_root: project_root.to_path_buf(),
-            shell_nix: shell_nix.clone(),
+            nix_file: nix_file.clone(),
             gc_root,
         })
     }
 
+    // TODO: get rid of this, with project_root
     /// The project's human readable name
     pub fn name(&self) -> &str {
         &self
@@ -84,12 +88,14 @@ impl Project {
     /// Absolute path to the the project's primary entry points
     /// expression
     pub fn expression(&self) -> PathBuf {
-        self.shell_nix.clone()
+        self.nix_file.clone()
     }
 
     /// Absolute path to the projects' gc root directory, for pinning
     /// build and evaluation products
     pub fn gc_root_path(&self) -> Result<PathBuf, std::io::Error> {
+        // TODO: use a hash of the project’s abolute path here
+        // to avoid collisions
         let path = self.gc_root.join(self.name()).join("gc_root");
 
         if !path.is_dir() {
@@ -100,8 +106,8 @@ impl Project {
         Ok(path.to_path_buf())
     }
 
-    /// Generate a "unique" ID for this project based on where it is
-    /// cloned and its name
+    // TODO: only use the nix_file name for generating this hash
+    /// Generate a "unique" ID for this project based on its absolute path
     pub fn id(&self) -> String {
         format!(
             "{:x}-{:x}",
