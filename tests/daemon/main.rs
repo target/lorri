@@ -34,6 +34,8 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     let socket_path = SocketPath::from(p);
     let listener = listener::Listener::new(&socket_path).unwrap();
 
+    let paths = lorri::constants::Paths::initialize()?;
+
     // listen for incoming messages
     // TODO: put this listener stuff into the Daemon
     let accept_handle = thread::spawn(move || {
@@ -47,7 +49,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     });
 
     // The daemon knows how to build stuff
-    let (mut daemon, build_events_rx) = Daemon::new();
+    let (mut daemon, build_events_rx) = Daemon::new(&paths);
 
     // connect to socket and send a ping message
     client::ping(Timeout::from_millis(100))

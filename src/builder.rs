@@ -32,6 +32,7 @@ pub fn run(root_nix_file: &PathBuf) -> Result<Info, Error> {
 
     cmd.args(&[
         "-vv",
+        // TODO: we should pass this as a file instead of a 12k argv string
         "--expr",
         include_str!("./logged-evaluation.nix"),
         "--no-out-link",

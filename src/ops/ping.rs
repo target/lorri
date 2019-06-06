@@ -16,7 +16,7 @@ pub fn main(nix_file: PathBuf) -> OpResult {
     client::ping(Timeout::Infinite)
         // TODO
         .connect(&::socket::path::SocketPath::from(
-            ::constants::Paths::new().daemon_socket_file(),
+            ::ops::get_paths()?.daemon_socket_file(),
         ))
         .unwrap()
         .write(&Ping { nix_file })

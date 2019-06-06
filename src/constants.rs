@@ -12,14 +12,18 @@ pub struct Paths {
 }
 
 impl Paths {
-    /// Set up project paths
-    pub fn new() -> Paths {
+    /// Set up project paths, creating directories if necessary.
+    pub fn initialize() -> std::io::Result<Paths> {
         let pd = ProjectDirs::from("com.github.target.lorri", "lorri", "lorri")
             .expect("Could not determine lorri project/cache directories, please set $HOME");
-        Paths {
-            gc_root_dir: pd.cache_dir().join("gc_roots"),
+        let create_dir = |base: &Path, dir: &str| -> std::io::Result<PathBuf> {
+            let d = base.join(dir);
+            std::fs::create_dir_all(&d).and(Ok(d))
+        };
+        Ok(Paths {
+            gc_root_dir: create_dir(pd.cache_dir(), "gc_roots")?,
             daemon_socket_file: pd.cache_dir().join("daemon.socket"),
-        }
+        })
     }
 
     /// Default location in the user's XDG directories to keep

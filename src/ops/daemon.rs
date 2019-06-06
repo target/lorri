@@ -22,7 +22,7 @@ pub struct StartBuild {
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
 pub fn main() -> OpResult {
-    let paths = ::constants::Paths::new();
+    let paths = ::ops::get_paths()?;
     let socket_path = ::socket::path::SocketPath::from(paths.daemon_socket_file());
     // TODO: move listener into Daemon struct?
     let listener = listener::Listener::new(&socket_path).map_err(|e| match e {
@@ -31,10 +31,10 @@ pub fn main() -> OpResult {
              We are currently only allowing one daemon to be running at the same time.",
             socket_path.display()
         )),
-        e => panic!(e),
+        e => panic!("{:?}", e),
     })?;
 
-    let (mut daemon, build_messages_rx) = Daemon::new();
+    let (mut daemon, build_messages_rx) = Daemon::new(&paths);
 
     // messages sent from accept handlers
     let (accept_messages_tx, accept_messages_rx) = mpsc::channel();
@@ -71,22 +71,27 @@ pub fn main() -> OpResult {
 
 // TODO: move from ops to internals
 /// Keeps all state of the running `lorri daemon` service.
-pub struct Daemon {
+pub struct Daemon<'a> {
     // TODO: PathBuf is a nix file
+    /// A thread for each `BuildLoop`, keyed by the nix files listened on.
     handlers: HashMap<PathBuf, std::thread::JoinHandle<()>>,
+    /// Sending end that we pass to every `BuildLoop` the daemon controls.
     build_events_tx: mpsc::Sender<build_loop::Event>,
+    /// Static paths the daemon has access to.
+    paths: &'a ::constants::Paths,
 }
 
-impl Daemon {
+impl<'a> Daemon<'a> {
     /// Create a new daemon. Also return an `mpsc::Receiver` that
     /// receives `build_loop::Event`s for all builders this daemon
     /// supervises.
-    pub fn new() -> (Daemon, mpsc::Receiver<build_loop::Event>) {
+    pub fn new(paths: &'a ::constants::Paths) -> (Daemon<'a>, mpsc::Receiver<build_loop::Event>) {
         let (tx, rx) = mpsc::channel();
         (
             Daemon {
                 handlers: HashMap::new(),
                 build_events_tx: tx,
+                paths,
             },
             rx,
         )
@@ -96,15 +101,12 @@ impl Daemon {
     /// & builds if they change.
     pub fn add(&mut self, nix_file: PathBuf) {
         let tx = self.build_events_tx.clone();
+        let root_dir = self.paths.gc_root_dir().to_owned();
 
         self.handlers.entry(nix_file.clone()).or_insert_with(|| {
             // TODO: refactor Project/Roots stuff, a little bit too complicated
             // TODO: all these clones are not needed
-            let project = Project::load(
-                nix_file.clone(),
-                ::constants::Paths::new().gc_root_dir().to_owned(),
-            )
-            .unwrap();
+            let project = Project::load(nix_file.clone(), root_dir).unwrap();
             // TODO
             let roots = Roots::from_project(&project).unwrap();
             let mut build_loop = BuildLoop::new(nix_file.clone(), roots);

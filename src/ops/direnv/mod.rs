@@ -21,7 +21,7 @@ pub fn main(project: &Project) -> OpResult {
     // TODO: timeout
     // TODO: don’t start build/evaluation automatically, let the user decide
     if let Ok(client) = client::ping(Timeout::Infinite).connect(&::socket::path::SocketPath::from(
-        ::constants::Paths::new().daemon_socket_file(),
+        ::ops::get_paths()?.daemon_socket_file(),
     )) {
         client
             .write(&Ping {
@@ -32,6 +32,7 @@ pub fn main(project: &Project) -> OpResult {
         eprintln!("Uh oh, your lorri daemon is not running.");
     }
 
+    // TODO: this needs to move to a daemon message
     if !shell_root.exists() {
         return Err(ExitError::errmsg(
             "Please run 'lorri watch' before using direnv integration.",

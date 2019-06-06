@@ -49,7 +49,11 @@ impl Project {
 
         Project::load(
             shell_nix,
-            ::constants::Paths::new().gc_root_dir().to_owned(),
+            ::constants::Paths::initialize()
+                // TODO: don’t initialize in here
+                .expect("Error: cannot initialize lorri paths")
+                .gc_root_dir()
+                .to_owned(),
         )
     }
 
