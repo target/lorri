@@ -1,7 +1,5 @@
 //! The info callable is for printing
 
-// TODO: move to ../info.rs
-
 use crate::ops::{ok, OpResult};
 use crate::project;
 use crate::VERSION_BUILD_REV;
