@@ -14,7 +14,8 @@ use std::thread;
 pub fn main(project: Project) -> OpResult {
     let (tx, rx) = channel();
     let root_nix_file = &project.expression();
-    let roots = Roots::new(project.gc_root_path().unwrap(), project.hash());
+    // TODO: handle unwrap
+    let roots = Roots::from_project(&project).unwrap();
     let mut build_loop = BuildLoop::new(root_nix_file.clone(), roots.clone());
 
     println!(
