@@ -51,7 +51,9 @@ function append() {
 
     # re-set $varname's variable to the contents of varname's
     # reference, plus the current (updated on the export) contents.
-    eval "$varname=$original$separator${!varname}"
+    # however, exclude the ${separator} unless ${original} starts
+    # with a value
+    eval "$varname=${original:+${original}${separator}}${!varname}"
 }
 
 varmap() {

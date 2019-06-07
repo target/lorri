@@ -13,6 +13,10 @@
           true.
 
           This version does, actually, do that.
+
+          We also fixed a bug where appended environment variables
+          would include a leading delimiter even if it wasn't
+          previously set.
         '';
       }
       {
