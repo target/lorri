@@ -17,8 +17,8 @@ use std::process::Command;
 use tempfile::{tempdir, TempDir};
 
 pub struct DirenvTestCase {
+    shell_file: NixFile,
     projectdir: TempDir,
-    project: Project,
     build_loop: BuildLoop,
 }
 
@@ -26,26 +26,21 @@ impl DirenvTestCase {
     pub fn new(name: &str) -> DirenvTestCase {
         let projectdir = tempdir().expect("tempfile::tempdir() failed us!");
 
-        let project =
-            Project::load(Self::shell_file(name), projectdir.path().to_path_buf()).unwrap();
-
-        let build_loop = BuildLoop::new(
-            project.expression().to_owned(),
-            Roots::from_project(&project).unwrap(),
-        );
-
-        DirenvTestCase {
-            projectdir,
-            project,
-            build_loop,
-        }
-    }
-
-    fn shell_file(name: &str) -> NixFile {
         let test_root =
             PathBuf::from_iter(&[env!("CARGO_MANIFEST_DIR"), "tests", "integration", name]);
 
-        NixFile::from(test_root.join("shell.nix"))
+        let shell_file = NixFile::from(test_root.join("shell.nix"));
+
+        let pdpath = projectdir.path().to_owned();
+        let project = Project::new(&shell_file, &pdpath);
+
+        let build_loop = BuildLoop::new(shell_file.clone(), Roots::from_project(&project).unwrap());
+
+        DirenvTestCase {
+            shell_file: shell_file.clone(),
+            projectdir,
+            build_loop,
+        }
     }
 
     /// Execute the build loop one time
@@ -56,7 +51,8 @@ impl DirenvTestCase {
     /// Run `direnv allow` and then `direnv export json`, and return
     /// the environment DirEnv would produce.
     pub fn get_direnv_variables(&self) -> DirenvEnv {
-        let shell = direnv::main(&self.project)
+        let project = Project::new(&self.shell_file, self.projectdir.path());
+        let shell = direnv::main(&project)
             .unwrap()
             .expect("direnv::main should return a string of shell");
 

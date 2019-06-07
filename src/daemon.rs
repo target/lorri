@@ -50,8 +50,7 @@ impl<'a> Daemon<'a> {
 
         self.handlers.entry(nix_file.clone()).or_insert_with(|| {
             // We construct a Project here for each dependency we get.
-            // TODO: all these clones are not needed
-            let project = Project::load(nix_file.clone(), root_dir).unwrap();
+            let project = Project::new(&nix_file, &root_dir);
             // TODO unwrap
             let roots = Roots::from_project(&project).unwrap();
             let mut build_loop = BuildLoop::new(nix_file.clone(), roots);

@@ -3,11 +3,14 @@ extern crate structopt;
 #[macro_use]
 extern crate log;
 
+use lorri::locate_file;
+use lorri::NixFile;
+
 use lorri::cli::{Arguments, Command};
 use lorri::ops::{
     build, daemon, direnv, info, init, ping, shell, upgrade, watch, ExitError, OpResult,
 };
-use lorri::project::{Project, ProjectLoadError};
+use lorri::project::Project;
 use std::env;
 use structopt::StructOpt;
 
@@ -37,49 +40,47 @@ fn main() {
     match lorri::ops::get_paths() {
         Err(e) => exit(Err(e)),
         Ok(paths) => {
-            let project = Project::from_cwd(paths.gc_root_dir().to_owned());
-
-            let result = match (opts.command, project) {
-                (Command::Info, Ok(project)) => info::main(&project),
-
-                (Command::Build, Ok(project)) => build::main(&project),
-
-                (Command::Direnv, Ok(project)) => direnv::main(&project),
-
-                (Command::Shell, Ok(project)) => shell::main(project),
-
-                (Command::Watch, Ok(project)) => watch::main(&project),
-
-                (Command::Daemon, Ok(_project)) => daemon::main(),
-
-                // TODO: remove
-                (Command::Ping(p), Ok(_project)) => ping::main(p.nix_file),
-
-                (Command::Upgrade(args), _) => upgrade::main(args),
-
-                (Command::Init, _) => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
-
-                (_, Err(ProjectLoadError::ConfigNotFound)) => {
-                    let current_dir_msg = match env::current_dir() {
-                        Err(_) => String::from(""),
-                        Ok(pb) => format!(" ({})", pb.display()),
-                    };
-
-                    Err(ExitError::errmsg(format!(
-                        "There is no `shell.nix` in the current directory{}
-        You can use the following minimal `shell.nix` to get started:
-
-        {}",
-                        current_dir_msg, TRIVIAL_SHELL_SRC
-                    )))
-                }
-
-                (cmd, Err(err)) => Err(ExitError::errmsg(format!(
-                    "Can't run {:?}, because of the following project load error: {:?}",
-                    cmd, err
-                ))),
+            let current_dir_msg = || match env::current_dir() {
+                Err(_) => String::from(""),
+                Ok(pb) => format!(" ({})", pb.display()),
             };
 
+            // use shell.nix from cwd
+            let result = locate_file::in_cwd("shell.nix")
+                .map_err(|_| {
+                    ExitError::errmsg(format!(
+                        "There is no `shell.nix` in the current directory{}\n\
+                         You can use the following minimal `shell.nix` to get started:\n\n\
+                         {}",
+                        current_dir_msg(),
+                        TRIVIAL_SHELL_SRC
+                    ))
+                })
+                .and_then(|shell_nix| {
+                    let nix_file = NixFile::from(shell_nix);
+                    let project = Project::new(&nix_file, paths.gc_root_dir());
+
+                    match opts.command {
+                        Command::Info => info::main(&project),
+
+                        Command::Build => build::main(&project),
+
+                        Command::Direnv => direnv::main(&project),
+
+                        Command::Shell => shell::main(project),
+
+                        Command::Watch => watch::main(&project),
+
+                        Command::Daemon => daemon::main(),
+
+                        Command::Upgrade(args) => upgrade::main(args),
+
+                        // TODO: remove
+                        Command::Ping(p) => ping::main(p.nix_file),
+
+                        Command::Init => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
+                    }
+                });
             exit(result);
         }
     }

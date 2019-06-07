@@ -1,22 +1,19 @@
 //! Project-level functions, like preferred configuration
 //! and on-disk locations.
 
-use locate_file;
-use locate_file::FileLocationError;
 use std::io;
 use std::os::unix::ffi::OsStrExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use NixFile;
 
-// TODO: all fields can be pointers instead
 /// A specific project which we are operating on
 #[derive(Debug)]
-pub struct Project {
+pub struct Project<'a, 'b> {
     /// The file on disk to the shell.nix
-    pub nix_file: NixFile,
+    pub nix_file: &'a NixFile,
 
     /// Directory, in which garbage collection roots will be stored
-    base_gc_root_path: PathBuf,
+    pub base_gc_root_path: &'b Path,
 }
 
 /// Error conditions encountered when finding and loading a Lorri
@@ -30,32 +27,14 @@ pub enum ProjectLoadError {
     Io(io::Error),
 }
 
-impl From<FileLocationError> for ProjectLoadError {
-    fn from(err: FileLocationError) -> ProjectLoadError {
-        match err {
-            FileLocationError::NotFound => ProjectLoadError::ConfigNotFound,
-            FileLocationError::Io(io) => ProjectLoadError::Io(io),
-        }
-    }
-}
-
-impl Project {
-    /// Load a Project based on the current working directory,
-    /// locating a `shell.nix` configuration file in the current
-    /// directory.
-    pub fn from_cwd(gc_root: PathBuf) -> Result<Project, ProjectLoadError> {
-        let shell_nix = locate_file::in_cwd("shell.nix")?;
-
-        Project::load(NixFile(shell_nix), gc_root)
-    }
-
+impl<'a, 'b> Project<'a, 'b> {
     /// Given an absolute path to a shell.nix,
     /// construct a Project and a ProjectConfig.
-    pub fn load(nix_file: NixFile, gc_root: PathBuf) -> Result<Project, ProjectLoadError> {
-        Ok(Project {
+    pub fn new(nix_file: &'a NixFile, gc_root: &'b Path) -> Project<'a, 'b> {
+        Project {
             nix_file,
             base_gc_root_path: gc_root,
-        })
+        }
     }
 
     /// Absolute path to the the project's primary entry points
