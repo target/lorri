@@ -36,21 +36,21 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
 
     let paths = lorri::constants::Paths::initialize()?;
 
+    // The daemon knows how to build stuff
+    let (mut daemon, build_events_rx) = ::lorri::daemon::Daemon::new(&paths);
+
+    let handlers = daemon.handlers();
     // listen for incoming messages
     // TODO: put this listener stuff into the Daemon
     let accept_handle = thread::spawn(move || {
         listener
-            .accept(|unix_stream, comm_type| match comm_type {
+            .accept(move |unix_stream, comm_type| match comm_type {
                 CommunicationType::Ping => {
-                    lorri::daemon::ping(ReadWriter::new(&unix_stream), accept_messages_tx)
+                    handlers.ping(ReadWriter::new(&unix_stream), accept_messages_tx)
                 }
             })
             .unwrap()
     });
-
-    // The daemon knows how to build stuff
-    let (mut daemon, build_events_rx) = ::lorri::daemon::Daemon::new(&paths);
-
     // connect to socket and send a ping message
     client::ping(Timeout::from_millis(100))
         .connect(&socket_path)

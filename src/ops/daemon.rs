@@ -1,6 +1,6 @@
 //! Run a BuildLoop for `shell.nix`, watching for input file changes.
 //! Can be used together with `direnv`.
-use crate::daemon::{ping, Daemon};
+use crate::daemon::Daemon;
 use crate::ops::{ok, ExitError, OpResult};
 use crate::socket::communicate::listener;
 use crate::socket::communicate::CommunicationType;
@@ -27,12 +27,19 @@ pub fn main() -> OpResult {
     // messages sent from accept handlers
     let (accept_messages_tx, accept_messages_rx) = mpsc::channel();
 
+    let handlers = daemon.handlers();
+
     // TODO join handle
     let _accept_loop_handle = std::thread::spawn(move || loop {
         let accept_messages_tx = accept_messages_tx.clone();
+        // has to clone handlers once per accept loop,
+        // because accept spawns a thread each time.
+        let handlers = handlers.clone();
         let _handle = listener
-            .accept(|unix_stream, comm_type| match comm_type {
-                CommunicationType::Ping => ping(ReadWriter::new(&unix_stream), accept_messages_tx),
+            .accept(move |unix_stream, comm_type| match comm_type {
+                CommunicationType::Ping => {
+                    handlers.ping(ReadWriter::new(&unix_stream), accept_messages_tx)
+                }
             })
             // TODO
             .unwrap();

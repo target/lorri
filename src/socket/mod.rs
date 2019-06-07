@@ -53,6 +53,15 @@ impl Timeout {
     }
 }
 
+impl std::fmt::Display for Timeout {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Timeout::Infinite => write!(f, "infinity"),
+            Timeout::D(Millis(ms)) => write!(f, "{}ms", ms),
+        }
+    }
+}
+
 /// Reading from a `ReadWriter<R, W>` failed.
 #[derive(Debug)]
 pub enum ReadError {

@@ -79,8 +79,9 @@ pub mod listener {
             Ok(Listener {
                 listener: l,
                 bind_lock: lock,
-                // TODO: set some timeout?
-                accept_timeout: Timeout::Infinite,
+                // same timeout as read_timeout in daemon handlers
+                // TODO: unify when moving Listener into daemon
+                accept_timeout: Timeout::from_millis(1000),
             })
         }
 
