@@ -79,3 +79,10 @@ addToSearchPathWithCustomDelimiter() {
         export "${varName}=${!varName:+${!varName}${delimiter}}${dir}"
     fi
 }
+
+# GOPATH and other environment variables are set in various hooks
+# in Nixpkgs' stdenv. Which hook is generally not significant, other
+# than general ordering. All the hooks but shellHook are called from
+# within $stdenv/setup, so lorriMockSetupHook can stand in for all
+# user-supplied hooks.
+runHook lorriMockSetupHook
