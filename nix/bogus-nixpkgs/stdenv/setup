@@ -80,6 +80,11 @@ addToSearchPathWithCustomDelimiter() {
     fi
 }
 
+# preHook is the very first hook called by Nixpkgs' $stdenv/setup,
+# and is the earliest moment we can affect execution.
+# https://github.com/NixOS/nixpkgs/blob/22a765d0da7070311e5b8c2bb29fa496c833dae5/pkgs/stdenv/generic/setup.sh#L284
+runHook preHook
+
 # GOPATH and other environment variables are set in various hooks
 # in Nixpkgs' stdenv. Which hook is generally not significant, other
 # than general ordering. All the hooks but shellHook are called from
