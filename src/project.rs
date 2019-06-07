@@ -8,6 +8,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
 use NixFile;
 
+// TODO: all fields can be pointers instead
 /// A specific project which we are operating on
 #[derive(Debug)]
 pub struct Project {
@@ -42,24 +43,17 @@ impl Project {
     /// Load a Project based on the current working directory,
     /// locating a `shell.nix` configuration file in the current
     /// directory.
-    pub fn from_cwd() -> Result<Project, ProjectLoadError> {
+    pub fn from_cwd(gc_root: PathBuf) -> Result<Project, ProjectLoadError> {
         let shell_nix = locate_file::in_cwd("shell.nix")?;
 
-        Project::load(
-            NixFile(shell_nix),
-            ::constants::Paths::initialize()
-                // TODO: don’t initialize in here
-                .expect("Error: cannot initialize lorri paths")
-                .gc_root_dir()
-                .to_owned(),
-        )
+        Project::load(NixFile(shell_nix), gc_root)
     }
 
     /// Given an absolute path to a shell.nix,
     /// construct a Project and a ProjectConfig.
     pub fn load(nix_file: NixFile, gc_root: PathBuf) -> Result<Project, ProjectLoadError> {
         Ok(Project {
-            nix_file: nix_file.clone(),
+            nix_file,
             base_gc_root_path: gc_root,
         })
     }

@@ -15,55 +15,7 @@ const TRIVIAL_SHELL_SRC: &str = include_str!("./trivial-shell.nix");
 const DEFAULT_ENVRC: &str = "eval \"$(lorri direnv)\"";
 
 fn main() {
-    let opts = Arguments::from_args();
-
-    lorri::logging::init_with_default_log_level(opts.verbosity);
-    debug!("Input options: {:?}", opts);
-
-    let project = Project::from_cwd();
-
-    let result: OpResult = match (opts.command, project) {
-        (Command::Info, Ok(project)) => info::main(&project),
-
-        (Command::Build, Ok(project)) => build::main(&project),
-
-        (Command::Direnv, Ok(project)) => direnv::main(&project),
-
-        (Command::Shell, Ok(project)) => shell::main(project),
-
-        (Command::Watch, Ok(project)) => watch::main(&project),
-
-        (Command::Daemon, Ok(_project)) => daemon::main(),
-
-        // TODO: remove
-        (Command::Ping(p), Ok(_project)) => ping::main(p.nix_file),
-
-        (Command::Upgrade(args), _) => upgrade::main(args),
-
-        (Command::Init, _) => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
-
-        (_, Err(ProjectLoadError::ConfigNotFound)) => {
-            let current_dir_msg = match env::current_dir() {
-                Err(_) => String::from(""),
-                Ok(pb) => format!(" ({})", pb.display()),
-            };
-
-            Err(ExitError::errmsg(format!(
-                "There is no `shell.nix` in the current directory{}
-You can use the following minimal `shell.nix` to get started:
-
-{}",
-                current_dir_msg, TRIVIAL_SHELL_SRC
-            )))
-        }
-
-        (cmd, Err(err)) => Err(ExitError::errmsg(format!(
-            "Can't run {:?}, because of the following project load error: {:?}",
-            cmd, err
-        ))),
-    };
-
-    match result {
+    let exit = |result: OpResult| match result {
         Err(err) => {
             eprintln!("{}", err.message());
             std::process::exit(err.exitcode());
@@ -74,6 +26,61 @@ You can use the following minimal `shell.nix` to get started:
         }
         Ok(None) => {
             std::process::exit(0);
+        }
+    };
+
+    let opts = Arguments::from_args();
+
+    lorri::logging::init_with_default_log_level(opts.verbosity);
+    debug!("Input options: {:?}", opts);
+
+    match lorri::ops::get_paths() {
+        Err(e) => exit(Err(e)),
+        Ok(paths) => {
+            let project = Project::from_cwd(paths.gc_root_dir().to_owned());
+
+            let result = match (opts.command, project) {
+                (Command::Info, Ok(project)) => info::main(&project),
+
+                (Command::Build, Ok(project)) => build::main(&project),
+
+                (Command::Direnv, Ok(project)) => direnv::main(&project),
+
+                (Command::Shell, Ok(project)) => shell::main(project),
+
+                (Command::Watch, Ok(project)) => watch::main(&project),
+
+                (Command::Daemon, Ok(_project)) => daemon::main(),
+
+                // TODO: remove
+                (Command::Ping(p), Ok(_project)) => ping::main(p.nix_file),
+
+                (Command::Upgrade(args), _) => upgrade::main(args),
+
+                (Command::Init, _) => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
+
+                (_, Err(ProjectLoadError::ConfigNotFound)) => {
+                    let current_dir_msg = match env::current_dir() {
+                        Err(_) => String::from(""),
+                        Ok(pb) => format!(" ({})", pb.display()),
+                    };
+
+                    Err(ExitError::errmsg(format!(
+                        "There is no `shell.nix` in the current directory{}
+        You can use the following minimal `shell.nix` to get started:
+
+        {}",
+                        current_dir_msg, TRIVIAL_SHELL_SRC
+                    )))
+                }
+
+                (cmd, Err(err)) => Err(ExitError::errmsg(format!(
+                    "Can't run {:?}, because of the following project load error: {:?}",
+                    cmd, err
+                ))),
+            };
+
+            exit(result);
         }
     }
 }

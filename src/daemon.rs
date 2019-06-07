@@ -49,7 +49,7 @@ impl<'a> Daemon<'a> {
         let root_dir = self.paths.gc_root_dir().to_owned();
 
         self.handlers.entry(nix_file.clone()).or_insert_with(|| {
-            // TODO: refactor Project/Roots stuff, a little bit too complicated
+            // We construct a Project here for each dependency we get.
             // TODO: all these clones are not needed
             let project = Project::load(nix_file.clone(), root_dir).unwrap();
             // TODO unwrap
