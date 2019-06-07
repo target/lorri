@@ -48,7 +48,7 @@ pub enum Timeout {
 
 impl Timeout {
     /// Construct from a millisecond u16.
-    pub fn from_millis(m: u16) -> Timeout {
+    pub const fn from_millis(m: u16) -> Timeout {
         Timeout::D(Millis(m))
     }
 }

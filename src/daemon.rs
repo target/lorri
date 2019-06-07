@@ -3,7 +3,7 @@
 use crate::build_loop::BuildLoop;
 use crate::project::Project;
 use crate::roots::Roots;
-use crate::socket::communicate::{NoMessage, Ping};
+use crate::socket::communicate::{NoMessage, Ping, DEFAULT_READ_TIMEOUT};
 use crate::socket::{ReadError, ReadWriter, Timeout};
 use crate::NixFile;
 use std::collections::HashMap;
@@ -42,8 +42,7 @@ impl<'a> Daemon<'a> {
                 build_events_tx: tx,
                 paths,
                 handler_fns: HandlerFns {
-                    // We just declare 1s as timeout time, which should be more than enough
-                    read_timeout: Timeout::from_millis(1000),
+                    read_timeout: DEFAULT_READ_TIMEOUT,
                 },
             },
             rx,
@@ -93,7 +92,6 @@ impl HandlerFns {
     // TODO: make private again
     // the ReadWriter here has to be the inverse of the `Client.ping()`, which is `ReadWriter<!, Ping>`
     pub fn ping(&self, rw: ReadWriter<Ping, NoMessage>, build_chan: mpsc::Sender<StartBuild>) {
-        // TODO: read timeout
         let ping: Result<Ping, ReadError> = rw.read(&self.read_timeout);
         match ping {
             Err(ReadError::Timeout) => debug!(

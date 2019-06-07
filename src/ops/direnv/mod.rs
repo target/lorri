@@ -6,8 +6,7 @@ use self::version::{DirenvVersion, MIN_DIRENV_VERSION};
 use crate::ops::{ok, ok_msg, ExitError, OpResult};
 use crate::project::Project;
 use crate::socket::communicate::client;
-use crate::socket::communicate::Ping;
-use crate::socket::Timeout;
+use crate::socket::communicate::{Ping, DEFAULT_READ_TIMEOUT};
 use std::process::Command;
 
 /// See the documentation for lorri::cli::Command::Direnv for more
@@ -18,11 +17,10 @@ pub fn main(project: &Project) -> OpResult {
     let mut shell_root = project.gc_root_path().unwrap();
     shell_root.push("build-0"); // !!!
 
-    // TODO: timeout
     // TODO: don’t start build/evaluation automatically, let the user decide
-    if let Ok(client) = client::ping(Timeout::Infinite).connect(&::socket::path::SocketPath::from(
-        ::ops::get_paths()?.daemon_socket_file(),
-    )) {
+    if let Ok(client) = client::ping(DEFAULT_READ_TIMEOUT).connect(
+        &::socket::path::SocketPath::from(::ops::get_paths()?.daemon_socket_file()),
+    ) {
         client
             .write(&Ping {
                 nix_file: project.expression().clone(),

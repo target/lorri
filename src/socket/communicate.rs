@@ -15,6 +15,10 @@ use crate::socket::path::{BindError, BindLock, SocketPath};
 use crate::socket::{ReadWriteError, ReadWriter, Timeout};
 use crate::NixFile;
 
+/// We declare 1s as the time readers should wait
+/// for the other side to send something.
+pub const DEFAULT_READ_TIMEOUT: Timeout = Timeout::from_millis(1000);
+
 /// Enum of all communication modes the lorri daemon supports.
 #[derive(Serialize, Deserialize)]
 pub enum CommunicationType {
@@ -79,9 +83,7 @@ pub mod listener {
             Ok(Listener {
                 listener: l,
                 bind_lock: lock,
-                // same timeout as read_timeout in daemon handlers
-                // TODO: unify when moving Listener into daemon
-                accept_timeout: Timeout::from_millis(1000),
+                accept_timeout: DEFAULT_READ_TIMEOUT,
             })
         }
 
@@ -155,7 +157,7 @@ pub mod client {
         ServerHandshake(ReadWriteError),
     }
 
-    // TODO: builder pattern for timeouts?
+    // builder pattern for timeouts?
 
     impl<R, W> Client<R, W> {
         /// “Bake” a Client, aka set its communication type (and message type arguments).
