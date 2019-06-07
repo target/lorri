@@ -14,12 +14,13 @@ use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
+use NixFile;
 
 /// Builds the Nix expression in `root_nix_file`.
 ///
 /// Instruments the nix file to gain extra information,
 /// which is valuable even if the build fails.
-pub fn run(root_nix_file: &PathBuf) -> Result<Info, Error> {
+pub fn run(root_nix_file: &NixFile) -> Result<Info, Error> {
     // We're looking for log lines matching:
     //
     //     copied source '...' -> '/nix/store/...'
@@ -42,7 +43,7 @@ pub fn run(root_nix_file: &PathBuf) -> Result<Info, Error> {
         "--argstr",
         "src",
     ])
-    .arg(root_nix_file)
+    .arg(root_nix_file.as_os_str())
     .stdin(Stdio::null())
     .stdout(Stdio::piped())
     .stderr(Stdio::piped());

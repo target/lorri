@@ -13,7 +13,7 @@ pub fn main(project: &project::Project) -> OpResult {
 
     println!(" project root: {}", project.project_root.display());
 
-    println!("   expression: {}", project.expression().display());
+    println!("   expression: {}", project.expression());
 
     ok()
 }

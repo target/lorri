@@ -1,6 +1,7 @@
 //! Defines the CLI interface using structopt.
 
 use std::path::PathBuf;
+use NixFile;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "lorri")]
@@ -66,7 +67,7 @@ pub struct Ping {
     // TODO
     #[structopt(parse(from_os_str))]
     /// The nix file to watch and build on changes.
-    pub nix_file: PathBuf,
+    pub nix_file: NixFile,
 }
 
 /// A stub struct to represent how what we want to upgrade to.

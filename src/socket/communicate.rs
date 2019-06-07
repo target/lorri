@@ -10,10 +10,10 @@
 //! we support.
 
 use std::os::unix::net::UnixStream;
-use std::path::PathBuf;
 
 use crate::socket::path::{BindError, BindLock, SocketPath};
 use crate::socket::{ReadWriteError, ReadWriter, Timeout};
+use crate::NixFile;
 
 /// Enum of all communication modes the lorri daemon supports.
 #[derive(Serialize, Deserialize)]
@@ -28,7 +28,7 @@ pub enum CommunicationType {
 #[derive(Serialize, Deserialize)]
 pub struct Ping {
     /// The nix file to watch and build on changes.
-    pub nix_file: PathBuf,
+    pub nix_file: NixFile,
 }
 
 /// No message can be sent through this socket end (empty type).

@@ -7,6 +7,7 @@ use lorri::{
     ops::direnv,
     project::Project,
     roots::Roots,
+    NixFile,
 };
 use std::fs::File;
 use std::io::Write;
@@ -28,11 +29,16 @@ impl DirenvTestCase {
         let test_root =
             PathBuf::from_iter(&[env!("CARGO_MANIFEST_DIR"), "tests", "integration", name]);
 
-        let project =
-            Project::load(test_root.join("shell.nix"), tempdir.path().to_path_buf()).unwrap();
+        let project = Project::load(
+            NixFile::from(test_root.join("shell.nix")),
+            tempdir.path().to_path_buf(),
+        )
+        .unwrap();
 
-        let build_loop =
-            BuildLoop::new(project.expression(), Roots::from_project(&project).unwrap());
+        let build_loop = BuildLoop::new(
+            project.expression().to_owned(),
+            Roots::from_project(&project).unwrap(),
+        );
 
         DirenvTestCase {
             tempdir,

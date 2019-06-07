@@ -13,10 +13,10 @@ use std::thread;
 /// details.
 pub fn main(project: Project) -> OpResult {
     let (tx, rx) = channel();
-    let root_nix_file = &project.expression();
+    let root_nix_file = project.expression();
     // TODO: handle unwrap
     let roots = Roots::from_project(&project).unwrap();
-    let mut build_loop = BuildLoop::new(root_nix_file.clone(), roots.clone());
+    let mut build_loop = BuildLoop::new(root_nix_file.to_owned(), roots.clone());
 
     println!(
         "WARNING: lorri shell is very simplistic and not suppported at the moment. \
@@ -51,8 +51,7 @@ pub fn main(project: Project) -> OpResult {
         Err(e) => {
             return Err(ExitError::errmsg(format!(
                 "Build for {} never produced a successful result: {:#?}",
-                root_nix_file.display(),
-                e
+                root_nix_file, e
             )));
         }
     };

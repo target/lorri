@@ -6,12 +6,13 @@ use locate_file::FileLocationError;
 use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::path::PathBuf;
+use NixFile;
 
 /// A specific project which we are operating on
 #[derive(Debug)]
 pub struct Project {
     /// The file on disk to the shell.nix
-    pub nix_file: PathBuf,
+    pub nix_file: NixFile,
 
     // TODO: completely superfluous, lorri only needs
     // to know about the nix file
@@ -19,7 +20,7 @@ pub struct Project {
     pub project_root: PathBuf,
 
     /// Directory, in which garbage collection roots will be stored
-    gc_root: PathBuf,
+    base_gc_root_path: PathBuf,
 }
 
 /// Error conditions encountered when finding and loading a Lorri
@@ -50,7 +51,7 @@ impl Project {
         let shell_nix = locate_file::in_cwd("shell.nix")?;
 
         Project::load(
-            shell_nix,
+            NixFile(shell_nix),
             ::constants::Paths::initialize()
                 // TODO: don’t initialize in here
                 .expect("Error: cannot initialize lorri paths")
@@ -61,8 +62,10 @@ impl Project {
 
     /// Given an absolute path to a shell.nix,
     /// construct a Project and a ProjectConfig.
-    pub fn load(nix_file: PathBuf, gc_root: PathBuf) -> Result<Project, ProjectLoadError> {
+    pub fn load(nix_file: NixFile, gc_root: PathBuf) -> Result<Project, ProjectLoadError> {
+        // TODO: remove the ability to get the parent of a nix file
         let project_root = nix_file
+            .0
             .parent()
             // only None if `shell_nix` is "/"
             .unwrap();
@@ -70,14 +73,14 @@ impl Project {
         Ok(Project {
             project_root: project_root.to_path_buf(),
             nix_file: nix_file.clone(),
-            gc_root,
+            base_gc_root_path: gc_root,
         })
     }
 
     /// Absolute path to the the project's primary entry points
     /// expression
-    pub fn expression(&self) -> PathBuf {
-        self.nix_file.clone()
+    pub fn expression(&self) -> &NixFile {
+        &self.nix_file
     }
 
     /// Absolute path to the projects' gc root directory, for pinning
@@ -85,7 +88,7 @@ impl Project {
     pub fn gc_root_path(&self) -> Result<PathBuf, std::io::Error> {
         // TODO: use a hash of the project’s abolute path here
         // to avoid collisions
-        let path = self.gc_root.join(self.hash()).join("gc_root");
+        let path = self.base_gc_root_path.join(self.hash()).join("gc_root");
 
         if !path.is_dir() {
             debug!("Creating all directories for GC roots in {:?}", path);

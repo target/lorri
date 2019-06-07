@@ -14,7 +14,7 @@ pub fn main(project: &Project) -> OpResult {
     // TODO: handle unwrap
     let roots = Roots::from_project(project).unwrap();
 
-    let mut build_loop = BuildLoop::new(project.expression(), roots);
+    let mut build_loop = BuildLoop::new(project.expression().to_owned(), roots);
 
     let build_thread = {
         thread::spawn(move || {
