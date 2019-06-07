@@ -17,23 +17,17 @@ use std::process::Command;
 use tempfile::{tempdir, TempDir};
 
 pub struct DirenvTestCase {
-    tempdir: TempDir,
+    projectdir: TempDir,
     project: Project,
     build_loop: BuildLoop,
 }
 
 impl DirenvTestCase {
     pub fn new(name: &str) -> DirenvTestCase {
-        let tempdir = tempdir().expect("tempfile::tempdir() failed us!");
+        let projectdir = tempdir().expect("tempfile::tempdir() failed us!");
 
-        let test_root =
-            PathBuf::from_iter(&[env!("CARGO_MANIFEST_DIR"), "tests", "integration", name]);
-
-        let project = Project::load(
-            NixFile::from(test_root.join("shell.nix")),
-            tempdir.path().to_path_buf(),
-        )
-        .unwrap();
+        let project =
+            Project::load(Self::shell_file(name), projectdir.path().to_path_buf()).unwrap();
 
         let build_loop = BuildLoop::new(
             project.expression().to_owned(),
@@ -41,10 +35,17 @@ impl DirenvTestCase {
         );
 
         DirenvTestCase {
-            tempdir,
+            projectdir,
             project,
             build_loop,
         }
+    }
+
+    fn shell_file(name: &str) -> NixFile {
+        let test_root =
+            PathBuf::from_iter(&[env!("CARGO_MANIFEST_DIR"), "tests", "integration", name]);
+
+        NixFile::from(test_root.join("shell.nix"))
     }
 
     /// Execute the build loop one time
@@ -59,7 +60,7 @@ impl DirenvTestCase {
             .unwrap()
             .expect("direnv::main should return a string of shell");
 
-        File::create(self.project.project_root.join(".envrc"))
+        File::create(self.projectdir.path().join(".envrc"))
             .unwrap()
             .write_all(shell.as_bytes())
             .unwrap();
@@ -87,9 +88,9 @@ impl DirenvTestCase {
         d.env_remove("DIRENV_MTIME");
         d.env_remove("DIRENV_WATCHES");
         d.env_remove("DIRENV_DIFF");
-        d.env("DIRENV_CONFIG", &self.tempdir.path());
-        d.env("XDG_CONFIG_HOME", &self.tempdir.path());
-        d.current_dir(&self.project.project_root);
+        d.env("DIRENV_CONFIG", &self.projectdir.path());
+        d.env("XDG_CONFIG_HOME", &self.projectdir.path());
+        d.current_dir(&self.projectdir.path());
 
         d
     }

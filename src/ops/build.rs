@@ -9,6 +9,6 @@ use crate::project::Project;
 pub fn main(project: &Project) -> OpResult {
     Err(ExitError::errmsg(format!(
         "run `nix-build {}` yourself! :)",
-        project.project_root.display()
+        project.nix_file
     )))
 }

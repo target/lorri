@@ -14,11 +14,6 @@ pub struct Project {
     /// The file on disk to the shell.nix
     pub nix_file: NixFile,
 
-    // TODO: completely superfluous, lorri only needs
-    // to know about the nix file
-    /// The root directory containing the project's files
-    pub project_root: PathBuf,
-
     /// Directory, in which garbage collection roots will be stored
     base_gc_root_path: PathBuf,
 }
@@ -63,15 +58,7 @@ impl Project {
     /// Given an absolute path to a shell.nix,
     /// construct a Project and a ProjectConfig.
     pub fn load(nix_file: NixFile, gc_root: PathBuf) -> Result<Project, ProjectLoadError> {
-        // TODO: remove the ability to get the parent of a nix file
-        let project_root = nix_file
-            .0
-            .parent()
-            // only None if `shell_nix` is "/"
-            .unwrap();
-
         Ok(Project {
-            project_root: project_root.to_path_buf(),
             nix_file: nix_file.clone(),
             base_gc_root_path: gc_root,
         })
@@ -100,9 +87,6 @@ impl Project {
 
     /// Generate a "unique" ID for this project based on its absolute path
     pub fn hash(&self) -> String {
-        format!(
-            "{:x}",
-            md5::compute(self.project_root.as_os_str().as_bytes())
-        )
+        format!("{:x}", md5::compute(self.nix_file.as_os_str().as_bytes()))
     }
 }
