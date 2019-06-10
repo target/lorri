@@ -6,6 +6,20 @@
     # Find the current version number with `git log --prety=%h | wc -l`
     entries = [
       {
+        version = 132;
+        changes = ''
+          Version #130 claimed to add Go support through GOPATH and
+          the appended environment variables, however this wasn't
+          true.
+
+          This version does, actually, do that.
+
+          We also fixed a bug where appended environment variables
+          would include a leading delimiter even if it wasn't
+          previously set.
+        '';
+      }
+      {
         version = 130;
         changes = ''
           `lorri watch` now supports executing shellHooks.

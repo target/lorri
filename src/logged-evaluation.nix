@@ -56,19 +56,7 @@ let
     origOutputs = drv.outputs or [];
     outputs = [ "out" ];
 
-    origArgs = drv.args or [];
-    args = [ "-e" (builtins.toFile "lorri-keep-env-hack" ''
-      mkdir -p "$out"
-      touch "$out/varmap-v1"
-
-      # Export IN_NIX_SHELL to trick various Nix tooling to export
-      # shell-friendly variables
-
-      export IN_NIX_SHELL=1
-
-      # https://github.com/NixOS/nix/blob/92d08c02c84be34ec0df56ed718526c382845d1a/src/nix-build/nix-build.cc#
-      [ -e $stdenv/setup ] && . $stdenv/setup
-
+    preHook = ''
       # Redefine addToSearchPathWithCustomDelimiter to integrate with
       # lorri's environment variable setup map. Then, call the original
       # function. (dirty bash hack.)
@@ -104,6 +92,22 @@ let
           eval "$lorri_addToSearchPathWithCustomDelimiter"
         }
       fi
+
+      ${drv.preHook or ""}
+    '';
+
+    origArgs = drv.args or [];
+    args = [ "-e" (builtins.toFile "lorri-keep-env-hack" ''
+      mkdir -p "$out"
+      touch "$out/varmap-v1"
+
+      # Export IN_NIX_SHELL to trick various Nix tooling to export
+      # shell-friendly variables
+
+      export IN_NIX_SHELL=1
+
+      # https://github.com/NixOS/nix/blob/92d08c02c84be34ec0df56ed718526c382845d1a/src/nix-build/nix-build.cc#
+      [ -e $stdenv/setup ] && . $stdenv/setup
 
       # target/lorri#23
       # https://github.com/NixOS/nix/blob/bfc6bdf222d00d3cb1b0e168a5d55d1a7c9cdb72/src/nix-build/nix-build.cc#L424

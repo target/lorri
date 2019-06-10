@@ -1,9 +1,9 @@
 with import ../../../nix/bogus-nixpkgs {};
 mkShell {
   env = {
-    lorriMockSetupHook = ''
+    shellHook = ''
       mkdir -p /tmp/foo/bar
-      addToSearchPathWithCustomDelimiter : GOPATH /tmp/foo/bar
+      addToSearchPathWithCustomDelimiter : EXAMPLE /tmp/foo/bar
     '';
   };
 }

@@ -68,7 +68,7 @@ impl DirenvTestCase {
 
         let mut env = self.direnv_cmd();
         env.args(&["export", "json"]);
-        let result = env.output().expect("Failed to run direnv allow");
+        let result = env.output().expect("Failed to run direnv export json");
         assert!(result.status.success());
 
         serde_json::from_slice(&result.stdout).unwrap()

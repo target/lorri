@@ -63,3 +63,16 @@ fn trivial_v2() {
     assert_eq!(env.get_env("FOOBAR"), DirenvValue::Value("TUX"));
     assert_eq!(env.get_env("GOPATH"), DirenvValue::Value("FOO:BAR"));
 }
+
+#[test]
+fn v2_gopath_previously_unset() {
+    let env = EnvrcTestCase::new()
+        .ambient_env("PATH", &env::var("PATH").unwrap())
+        .project_env(ProjectEnvBuilderV2::new().append("GOPATH", ":", "BAR"))
+        .unwrap()
+        .get_direnv_variables();
+
+    println!("{:?}", env);
+
+    assert_eq!(env.get_env("GOPATH"), DirenvValue::Value("BAR"));
+}
