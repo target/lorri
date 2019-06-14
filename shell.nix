@@ -5,8 +5,12 @@
 assert isDevelopmentShell -> pkgs ? latest;
 
 let
-  rustChannel = pkgs.latest.rustChannels.stable;
-  rustChannelNightly = pkgs.latest.rustChannels.nightly;
+  rustChannels =
+    pkgs.lib.mapAttrs
+      (_: v: pkgs.rustChannelOf v)
+      (import ./nix/rust-channels.nix {
+        stableVersion = "1.35.0";
+      });
 in
 pkgs.mkShell rec {
   name = "lorri";
@@ -14,7 +18,7 @@ pkgs.mkShell rec {
     # This rust comes from the Mozilla rust overlay so we can
     # get Clippy. Not suitable for production builds. See
     # ./nix/nixpkgs.nix for more details.
-    rustChannel.rust
+    rustChannels.stable.rust
     pkgs.bashInteractive
     pkgs.git
     pkgs.direnv
@@ -26,7 +30,7 @@ pkgs.mkShell rec {
     pkgs.darwin.apple_sdk.frameworks.CoreFoundation
   ] ++
   pkgs.stdenv.lib.optionals isDevelopmentShell [
-    (pkgs.callPackage ./nix/racer.nix { rustNightly = rustChannelNightly; })
+    (pkgs.callPackage ./nix/racer.nix { rustNightly = rustChannels.nightly; })
   ];
 
   # Keep project-specific shell commands local
@@ -51,7 +55,7 @@ pkgs.mkShell rec {
   # In Emacs with `racer-mode`, you need to set
   # `racer-rust-src-path` to `nil` for it to pick
   # up the environment variable with `direnv`.
-  RUST_SRC_PATH = "${rustChannel.rust-src}/lib/rustlib/src/rust/src/";
+  RUST_SRC_PATH = "${rustChannels.stable.rust-src}/lib/rustlib/src/rust/src/";
   # Set up a local directory to install binaries in
   CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
 
