@@ -1,9 +1,6 @@
 {
   pkgs ? import ./nix/nixpkgs.nix { },
-  src ? builtins.fetchGit {
-    url = ./.;
-    ref = "HEAD";
-  }
+  src ? pkgs.nix-gitignore.gitignoreSource [".git/"] ./.
 }:
 pkgs.rustPlatform.buildRustPackage rec {
   name = "lorri";
