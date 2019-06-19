@@ -48,8 +48,8 @@ pub enum Command {
     Daemon,
 
     /// (plumbing) Tell the lorri daemon to care about the current directory's project
-    #[structopt(name = "ping")]
-    Ping(Ping),
+    #[structopt(name = "ping_")]
+    Ping_(Ping_),
 
     /// Upgrade Lorri
     #[structopt(name = "self-upgrade", alias = "self-update")]
@@ -66,7 +66,7 @@ pub enum Command {
 /// If the daemon has not been pinged for a project, it begins listening. If it does not
 /// get pinged for a long time, it may stop watching the project for changes.
 #[derive(StructOpt, Debug)]
-pub struct Ping {
+pub struct Ping_ {
     /// The .nix file to watch and build on changes.
     #[structopt(parse(from_os_str))]
     pub nix_file: NixFile,

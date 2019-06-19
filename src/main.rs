@@ -80,7 +80,7 @@ fn run_command(opts: Arguments) -> OpResult {
         Command::Upgrade(args) => upgrade::main(args),
 
         // TODO: remove
-        Command::Ping(p) => ping::main(p.nix_file),
+        Command::Ping_(p) => ping::main(p.nix_file),
 
         Command::Init => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
     }
