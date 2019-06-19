@@ -37,52 +37,52 @@ fn main() {
     lorri::logging::init_with_default_log_level(opts.verbosity);
     debug!("Input options: {:?}", opts);
 
-    match lorri::ops::get_paths() {
-        Err(e) => exit(Err(e)),
-        Ok(paths) => {
-            let current_dir_msg = || match env::current_dir() {
-                Err(_) => String::from(""),
-                Ok(pb) => format!(" ({})", pb.display()),
-            };
+    let result = run_command(opts);
+    exit(result);
+}
 
-            // use shell.nix from cwd
-            let result = locate_file::in_cwd("shell.nix")
-                .map_err(|_| {
-                    ExitError::errmsg(format!(
-                        "There is no `shell.nix` in the current directory{}\n\
-                         You can use the following minimal `shell.nix` to get started:\n\n\
-                         {}",
-                        current_dir_msg(),
-                        TRIVIAL_SHELL_SRC
-                    ))
-                })
-                .and_then(|shell_nix| {
-                    let nix_file = NixFile::from(shell_nix);
-                    let project = Project::new(&nix_file, paths.gc_root_dir());
+/// Try to read `shell.nix` from the current working dir.
+fn get_shell_nix() -> Result<NixFile, ExitError> {
+    let current_dir_msg = || match env::current_dir() {
+        Err(_) => String::from(""),
+        Ok(pb) => format!(" ({})", pb.display()),
+    };
+    // use shell.nix from cwd
+    Ok(NixFile::from(locate_file::in_cwd("shell.nix").map_err(
+        |_| {
+            ExitError::errmsg(format!(
+                "There is no `shell.nix` in the current directory{}\n\
+                 You can use the following minimal `shell.nix` to get started:\n\n\
+                 {}",
+                current_dir_msg(),
+                TRIVIAL_SHELL_SRC
+            ))
+        },
+    )?))
+}
 
-                    match opts.command {
-                        Command::Info => info::main(&project),
+/// Run the main function of the relevant command.
+fn run_command(opts: Arguments) -> OpResult {
+    let paths = lorri::ops::get_paths()?;
+    match opts.command {
+        Command::Info => info::main(&Project::new(&get_shell_nix()?, paths.gc_root_dir())),
 
-                        Command::Build => build::main(&project),
+        Command::Build => build::main(&Project::new(&get_shell_nix()?, paths.gc_root_dir())),
 
-                        Command::Direnv => direnv::main(&project),
+        Command::Direnv => direnv::main(&Project::new(&get_shell_nix()?, paths.gc_root_dir())),
 
-                        Command::Shell => shell::main(project),
+        Command::Shell => shell::main(Project::new(&get_shell_nix()?, paths.gc_root_dir())),
 
-                        Command::Watch => watch::main(&project),
+        Command::Watch => watch::main(&Project::new(&get_shell_nix()?, paths.gc_root_dir())),
 
-                        Command::Daemon => daemon::main(),
+        Command::Daemon => daemon::main(),
 
-                        Command::Upgrade(args) => upgrade::main(args),
+        Command::Upgrade(args) => upgrade::main(args),
 
-                        // TODO: remove
-                        Command::Ping(p) => ping::main(p.nix_file),
+        // TODO: remove
+        Command::Ping(p) => ping::main(p.nix_file),
 
-                        Command::Init => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
-                    }
-                });
-            exit(result);
-        }
+        Command::Init => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
     }
 }
 
