@@ -43,11 +43,11 @@ pub enum Command {
     #[structopt(name = "watch")]
     Watch,
 
-    /// TODO
+    /// Start the multi-project daemon. Replaces `lorri watch`
     #[structopt(name = "daemon")]
     Daemon,
 
-    /// TODO remove
+    /// (plumbing) Tell the lorri daemon to care about the current directory's project
     #[structopt(name = "ping")]
     Ping(Ping),
 
@@ -60,13 +60,15 @@ pub enum Command {
     Init,
 }
 
-// TODO remove
+/// Send a message with a lorri project.
+///
+/// Pinging with a project tells the daemon that the project was recently interacted with.
+/// If the daemon has not been pinged for a project, it begins listening. If it does not
+/// get pinged for a long time, it may stop watching the project for changes.
 #[derive(StructOpt, Debug)]
-/// Ping the daemon to start a build
 pub struct Ping {
-    // TODO
+    /// The .nix file to watch and build on changes.
     #[structopt(parse(from_os_str))]
-    /// The nix file to watch and build on changes.
     pub nix_file: NixFile,
 }
 
