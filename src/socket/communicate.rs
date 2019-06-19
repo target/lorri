@@ -135,8 +135,8 @@ pub mod client {
         socket: Option<UnixStream>,
         /// Timeout for reads/writes.
         timeout: Timeout,
-        phantom_r: PhantomData<R>,
-        phantom_w: PhantomData<W>,
+        read_type: PhantomData<R>,
+        write_type: PhantomData<W>,
     }
 
     /// Error when talking to the `Listener`.
@@ -167,8 +167,8 @@ pub mod client {
                 comm_type,
                 socket: None,
                 timeout,
-                phantom_r: PhantomData,
-                phantom_w: PhantomData,
+                read_type: PhantomData,
+                write_type: PhantomData,
             }
         }
 
@@ -189,8 +189,8 @@ pub mod client {
                 comm_type: self.comm_type,
                 socket: Some(socket),
                 timeout: self.timeout,
-                phantom_r: PhantomData,
-                phantom_w: PhantomData,
+                read_type: PhantomData,
+                write_type: PhantomData,
             })
         }
 
