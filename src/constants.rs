@@ -16,13 +16,18 @@ impl Paths {
     pub fn initialize() -> std::io::Result<Paths> {
         let pd = ProjectDirs::from("com.github.target.lorri", "lorri", "lorri")
             .expect("Could not determine lorri project/cache directories, please set $HOME");
-        let create_dir = |base: &Path, dir: &str| -> std::io::Result<PathBuf> {
-            let d = base.join(dir);
-            std::fs::create_dir_all(&d).and(Ok(d))
+        let create_dir = |dir: PathBuf| -> std::io::Result<PathBuf> {
+            std::fs::create_dir_all(&dir).and(Ok(dir))
         };
         Ok(Paths {
-            gc_root_dir: create_dir(pd.cache_dir(), "gc_roots")?,
-            daemon_socket_file: pd.cache_dir().join("daemon.socket"),
+            gc_root_dir: create_dir(pd.cache_dir().join("gc_roots"))?,
+            daemon_socket_file: create_dir(
+                pd.runtime_dir()
+                    // fall back to the cache dir on non-linux
+                    .unwrap_or_else(|| pd.cache_dir())
+                    .to_owned(),
+            )?
+            .join("daemon.socket"),
         })
     }
 
