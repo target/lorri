@@ -7,37 +7,38 @@ use lorri::{
     ops::direnv,
     project::Project,
     roots::Roots,
+    NixFile,
 };
 use std::fs::File;
 use std::io::Write;
+use std::iter::FromIterator;
 use std::path::PathBuf;
 use std::process::Command;
 use tempfile::{tempdir, TempDir};
 
 pub struct DirenvTestCase {
-    tempdir: TempDir,
-    project: Project,
+    shell_file: NixFile,
+    projectdir: TempDir,
     build_loop: BuildLoop,
 }
 
 impl DirenvTestCase {
     pub fn new(name: &str) -> DirenvTestCase {
-        let tempdir = tempdir().expect("tempfile::tempdir() failed us!");
+        let projectdir = tempdir().expect("tempfile::tempdir() failed us!");
 
-        let test_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests")
-            .join("integration")
-            .join(name);
+        let test_root =
+            PathBuf::from_iter(&[env!("CARGO_MANIFEST_DIR"), "tests", "integration", name]);
 
-        let project =
-            Project::load(test_root.join("shell.nix"), tempdir.path().to_path_buf()).unwrap();
+        let shell_file = NixFile::from(test_root.join("shell.nix"));
 
-        let build_loop =
-            BuildLoop::new(project.expression(), Roots::from_project(&project).unwrap());
+        let pdpath = projectdir.path().to_owned();
+        let project = Project::new(&shell_file, &pdpath);
+
+        let build_loop = BuildLoop::new(shell_file.clone(), Roots::from_project(&project).unwrap());
 
         DirenvTestCase {
-            tempdir,
-            project,
+            shell_file: shell_file.clone(),
+            projectdir,
             build_loop,
         }
     }
@@ -50,11 +51,12 @@ impl DirenvTestCase {
     /// Run `direnv allow` and then `direnv export json`, and return
     /// the environment DirEnv would produce.
     pub fn get_direnv_variables(&self) -> DirenvEnv {
-        let shell = direnv::main(&self.project)
+        let project = Project::new(&self.shell_file, self.projectdir.path());
+        let shell = direnv::main(&project)
             .unwrap()
             .expect("direnv::main should return a string of shell");
 
-        File::create(self.project.project_root.join(".envrc"))
+        File::create(self.projectdir.path().join(".envrc"))
             .unwrap()
             .write_all(shell.as_bytes())
             .unwrap();
@@ -82,9 +84,9 @@ impl DirenvTestCase {
         d.env_remove("DIRENV_MTIME");
         d.env_remove("DIRENV_WATCHES");
         d.env_remove("DIRENV_DIFF");
-        d.env("DIRENV_CONFIG", &self.tempdir.path());
-        d.env("XDG_CONFIG_HOME", &self.tempdir.path());
-        d.current_dir(&self.project.project_root);
+        d.env("DIRENV_CONFIG", &self.projectdir.path());
+        d.env("XDG_CONFIG_HOME", &self.projectdir.path());
+        d.current_dir(&self.projectdir.path());
 
         d
     }

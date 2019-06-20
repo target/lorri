@@ -11,9 +11,10 @@ use std::thread;
 /// details.
 pub fn main(project: &Project) -> OpResult {
     let (tx, rx) = channel();
-    let roots = Roots::new(project.gc_root_path().unwrap(), project.id());
+    // TODO: handle unwrap
+    let roots = Roots::from_project(project).unwrap();
 
-    let mut build_loop = BuildLoop::new(project.expression(), roots);
+    let mut build_loop = BuildLoop::new(project.expression().to_owned(), roots);
 
     let build_thread = {
         thread::spawn(move || {

@@ -1,6 +1,7 @@
 //! Defines the CLI interface using structopt.
 
 use std::path::PathBuf;
+use NixFile;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "lorri")]
@@ -42,6 +43,14 @@ pub enum Command {
     #[structopt(name = "watch")]
     Watch,
 
+    /// Start the multi-project daemon. Replaces `lorri watch`
+    #[structopt(name = "daemon")]
+    Daemon,
+
+    /// (plumbing) Tell the lorri daemon to care about the current directory's project
+    #[structopt(name = "ping_")]
+    Ping_(Ping_),
+
     /// Upgrade Lorri
     #[structopt(name = "self-upgrade", alias = "self-update")]
     Upgrade(UpgradeTo),
@@ -49,6 +58,18 @@ pub enum Command {
     /// Bootstrap files for a new setup
     #[structopt(name = "init")]
     Init,
+}
+
+/// Send a message with a lorri project.
+///
+/// Pinging with a project tells the daemon that the project was recently interacted with.
+/// If the daemon has not been pinged for a project, it begins listening. If it does not
+/// get pinged for a long time, it may stop watching the project for changes.
+#[derive(StructOpt, Debug)]
+pub struct Ping_ {
+    /// The .nix file to watch and build on changes.
+    #[structopt(parse(from_os_str))]
+    pub nix_file: NixFile,
 }
 
 /// A stub struct to represent how what we want to upgrade to.

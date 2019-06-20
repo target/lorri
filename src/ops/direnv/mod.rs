@@ -5,6 +5,8 @@ mod version;
 use self::version::{DirenvVersion, MIN_DIRENV_VERSION};
 use crate::ops::{ok, ok_msg, ExitError, OpResult};
 use crate::project::Project;
+use crate::socket::communicate::client;
+use crate::socket::communicate::{Ping, DEFAULT_READ_TIMEOUT};
 use std::process::Command;
 
 /// See the documentation for lorri::cli::Command::Direnv for more
@@ -15,8 +17,23 @@ pub fn main(project: &Project) -> OpResult {
     let mut shell_root = project.gc_root_path().unwrap();
     shell_root.push("build-0"); // !!!
 
+    // TODO: don’t start build/evaluation automatically, let the user decide
+    if let Ok(client) = client::ping(DEFAULT_READ_TIMEOUT).connect(
+        &::socket::path::SocketPath::from(::ops::get_paths()?.daemon_socket_file()),
+    ) {
+        client
+            .write(&Ping {
+                nix_file: project.expression().clone(),
+            })
+            .unwrap();
+    } else {
+        eprintln!("Uh oh, your lorri daemon is not running.");
+    }
+
     if !shell_root.exists() {
-        return ExitError::errmsg("Please run 'lorri watch' before using direnv integration.");
+        return Err(ExitError::errmsg(
+            "Please start `lorri daemon` or run `lorri watch` before using direnv integration.",
+        ));
     }
 
     if std::env::var("DIRENV_IN_ENVRC") != Ok(String::from("1")) {
@@ -49,10 +66,10 @@ fn check_direnv_version() -> OpResult {
             message: "Could not figure out the current `direnv` version (parse error)".to_string(),
         })?;
     if version < MIN_DIRENV_VERSION {
-        ExitError::errmsg(format!(
+        Err(ExitError::errmsg(format!(
             "`direnv` is version {}, but >= {} is required for lorri to function",
             version, MIN_DIRENV_VERSION
-        ))
+        )))
     } else {
         ok()
     }

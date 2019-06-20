@@ -11,10 +11,7 @@ pub fn main(project: &project::Project) -> OpResult {
     println!("Lorri Project Configuration");
     println!();
 
-    println!(" project root: {}", project.project_root.display());
-
-    println!(" project name: {}", project.name());
-    println!("   expression: {}", project.expression().display());
+    println!("expression: {}", project.expression());
 
     ok()
 }

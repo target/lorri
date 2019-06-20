@@ -1,12 +1,20 @@
 //! Ops are command-line callables.
 
 pub mod build;
+pub mod daemon;
 pub mod direnv;
 pub mod info;
 pub mod init;
+pub mod ping;
 pub mod shell;
 pub mod upgrade;
 pub mod watch;
+
+/// Set up necessary directories or fail.
+pub fn get_paths() -> Result<::constants::Paths, ExitError> {
+    ::constants::Paths::initialize()
+        .map_err(|e| ExitError::errmsg(format!("Cannot initialize the lorri paths: {}", e)))
+}
 
 /// Non-zero exit status from an op
 #[derive(Debug)]
@@ -39,7 +47,7 @@ pub fn ok() -> OpResult {
 
 impl ExitError {
     /// Exit 1 with an exit message
-    pub fn errmsg<T>(message: T) -> OpResult
+    pub fn errmsg<T>(message: T) -> ExitError
     where
         T: Into<String>,
     {
@@ -49,16 +57,16 @@ impl ExitError {
     /// Helpers to create exit results
     ///
     /// Note: err panics if exitcode is zero.
-    fn err<T>(exitcode: i32, message: T) -> OpResult
+    fn err<T>(exitcode: i32, message: T) -> ExitError
     where
         T: Into<String>,
     {
         assert!(exitcode != 0, "ExitError exitcode must be > 0!");
 
-        Err(ExitError {
+        ExitError {
             exitcode,
             message: message.into(),
-        })
+        }
     }
 
     /// Exit code of the failure message, guaranteed to be > 0
@@ -79,24 +87,15 @@ mod tests {
     #[test]
     #[should_panic]
     fn err_requires_nonzero() {
-        // is_err() because we're forced to use the result
-        ExitError::err(0, "bogus").is_err();
-    }
-
-    #[test]
-    fn err_doesnt_always_panic() {
-        assert!(ExitError::err(1, "bogus").is_err());
+        ExitError::err(0, "bogus");
     }
 
     #[test]
     fn getters() {
         match ExitError::err(1, "bogus") {
-            Err(e) => {
+            e => {
                 assert_eq!(e.exitcode(), 1);
                 assert_eq!(e.message(), "bogus");
-            }
-            otherwise => {
-                panic!("{:?}", otherwise);
             }
         }
     }

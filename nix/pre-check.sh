@@ -2,6 +2,9 @@ TEST_ROOT_DEST=${TMPDIR:-/tmp}/nix-test/nix
 mkdir -p $TEST_ROOT_DEST
 TEST_ROOT=$(realpath $TEST_ROOT_DEST)
 
+# prevent us from creating $HOME if it doesn’t exist
+export XDG_CACHE_HOME=${TMPDIR:-/tmp}/nix-test/xdg-cache-dir
+
 export NIX_STORE_DIR=$TEST_ROOT/store
 mkdir -p $NIX_STORE_DIR
 export NIX_LOCALSTATE_DIR=$TEST_ROOT/var

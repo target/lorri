@@ -7,6 +7,7 @@ use crate::pathreduction::reduce_paths;
 use crate::roots;
 use crate::roots::Roots;
 use crate::watch::Watch;
+use crate::NixFile;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
@@ -44,7 +45,7 @@ pub struct BuildExitFailure {
 /// Additionally, we create GC roots for the build results.
 pub struct BuildLoop {
     /// A nix source file which can be built
-    nix_root_path: PathBuf,
+    nix_root_path: NixFile,
     roots: Roots,
     /// Watches all input files for changes.
     /// As new input files are discovered, they are added to the watchlist.
@@ -54,7 +55,7 @@ pub struct BuildLoop {
 impl BuildLoop {
     /// Instatiate a new BuildLoop. Uses an internal filesystem
     /// watching implementation.
-    pub fn new(nix_root_path: PathBuf, roots: Roots) -> BuildLoop {
+    pub fn new(nix_root_path: NixFile, roots: Roots) -> BuildLoop {
         BuildLoop {
             nix_root_path,
             roots,

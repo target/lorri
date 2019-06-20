@@ -3,9 +3,14 @@ extern crate structopt;
 #[macro_use]
 extern crate log;
 
+use lorri::locate_file;
+use lorri::NixFile;
+
 use lorri::cli::{Arguments, Command};
-use lorri::ops::{build, direnv, info, init, shell, upgrade, watch, ExitError, OpResult};
-use lorri::project::{Project, ProjectLoadError};
+use lorri::ops::{
+    build, daemon, direnv, info, init, ping, shell, upgrade, watch, ExitError, OpResult,
+};
+use lorri::project::Project;
 use std::env;
 use structopt::StructOpt;
 
@@ -13,50 +18,7 @@ const TRIVIAL_SHELL_SRC: &str = include_str!("./trivial-shell.nix");
 const DEFAULT_ENVRC: &str = "eval \"$(lorri direnv)\"";
 
 fn main() {
-    let opts = Arguments::from_args();
-
-    lorri::logging::init_with_default_log_level(opts.verbosity);
-    debug!("Input options: {:?}", opts);
-
-    let project = Project::from_cwd();
-
-    let result: OpResult = match (opts.command, project) {
-        (Command::Info, Ok(project)) => info::main(&project),
-
-        (Command::Build, Ok(project)) => build::main(&project),
-
-        (Command::Direnv, Ok(project)) => direnv::main(&project),
-
-        (Command::Shell, Ok(project)) => shell::main(project),
-
-        (Command::Watch, Ok(project)) => watch::main(&project),
-
-        (Command::Upgrade(args), _) => upgrade::main(args),
-
-        (Command::Init, _) => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
-
-        (_, Err(ProjectLoadError::ConfigNotFound)) => {
-            let current_dir_msg = match env::current_dir() {
-                Err(_) => String::from(""),
-                Ok(pb) => format!(" ({})", pb.display()),
-            };
-
-            ExitError::errmsg(format!(
-                "There is no `shell.nix` in the current directory{}
-You can use the following minimal `shell.nix` to get started:
-
-{}",
-                current_dir_msg, TRIVIAL_SHELL_SRC
-            ))
-        }
-
-        (cmd, Err(err)) => ExitError::errmsg(format!(
-            "Can't run {:?}, because of the following project load error: {:?}",
-            cmd, err
-        )),
-    };
-
-    match result {
+    let exit = |result: OpResult| match result {
         Err(err) => {
             eprintln!("{}", err.message());
             std::process::exit(err.exitcode());
@@ -68,6 +30,59 @@ You can use the following minimal `shell.nix` to get started:
         Ok(None) => {
             std::process::exit(0);
         }
+    };
+
+    let opts = Arguments::from_args();
+
+    lorri::logging::init_with_default_log_level(opts.verbosity);
+    debug!("Input options: {:?}", opts);
+
+    let result = run_command(opts);
+    exit(result);
+}
+
+/// Try to read `shell.nix` from the current working dir.
+fn get_shell_nix() -> Result<NixFile, ExitError> {
+    let current_dir_msg = || match env::current_dir() {
+        Err(_) => String::from(""),
+        Ok(pb) => format!(" ({})", pb.display()),
+    };
+    // use shell.nix from cwd
+    Ok(NixFile::from(locate_file::in_cwd("shell.nix").map_err(
+        |_| {
+            ExitError::errmsg(format!(
+                "There is no `shell.nix` in the current directory{}\n\
+                 You can use the following minimal `shell.nix` to get started:\n\n\
+                 {}",
+                current_dir_msg(),
+                TRIVIAL_SHELL_SRC
+            ))
+        },
+    )?))
+}
+
+/// Run the main function of the relevant command.
+fn run_command(opts: Arguments) -> OpResult {
+    let paths = lorri::ops::get_paths()?;
+    match opts.command {
+        Command::Info => info::main(&Project::new(&get_shell_nix()?, paths.gc_root_dir())),
+
+        Command::Build => build::main(&Project::new(&get_shell_nix()?, paths.gc_root_dir())),
+
+        Command::Direnv => direnv::main(&Project::new(&get_shell_nix()?, paths.gc_root_dir())),
+
+        Command::Shell => shell::main(Project::new(&get_shell_nix()?, paths.gc_root_dir())),
+
+        Command::Watch => watch::main(&Project::new(&get_shell_nix()?, paths.gc_root_dir())),
+
+        Command::Daemon => daemon::main(),
+
+        Command::Upgrade(args) => upgrade::main(args),
+
+        // TODO: remove
+        Command::Ping_(p) => ping::main(p.nix_file),
+
+        Command::Init => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
     }
 }
 

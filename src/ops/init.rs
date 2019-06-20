@@ -21,7 +21,7 @@ fn create_if_missing(path: &Path, contents: &str, msg: &str) -> Result<(), io::E
 fn to_op(e: Result<(), io::Error>) -> OpResult {
     match e {
         Ok(_) => ok(),
-        Err(e) => ExitError::errmsg(format!("{}", e)),
+        Err(e) => Err(ExitError::errmsg(format!("{}", e))),
     }
 }
 

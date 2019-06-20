@@ -12,18 +12,14 @@ pub struct Roots {
 }
 
 impl Roots {
-    /// Create a Roots struct to manage roots within the root_dir
-    /// directory.
-    ///
-    /// `id` is a unique identifier for this project's checkout.
-    pub fn new(root_dir: PathBuf, id: String) -> Roots {
-        Roots { root_dir, id }
-    }
-
+    // TODO: all use-cases are from_project; just save a reference to a project?
     /// Construct a Roots struct based on a project's GC root directory
     /// and ID.
     pub fn from_project(project: &Project) -> Result<Roots, std::io::Error> {
-        Ok(Roots::new(project.gc_root_path()?, project.id()))
+        Ok(Roots {
+            root_dir: project.gc_root_path()?,
+            id: project.hash(),
+        })
     }
 
     /// Store a new root under name
