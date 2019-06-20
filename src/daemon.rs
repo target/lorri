@@ -9,9 +9,20 @@ use crate::NixFile;
 use std::collections::HashMap;
 use std::sync::mpsc;
 
-/// Instructs the daemon to start a build.
-pub struct StartBuild {
-    /// The nix file to watch and build on changes.
+/// Indicate that the user is interested in a specific nix file.
+/// Usually a nix file describes the environment of a project,
+/// so the user editor would send this message when a file
+/// in the project is opened, through `lorri direnv` for example.
+///
+/// `lorri ping_` is the plumbing command which triggers this signal.
+///
+/// Note especially that we don’t want to fix the server reaction to
+/// this signal yet, sending `IndicateActivity` does not necessarily
+/// start a build immediately (or at all, if for example we implement
+/// a “pause/stop” functionality). The semantics will be specified
+/// at a later time.
+pub struct IndicateActivity {
+    /// This nix file should be build/watched by the daemon.
     pub nix_file: NixFile,
 }
 
@@ -91,7 +102,11 @@ impl HandlerFns {
     /// the build to `build_chan`.
     // TODO: make private again
     // the ReadWriter here has to be the inverse of the `Client.ping()`, which is `ReadWriter<!, Ping>`
-    pub fn ping(&self, rw: ReadWriter<Ping, NoMessage>, build_chan: mpsc::Sender<StartBuild>) {
+    pub fn ping(
+        &self,
+        rw: ReadWriter<Ping, NoMessage>,
+        build_chan: mpsc::Sender<IndicateActivity>,
+    ) {
         let ping: Result<Ping, ReadError> = rw.read(&self.read_timeout);
         match ping {
             Err(ReadError::Timeout) => debug!(
@@ -104,7 +119,7 @@ impl HandlerFns {
             Ok(p) => {
                 info!("pinged with {}", p.nix_file);
                 build_chan
-                    .send(StartBuild {
+                    .send(IndicateActivity {
                         nix_file: p.nix_file,
                     })
                     .expect("StartBuild channel closed")

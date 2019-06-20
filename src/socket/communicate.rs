@@ -23,7 +23,8 @@ pub const DEFAULT_READ_TIMEOUT: Timeout = Timeout::from_millis(1000);
 #[derive(Serialize, Deserialize)]
 pub enum CommunicationType {
     /// Ping the daemon from a project to tell it to watch & evaluate
-    // TODO: rename to BuildProject or something?
+    // TODO: rename to IndicateActivity (along with all other `ping` things)
+    // issue: https://github.com/target/lorri/issues/101
     Ping,
 }
 
