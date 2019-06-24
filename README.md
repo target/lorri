@@ -76,6 +76,7 @@ $ nix-env -if .
 Create a file named `.envrc` in your project's root with the contents:
 
 ```
+# content of `.envrc` file:
 eval "$(lorri direnv)"
 ```
 
