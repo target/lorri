@@ -2,41 +2,33 @@
   pkgs ? import ./nix/nixpkgs.nix { },
   src ? pkgs.nix-gitignore.gitignoreSource [".git/"] ./.
 }:
-pkgs.rustPlatform.buildRustPackage rec {
-  name = "lorri";
+((pkgs.callPackage ./Cargo.nix {
+  cratesIO = pkgs.callPackage ./crates-io.nix {};
+}).lorri {
+}).override {
+  crateOverrides = pkgs.defaultCrateOverrides // {
+    lorri = attrs: {
+      BUILD_REV_COUNT = src.revCount or 1;
+      RUN_TIME_CLOSURE = pkgs.callPackage ./nix/runtime.nix {};
+      NIX_PATH = "nixpkgs=${./nix/bogus-nixpkgs}";
 
-  inherit src;
+      preConfigure = ''
+        . ${./nix/pre-check.sh}
 
-  BUILD_REV_COUNT = src.revCount or 1;
-  RUN_TIME_CLOSURE = pkgs.callPackage ./nix/runtime.nix {};
+        # Do an immediate, light-weight test to ensure logged-evaluation
+        # is valid, prior to doing expensive compilations.
+        nix-build --show-trace ./src/logged-evaluation.nix \
+          --arg src ./tests/integration/basic/shell.nix \
+          --arg runTimeClosure "$RUN_TIME_CLOSURE" \
+          --no-out-link
+      '';
 
-  cargoSha256 = "1daff4plh7hwclfp21hkx4fiflh9r80y2c7k2sd3zm4lmpy0jpfz";
-
-  NIX_PATH = "nixpkgs=${./nix/bogus-nixpkgs}";
-
-  USER = "bogus";
-
-  nativeBuildInputs = [ ];
-  buildInputs = [ pkgs.nix pkgs.direnv pkgs.which ] ++
-    pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
-      pkgs.darwin.cf-private
-      pkgs.darwin.Security
-      pkgs.darwin.apple_sdk.frameworks.CoreServices
-    ];
-
-  preConfigure = ''
-    . ${./nix/pre-check.sh}
-
-    # Do an immediate, light-weight test to ensure logged-evaluation
-    # is valid, prior to doing expensive compilations.
-    nix-build --show-trace ./src/logged-evaluation.nix \
-      --arg src ./tests/integration/basic/shell.nix \
-      --arg runTimeClosure "$RUN_TIME_CLOSURE" \
-      --no-out-link
-  '';
-
-  # Darwin fails to build doctests with:
-  # dyld: Symbol not found __ZTIN4llvm2cl18GenericOptionValueE
-  # see: https://github.com/NixOS/nixpkgs/pull/49839
-  doCheck = !pkgs.stdenv.isDarwin;
+      buildInputs = [ pkgs.nix pkgs.direnv pkgs.which ] ++
+      pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
+        pkgs.darwin.cf-private
+        pkgs.darwin.Security
+        pkgs.darwin.apple_sdk.frameworks.CoreServices
+      ];
+    };
+  };
 }

@@ -37,12 +37,16 @@ let
       script = ''
         set -e
         source ./.travis_fold.sh
+
         lorri_travis_fold ci_check \
           nix-shell --quiet --arg isDevelopmentShell false --run ci_check
         lorri_travis_fold travis-yml-gen \
           cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
         lorri_travis_fold travis-yml-idempotent \
           git diff -q ./.travis.yml
+        lorri_travis_fold carnix-idempotent \
+          git diff -q ./.travis.yml
+
       '';
       # delete all our own artifacts from the cache dir
       # based on https://gist.github.com/jkcclemens/000456ca646bd502cac0dbddcb8fa307
