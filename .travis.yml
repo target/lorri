@@ -45,10 +45,11 @@
       2.2.1
     "os": >-
       linux
-    "script": >
+    "script": >+
       set -e
 
       source ./.travis_fold.sh
+
 
       lorri_travis_fold ci_check \
         nix-shell --quiet --arg isDevelopmentShell false --run ci_check
@@ -56,6 +57,9 @@
         cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
       lorri_travis_fold travis-yml-idempotent \
         git diff -q ./.travis.yml
+      lorri_travis_fold carnix-idempotent \
+        git diff -q ./.travis.yml
+
   - "before_cache":
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
@@ -96,10 +100,11 @@
       2.0
     "os": >-
       osx
-    "script": >
+    "script": >+
       set -e
 
       source ./.travis_fold.sh
+
 
       lorri_travis_fold ci_check \
         nix-shell --quiet --arg isDevelopmentShell false --run ci_check
@@ -107,6 +112,9 @@
         cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
       lorri_travis_fold travis-yml-idempotent \
         git diff -q ./.travis.yml
+      lorri_travis_fold carnix-idempotent \
+        git diff -q ./.travis.yml
+
   - "language": >-
       nix
     "name": >-
