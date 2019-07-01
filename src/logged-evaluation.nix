@@ -88,7 +88,23 @@ let
         addToSearchPathWithCustomDelimiter() {
           local delimiter=$1
           local varname=$2
-          printf 'append\0%s\0%s\0' "$varname" "$delimiter" >> "$out/varmap-v1"
+          local already_present=0
+
+          while IFS="" read -r -d "" map_instruction \
+             && IFS="" read -r -d "" match_varname \
+             && IFS="" read -r -d "" match_delimiter; do
+            unset IFS
+            if [[ $match_varname == $varname &&
+                  $match_delimiter == $delimiter ]]; then
+              already_present=1
+              break
+            fi
+          done < $out/varmap-v1
+
+          if [ $already_present -eq 0 ]; then
+            printf 'append\0%s\0%s\0' "$varname" "$delimiter" >> $out/varmap-v1
+          fi
+
           eval "$lorri_addToSearchPathWithCustomDelimiter"
         }
       fi
