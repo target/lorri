@@ -48,6 +48,7 @@ impl<'a, 'b> Project<'a, 'b> {
     pub fn gc_root_path(&self) -> Result<PathBuf, std::io::Error> {
         // TODO: use a hash of the project’s abolute path here
         // to avoid collisions
+        // TODO: move to ContentAddressable
         let path = self.base_gc_root_path.join(self.hash()).join("gc_root");
 
         if !path.is_dir() {
@@ -60,6 +61,7 @@ impl<'a, 'b> Project<'a, 'b> {
 
     /// Generate a "unique" ID for this project based on its absolute path
     pub fn hash(&self) -> String {
+        // TODO: move to ContentAddressable
         format!("{:x}", md5::compute(self.nix_file.as_os_str().as_bytes()))
     }
 }
