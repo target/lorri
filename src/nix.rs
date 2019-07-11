@@ -273,6 +273,8 @@ impl CallOpts {
         }
 
         let mut cmd = Command::new("nix-build");
+
+        // Create a gc root to the build output
         cmd.args(&[
             OsStr::new("--out-link"),
             gc_root_dir.join(Path::new("result")).as_os_str(),

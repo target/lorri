@@ -9,6 +9,7 @@ use crate::cli;
 use crate::nix;
 use crate::ops::{ExitError, OpResult};
 use crate::VERSION_BUILD_REV;
+use cas::ContentAddressable;
 use std::process::Command;
 use tempfile::tempdir;
 
@@ -27,7 +28,7 @@ impl From<cli::UpgradeTo> for String {
 }
 
 /// nix-env upgrade Lorri in the default profile.
-pub fn main(upgrade_target: cli::UpgradeTo) -> OpResult {
+pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResult {
     /*
     1. nix-instantiate the expression
     2. get all the changelog entries from <currentnumber> to <maxnumber>
@@ -39,7 +40,10 @@ pub fn main(upgrade_target: cli::UpgradeTo) -> OpResult {
     let expr = {
         let src = String::from(upgrade_target);
         println!("Upgrading from source: {}", src);
-        let mut expr = nix::CallOpts::expression(upgrade_expr);
+        let mut expr = nix::CallOpts::file(
+            cas.file_from_string(upgrade_expr)
+                .expect("could not write to CAS"),
+        );
         expr.argstr("src", &src);
         // ugly hack to prevent expr from being mutable outside,
         // since I can't sort out how to chain argstr and still

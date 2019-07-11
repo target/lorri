@@ -1,7 +1,7 @@
 //! Open up a project shell
 
-use crate::build::{BuildInstruction, NixBuild};
 use crate::build_loop::{BuildLoop, Event};
+use crate::cas::ContentAddressable;
 use crate::ops::{ok, ExitError, OpResult};
 use crate::project::Project;
 use crate::roots::Roots;
@@ -11,7 +11,7 @@ use std::thread;
 
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
-pub fn main(project: Project) -> OpResult {
+pub fn main(project: Project, cas: &ContentAddressable) -> OpResult {
     let (tx, rx) = channel();
     let root_nix_file = project.expression();
     // TODO: handle unwrap
@@ -30,12 +30,13 @@ pub fn main(project: Project) -> OpResult {
     });
 
     debug!("Building bash...");
-    let bash = NixBuild::build(&BuildInstruction::Expression(
-        "(import <nixpkgs> {}).bashInteractive.out",
-    ))
-    .expect("Failed to get a bashInteractive")
-    .pop()
-    .expect("Failed to receive a bash path");
+    let bash = ::nix::CallOpts::file(
+        cas.file_from_string("(import <nixpkgs> {}).bashInteractive.out")
+            .expect("Failed to write to CAS"),
+    )
+    // TODO: make gc_root_path always succeed
+    .path(&project.gc_root_path().unwrap())
+    .expect("Failed to get a bashInteractive");
 
     debug!("running with bash: {:?}", bash);
     roots.add("bash", &bash).unwrap();

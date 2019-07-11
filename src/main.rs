@@ -71,13 +71,16 @@ fn run_command(opts: Arguments) -> OpResult {
 
         Command::Direnv => direnv::main(&Project::new(&get_shell_nix()?, paths.gc_root_dir())),
 
-        Command::Shell => shell::main(Project::new(&get_shell_nix()?, paths.gc_root_dir())),
+        Command::Shell => shell::main(
+            Project::new(&get_shell_nix()?, paths.gc_root_dir()),
+            paths.cas_store(),
+        ),
 
         Command::Watch => watch::main(&Project::new(&get_shell_nix()?, paths.gc_root_dir())),
 
         Command::Daemon => daemon::main(),
 
-        Command::Upgrade(args) => upgrade::main(args),
+        Command::Upgrade(args) => upgrade::main(args, paths.cas_store()),
 
         // TODO: remove
         Command::Ping_(p) => ping::main(p.nix_file),
