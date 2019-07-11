@@ -28,7 +28,6 @@ extern crate vec1;
 extern crate proptest;
 
 pub mod bash;
-pub mod build;
 pub mod build_loop;
 pub mod builder;
 pub mod cas;
