@@ -53,6 +53,7 @@ pub struct BuildLoop {
 }
 
 impl BuildLoop {
+    // TODO: take project instead
     /// Instatiate a new BuildLoop. Uses an internal filesystem
     /// watching implementation.
     pub fn new(nix_root_path: NixFile, roots: Roots) -> BuildLoop {

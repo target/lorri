@@ -11,7 +11,7 @@ pub fn main(project: &project::Project) -> OpResult {
     println!("Lorri Project Configuration");
     println!();
 
-    println!("expression: {}", project.expression());
+    println!("expression: {}", project.nix_file);
 
     ok()
 }

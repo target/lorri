@@ -1,50 +1,33 @@
-//! Project-level functions, like preferred configuration
-//! and on-disk locations.
+//! Wrap a nix file and manage corresponding state.
 
-use std::io;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use NixFile;
 
-/// A specific project which we are operating on
+/// A “project” knows how to handle the lorri state
+/// for a given nix file.
 #[derive(Debug)]
 pub struct Project<'a, 'b> {
-    /// The file on disk to the shell.nix
+    /// Absolute path to this project’s nix file.
     pub nix_file: &'a NixFile,
 
-    /// Directory, in which garbage collection roots will be stored
-    pub base_gc_root_path: &'b Path,
-}
-
-/// Error conditions encountered when finding and loading a Lorri
-/// config file.
-#[derive(Debug)]
-pub enum ProjectLoadError {
-    /// The shell.nix was not found in a directory search.
-    ConfigNotFound,
-
-    /// An IO error occured while finding the project
-    Io(io::Error),
+    /// Directory in which all lorri garbage collection roots are stored.
+    base_gc_root_path: &'b Path,
 }
 
 impl<'a, 'b> Project<'a, 'b> {
-    /// Given an absolute path to a shell.nix,
-    /// construct a Project and a ProjectConfig.
-    pub fn new(nix_file: &'a NixFile, gc_root: &'b Path) -> Project<'a, 'b> {
+    /// Construct a `Project` from nix file path
+    /// and the base GC root directory
+    /// (as returned by `Paths.gc_root_dir()`),
+    pub fn new(nix_file: &'a NixFile, gc_root_dir: &'b Path) -> Project<'a, 'b> {
         Project {
             nix_file,
-            base_gc_root_path: gc_root,
+            base_gc_root_path: gc_root_dir,
         }
     }
 
-    /// Absolute path to the the project's primary entry points
-    /// expression
-    pub fn expression(&self) -> &NixFile {
-        &self.nix_file
-    }
-
     /// Absolute path to the projects' gc root directory, for pinning
-    /// build and evaluation products
+    /// build and evaluation products.
     pub fn gc_root_path(&self) -> Result<PathBuf, std::io::Error> {
         // TODO: use a hash of the project’s abolute path here
         // to avoid collisions
@@ -59,7 +42,7 @@ impl<'a, 'b> Project<'a, 'b> {
         Ok(path.to_path_buf())
     }
 
-    /// Generate a "unique" ID for this project based on its absolute path
+    /// Generate a "unique" ID for this project based on its absolute path.
     pub fn hash(&self) -> String {
         // TODO: move to ContentAddressable
         format!("{:x}", md5::compute(self.nix_file.as_os_str().as_bytes()))

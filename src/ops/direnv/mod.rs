@@ -23,7 +23,7 @@ pub fn main(project: &Project) -> OpResult {
     ) {
         client
             .write(&Ping {
-                nix_file: project.expression().clone(),
+                nix_file: project.nix_file.clone(),
             })
             .unwrap();
     } else {
