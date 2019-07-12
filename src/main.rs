@@ -62,10 +62,7 @@ fn get_shell_nix() -> Result<NixFile, ExitError> {
     )?))
 }
 
-fn create_project<'a>(
-    paths: &constants::Paths,
-    shell_nix: &'a NixFile,
-) -> Result<Project<'a>, ExitError> {
+fn create_project(paths: &constants::Paths, shell_nix: NixFile) -> Result<Project, ExitError> {
     Project::new(shell_nix, &paths.gc_root_dir())
         .or(Err(ExitError::errmsg("Could not set up project paths")))
 }
@@ -75,18 +72,16 @@ fn run_command<'a>(opts: Arguments) -> OpResult {
     let paths = lorri::ops::get_paths()?;
 
     match opts.command {
-        Command::Info => get_shell_nix().and_then(|sn| info::main(create_project(&paths, &sn)?)),
+        Command::Info => get_shell_nix().and_then(|sn| info::main(create_project(&paths, sn)?)),
 
-        Command::Build => get_shell_nix().and_then(|sn| build::main(create_project(&paths, &sn)?)),
+        Command::Build => get_shell_nix().and_then(|sn| build::main(create_project(&paths, sn)?)),
 
-        Command::Direnv => {
-            get_shell_nix().and_then(|sn| direnv::main(create_project(&paths, &sn)?))
-        }
+        Command::Direnv => get_shell_nix().and_then(|sn| direnv::main(create_project(&paths, sn)?)),
 
         Command::Shell => get_shell_nix()
-            .and_then(|sn| shell::main(create_project(&paths, &sn)?, paths.cas_store())),
+            .and_then(|sn| shell::main(create_project(&paths, sn)?, paths.cas_store())),
 
-        Command::Watch => get_shell_nix().and_then(|sn| watch::main(create_project(&paths, &sn)?)),
+        Command::Watch => get_shell_nix().and_then(|sn| watch::main(create_project(&paths, sn)?)),
 
         Command::Daemon => daemon::main(),
 

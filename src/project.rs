@@ -7,9 +7,9 @@ use NixFile;
 /// A “project” knows how to handle the lorri state
 /// for a given nix file.
 #[derive(Debug)]
-pub struct Project<'a> {
+pub struct Project {
     /// Absolute path to this project’s nix file.
-    pub nix_file: &'a NixFile,
+    pub nix_file: NixFile,
 
     /// Directory in which this project’s
     /// garbage collection roots are stored.
@@ -19,11 +19,11 @@ pub struct Project<'a> {
     hash: String,
 }
 
-impl<'a> Project<'a> {
+impl Project {
     /// Construct a `Project` from nix file path
     /// and the base GC root directory
     /// (as returned by `Paths.gc_root_dir()`),
-    pub fn new(nix_file: &'a NixFile, gc_root_dir: &Path) -> std::io::Result<Project<'a>> {
+    pub fn new(nix_file: NixFile, gc_root_dir: &Path) -> std::io::Result<Project> {
         let hash = format!("{:x}", md5::compute(nix_file.as_os_str().as_bytes()));
         let project_gc_root = gc_root_dir.join(&hash).join("gc_root").to_path_buf();
 

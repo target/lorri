@@ -67,7 +67,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
         .recv_timeout(Duration::from_millis(100))
         .unwrap();
 
-    let project = Project::new(&start_build.nix_file, &paths.gc_root_dir()).unwrap();
+    let project = Project::new(start_build.nix_file, &paths.gc_root_dir()).unwrap();
     daemon.add(&project);
 
     // Read the first build event, which should be a `Started` message
