@@ -9,10 +9,9 @@ use std::thread;
 
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
-pub fn main(project: &Project) -> OpResult {
+pub fn main(project: Project) -> OpResult {
     let (tx, rx) = channel();
-    // TODO: handle unwrap
-    let roots = Roots::from_project(project).unwrap();
+    let roots = Roots::from_project(&project);
 
     let mut build_loop = BuildLoop::new(project.nix_file.clone(), roots);
 

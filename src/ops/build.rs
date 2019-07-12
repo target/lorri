@@ -6,7 +6,7 @@ use crate::project::Project;
 
 /// See the documentation for lorri::cli::Command::Build for more
 /// details.
-pub fn main(project: &Project) -> OpResult {
+pub fn main(project: Project) -> OpResult {
     Err(ExitError::errmsg(format!(
         "run `nix-build {}` yourself! :)",
         project.nix_file

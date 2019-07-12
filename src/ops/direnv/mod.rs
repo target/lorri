@@ -11,10 +11,10 @@ use std::process::Command;
 
 /// See the documentation for lorri::cli::Command::Direnv for more
 /// details.
-pub fn main(project: &Project) -> OpResult {
+pub fn main(project: Project) -> OpResult {
     check_direnv_version()?;
 
-    let mut shell_root = project.gc_root_path().unwrap();
+    let mut shell_root = project.gc_root_path.to_owned();
     shell_root.push("build-0"); // !!!
 
     // TODO: don’t start build/evaluation automatically, let the user decide

@@ -32,9 +32,9 @@ impl DirenvTestCase {
         let shell_file = NixFile::from(test_root.join("shell.nix"));
 
         let pdpath = projectdir.path().to_owned();
-        let project = Project::new(&shell_file, &pdpath);
+        let project = Project::new(&shell_file, &pdpath).unwrap();
 
-        let build_loop = BuildLoop::new(shell_file.clone(), Roots::from_project(&project).unwrap());
+        let build_loop = BuildLoop::new(shell_file.clone(), Roots::from_project(&project));
 
         DirenvTestCase {
             shell_file: shell_file.clone(),
@@ -51,8 +51,8 @@ impl DirenvTestCase {
     /// Run `direnv allow` and then `direnv export json`, and return
     /// the environment DirEnv would produce.
     pub fn get_direnv_variables(&self) -> DirenvEnv {
-        let project = Project::new(&self.shell_file, self.projectdir.path());
-        let shell = direnv::main(&project)
+        let project = Project::new(&self.shell_file, self.projectdir.path()).unwrap();
+        let shell = direnv::main(project)
             .unwrap()
             .expect("direnv::main should return a string of shell");
 

@@ -27,31 +27,28 @@ pub struct IndicateActivity {
 }
 
 /// Keeps all state of the running `lorri daemon` service, watches nix files and runs builds.
-pub struct Daemon<'a> {
+pub struct Daemon {
     /// A thread for each `BuildLoop`, keyed by the nix files listened on.
     handler_threads: HashMap<NixFile, std::thread::JoinHandle<()>>,
     /// Sending end that we pass to every `BuildLoop` the daemon controls.
     // TODO: this needs to transmit information to identify the builder with
     build_events_tx: mpsc::Sender<::build_loop::Event>,
-    /// Static paths the daemon has access to.
-    paths: &'a ::constants::Paths,
     /// The handlers functions for incoming requests
     handler_fns: HandlerFns,
 }
 
 // TODO: set a `Listener` up in the daemon instead of manually outside
 
-impl<'a> Daemon<'a> {
+impl Daemon {
     /// Create a new daemon. Also return an `mpsc::Receiver` that
     /// receives `build_loop::Event`s for all builders this daemon
     /// supervises.
-    pub fn new(paths: &'a ::constants::Paths) -> (Daemon<'a>, mpsc::Receiver<::build_loop::Event>) {
+    pub fn new() -> (Daemon, mpsc::Receiver<::build_loop::Event>) {
         let (tx, rx) = mpsc::channel();
         (
             Daemon {
                 handler_threads: HashMap::new(),
                 build_events_tx: tx,
-                paths,
                 handler_fns: HandlerFns {
                     read_timeout: DEFAULT_READ_TIMEOUT,
                 },
@@ -67,18 +64,15 @@ impl<'a> Daemon<'a> {
 
     /// Add nix file to the set of files this daemon watches
     /// & build if they change.
-    pub fn add(&mut self, nix_file: NixFile) {
+    pub fn add(&mut self, project: &Project) {
         let tx = self.build_events_tx.clone();
-        let root_dir = self.paths.gc_root_dir().to_owned();
 
         self.handler_threads
-            .entry(nix_file.clone())
+            .entry(project.nix_file.clone())
             .or_insert_with(|| {
                 // We construct a Project here for each dependency we get.
-                let project = Project::new(&nix_file, &root_dir);
-                // TODO unwrap
-                let roots = Roots::from_project(&project).unwrap();
-                let mut build_loop = BuildLoop::new(nix_file.clone(), roots);
+                let roots = Roots::from_project(project);
+                let mut build_loop = BuildLoop::new(project.nix_file.clone(), roots);
 
                 std::thread::spawn(move || {
                     // cloning the tx means the daemon’s rx gets all

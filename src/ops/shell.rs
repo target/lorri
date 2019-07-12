@@ -13,8 +13,7 @@ use std::thread;
 /// details.
 pub fn main(project: Project, cas: &ContentAddressable) -> OpResult {
     let (tx, rx) = channel();
-    // TODO: handle unwrap
-    let roots = Roots::from_project(&project).unwrap();
+    let roots = Roots::from_project(&project);
     let mut build_loop = BuildLoop::new(project.nix_file.clone(), roots.clone());
 
     println!(
@@ -33,8 +32,7 @@ pub fn main(project: Project, cas: &ContentAddressable) -> OpResult {
         cas.file_from_string("(import <nixpkgs> {}).bashInteractive.out")
             .expect("Failed to write to CAS"),
     )
-    // TODO: make gc_root_path always succeed
-    .path(&project.gc_root_path().unwrap())
+    .path(&project.gc_root_path)
     .expect("Failed to get a bashInteractive");
 
     debug!("running with bash: {:?}", bash);
