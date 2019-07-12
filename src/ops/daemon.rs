@@ -58,7 +58,7 @@ pub fn main() -> OpResult {
         let project = ::project::Project::new(start_build.nix_file, paths.gc_root_dir())
             // TODO: the project needs to create its gc root dir
             .unwrap();
-        daemon.add(&project)
+        daemon.add(project)
     }
 
     ok()

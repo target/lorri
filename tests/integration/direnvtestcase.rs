@@ -6,7 +6,6 @@ use lorri::{
     build_loop::{BuildError, BuildLoop, BuildResults},
     ops::direnv,
     project::Project,
-    roots::Roots,
     NixFile,
 };
 use std::fs::File;
@@ -19,7 +18,7 @@ use tempfile::{tempdir, TempDir};
 pub struct DirenvTestCase {
     shell_file: NixFile,
     projectdir: TempDir,
-    build_loop: BuildLoop,
+    project: Project,
 }
 
 impl DirenvTestCase {
@@ -34,18 +33,16 @@ impl DirenvTestCase {
         let pdpath = projectdir.path().to_owned();
         let project = Project::new(shell_file.clone(), &pdpath).unwrap();
 
-        let build_loop = BuildLoop::new(shell_file.clone(), Roots::from_project(&project));
-
         DirenvTestCase {
             shell_file: shell_file.clone(),
             projectdir,
-            build_loop,
+            project,
         }
     }
 
     /// Execute the build loop one time
     pub fn evaluate(&mut self) -> Result<BuildResults, BuildError> {
-        self.build_loop.once()
+        BuildLoop::new(&self.project).once()
     }
 
     /// Run `direnv allow` and then `direnv export json`, and return

@@ -6,7 +6,7 @@ use NixFile;
 
 /// A “project” knows how to handle the lorri state
 /// for a given nix file.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Project {
     /// Absolute path to this project’s nix file.
     pub nix_file: NixFile,

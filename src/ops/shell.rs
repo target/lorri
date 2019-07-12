@@ -13,19 +13,13 @@ use std::thread;
 /// details.
 pub fn main(project: Project, cas: &ContentAddressable) -> OpResult {
     let (tx, rx) = channel();
-    let roots = Roots::from_project(&project);
-    let mut build_loop = BuildLoop::new(project.nix_file.clone(), roots.clone());
-
     println!(
         "WARNING: lorri shell is very simplistic and not suppported at the moment. \
          Please use the other commands."
     );
 
-    let initial_build_thread = thread::spawn(move || {
-        let result = build_loop.once();
-
-        (result, build_loop)
-    });
+    let proj = project.clone();
+    let initial_build_thread = thread::spawn(move || BuildLoop::new(&proj).once());
 
     debug!("Building bash...");
     let bash = ::nix::CallOpts::file(
@@ -36,11 +30,11 @@ pub fn main(project: Project, cas: &ContentAddressable) -> OpResult {
     .expect("Failed to get a bashInteractive");
 
     debug!("running with bash: {:?}", bash);
-    roots.add("bash", &bash).unwrap();
+    Roots::from_project(&project).add("bash", &bash).unwrap();
 
     println!("Waiting for the builder to produce a drv for the 'shell' attribute.");
 
-    let (initial_result, mut build_loop) = initial_build_thread
+    let initial_result = initial_build_thread
         .join()
         .expect("Failed to join the initial evaluation thread");
 
@@ -63,7 +57,7 @@ pub fn main(project: Project, cas: &ContentAddressable) -> OpResult {
 
     let build_thread = {
         thread::spawn(move || {
-            build_loop.forever(tx);
+            BuildLoop::new(&project).forever(tx);
         })
     };
 

@@ -3,7 +3,6 @@
 use crate::build_loop::BuildLoop;
 use crate::ops::{ok, OpResult};
 use crate::project::Project;
-use crate::roots::Roots;
 use std::sync::mpsc::channel;
 use std::thread;
 
@@ -11,12 +10,10 @@ use std::thread;
 /// details.
 pub fn main(project: Project) -> OpResult {
     let (tx, rx) = channel();
-    let roots = Roots::from_project(&project);
-
-    let mut build_loop = BuildLoop::new(project.nix_file.clone(), roots);
 
     let build_thread = {
         thread::spawn(move || {
+            let mut build_loop = BuildLoop::new(&project);
             build_loop.forever(tx);
         })
     };

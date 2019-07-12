@@ -2,7 +2,6 @@
 
 use crate::build_loop::BuildLoop;
 use crate::project::Project;
-use crate::roots::Roots;
 use crate::socket::communicate::{NoMessage, Ping, DEFAULT_READ_TIMEOUT};
 use crate::socket::{ReadError, ReadWriter, Timeout};
 use crate::NixFile;
@@ -64,17 +63,15 @@ impl Daemon {
 
     /// Add nix file to the set of files this daemon watches
     /// & build if they change.
-    pub fn add(&mut self, project: &Project) {
+    pub fn add<'a>(&mut self, project: Project) {
         let tx = self.build_events_tx.clone();
 
         self.handler_threads
             .entry(project.nix_file.clone())
             .or_insert_with(|| {
-                // We construct a Project here for each dependency we get.
-                let roots = Roots::from_project(project);
-                let mut build_loop = BuildLoop::new(project.nix_file.clone(), roots);
-
                 std::thread::spawn(move || {
+                    let mut build_loop = BuildLoop::new(&project);
+
                     // cloning the tx means the daemon’s rx gets all
                     // messages from all builders.
                     build_loop.forever(tx);
