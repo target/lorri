@@ -4,6 +4,7 @@
 use direnv::DirenvEnv;
 use lorri::{
     build_loop::{BuildError, BuildLoop, BuildResults},
+    cas::ContentAddressable,
     ops::direnv,
     project::Project,
     NixFile,
@@ -18,24 +19,32 @@ use tempfile::{tempdir, TempDir};
 pub struct DirenvTestCase {
     shell_file: NixFile,
     projectdir: TempDir,
+    cachedir: TempDir,
     project: Project,
 }
 
 impl DirenvTestCase {
     pub fn new(name: &str) -> DirenvTestCase {
         let projectdir = tempdir().expect("tempfile::tempdir() failed us!");
+        let cachedir = tempdir().expect("tempfile::tempdir() failed us!");
 
         let test_root =
             PathBuf::from_iter(&[env!("CARGO_MANIFEST_DIR"), "tests", "integration", name]);
 
         let shell_file = NixFile::from(test_root.join("shell.nix"));
 
-        let pdpath = projectdir.path().to_owned();
-        let project = Project::new(shell_file.clone(), &pdpath).unwrap();
+        let cas = ContentAddressable::new(cachedir.path().join("cas").to_owned()).unwrap();
+        let project = Project::new(
+            shell_file.clone(),
+            &cachedir.path().join("gc_roots").to_owned(),
+            cas,
+        )
+        .unwrap();
 
         DirenvTestCase {
             shell_file: shell_file.clone(),
             projectdir,
+            cachedir,
             project,
         }
     }
@@ -48,8 +57,7 @@ impl DirenvTestCase {
     /// Run `direnv allow` and then `direnv export json`, and return
     /// the environment DirEnv would produce.
     pub fn get_direnv_variables(&self) -> DirenvEnv {
-        let project = Project::new(self.shell_file.clone(), self.projectdir.path()).unwrap();
-        let shell = direnv::main(project)
+        let shell = direnv::main(self.project.clone())
             .unwrap()
             .expect("direnv::main should return a string of shell");
 

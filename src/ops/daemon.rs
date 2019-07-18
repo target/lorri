@@ -55,9 +55,13 @@ pub fn main() -> OpResult {
     // For each build instruction, add the corresponding file
     // to the watch list.
     for start_build in accept_messages_rx {
-        let project = ::project::Project::new(start_build.nix_file, paths.gc_root_dir())
-            // TODO: the project needs to create its gc root dir
-            .unwrap();
+        let project = ::project::Project::new(
+            start_build.nix_file,
+            paths.gc_root_dir(),
+            paths.cas_store().clone(),
+        )
+        // TODO: the project needs to create its gc root dir
+        .unwrap();
         daemon.add(project)
     }
 

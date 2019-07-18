@@ -10,6 +10,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 /// A content-addressable store.
+#[derive(Clone)]
 pub struct ContentAddressable {
     store_dir: PathBuf,
 }

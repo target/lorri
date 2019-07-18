@@ -97,7 +97,7 @@ impl<'a> BuildLoop<'a> {
     /// This will create GC roots and expand the file watch list for
     /// the evaluation.
     pub fn once(&mut self) -> Result<BuildResults, BuildError> {
-        let build = builder::run(&self.project.nix_file)?;
+        let build = builder::run(&self.project.nix_file, &self.project.cas)?;
         let roots = Roots::from_project(&self.project);
 
         let paths = build.paths;

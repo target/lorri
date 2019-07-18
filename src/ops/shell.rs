@@ -1,7 +1,6 @@
 //! Open up a project shell
 
 use crate::build_loop::{BuildLoop, Event};
-use crate::cas::ContentAddressable;
 use crate::ops::{ok, ExitError, OpResult};
 use crate::project::Project;
 use crate::roots::Roots;
@@ -11,7 +10,7 @@ use std::thread;
 
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
-pub fn main(project: Project, cas: &ContentAddressable) -> OpResult {
+pub fn main(project: Project) -> OpResult {
     let (tx, rx) = channel();
     println!(
         "WARNING: lorri shell is very simplistic and not suppported at the moment. \
@@ -23,7 +22,9 @@ pub fn main(project: Project, cas: &ContentAddressable) -> OpResult {
 
     debug!("Building bash...");
     let bash = ::nix::CallOpts::file(
-        cas.file_from_string("(import <nixpkgs> {}).bashInteractive.out")
+        project
+            .cas
+            .file_from_string("(import <nixpkgs> {}).bashInteractive.out")
             .expect("Failed to write to CAS"),
     )
     .path(&project.gc_root_path)
