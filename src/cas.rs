@@ -9,6 +9,8 @@
 use std::io::Write;
 use std::path::PathBuf;
 
+extern crate atomicwrites;
+
 /// A content-addressable store.
 #[derive(Clone)]
 pub struct ContentAddressable {
@@ -37,29 +39,42 @@ impl ContentAddressable {
     /// This operation hashes the file contents, its cost is at least
     /// the cost of hashing the `content` string.
     pub fn file_from_string(&self, content: &str) -> std::io::Result<PathBuf> {
+        use self::atomicwrites::{AtomicFile, OverwriteBehavior};
+
         // md5 should be okay, since this is not security-critical
         let hash = format!("{:x}", md5::compute(content.as_bytes()));
 
         let file_name = self.store_dir.join(hash);
 
-        match std::fs::OpenOptions::new()
+        // shortcut: if the file is already there,
+        // we don’t have to write it a second time.
+        if let Err(e) = std::fs::OpenOptions::new()
             .write(true)
-            .truncate(true)
             .create_new(true)
             .open(&file_name)
         {
-            Err(e) => match e.kind() {
-                // since we use create_new, it will tell us if the file
-                // exists; in that case it was already written (same hash),
-                // so we don’t have to write it anew.
-                std::io::ErrorKind::AlreadyExists => Ok(()),
-                _ => Err(e),
-            },
-            Ok(mut file_handle) => {
-                file_handle.write_all(content.as_bytes())?;
-                file_handle.sync_all()
+            // since we use create_new, it will tell us if the file
+            // exists; in that case it was already written (same hash),
+            // so we don’t have to write it anew.
+            if let std::io::ErrorKind::AlreadyExists = e.kind() {
+                return Ok(file_name);
             }
-        }?;
+            // We can ignore errors, it will either not matter
+            // or be rethrown by the code below.
+        }
+
+        // creates a temporary directory in a subfolder of the cas dir
+        AtomicFile::new_with_tmpdir(
+            &file_name,
+            // We can allow overwrites,
+            //because the same file will be written should it happen
+            OverwriteBehavior::AllowOverwrite,
+            // This cannot conflict with our content files,
+            // because it uses a prefix for its filenames (see test below)
+            &self.store_dir,
+        )
+        .write(|f| f.write_all(content.as_bytes()))
+        .map_err(std::io::Error::from)?;
 
         Ok(file_name)
     }
@@ -98,14 +113,15 @@ mod tests {
         let cas = ContentAddressable::new(store_dir.path().to_owned()).unwrap();
         let cas_file = cas.file_from_string(content).unwrap();
 
-        // set to readonly to ensure the second cas operation doesn’t write
-        let mut perms = cas_file.metadata().unwrap().permissions();
-        perms.set_readonly(true);
-        std::fs::set_permissions(&cas_file, perms)?;
+        let first_mtime = cas_file.metadata()?.modified()?;
 
         // creating a cas for the same content doesn’t write to the file
         let cas_file_new = cas.file_from_string(content).unwrap();
-        assert_eq!(cas_file, cas_file_new);
+
+        let second_mtime = cas_file_new.metadata()?.modified()?;
+
+        // if the mtimes are different, the file has been overwritten
+        assert_eq!(first_mtime, second_mtime);
         Ok(())
     }
 }
