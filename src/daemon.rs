@@ -63,7 +63,7 @@ impl Daemon {
 
     /// Add nix file to the set of files this daemon watches
     /// & build if they change.
-    pub fn add<'a>(&mut self, project: Project) {
+    pub fn add(&mut self, project: Project) {
         let tx = self.build_events_tx.clone();
 
         self.handler_threads
