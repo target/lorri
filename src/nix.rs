@@ -430,7 +430,7 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn cmd_arguments() {
+    fn cmd_arguments_expression() {
         let mut nix = CallOpts::expression("my-cool-expression");
         nix.attribute("hello");
         nix.argstr("foo", "bar");
@@ -448,7 +448,10 @@ mod tests {
         .map(OsStr::new)
         .collect();
         assert_eq!(exp, nix.command_arguments());
+    }
 
+    #[test]
+    fn cmd_arguments_test() {
         let mut nix2 = CallOpts::file(PathBuf::from("/my-cool-file.nix"));
         nix2.attribute("hello");
         nix2.argstr("foo", "bar");
