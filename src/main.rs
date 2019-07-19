@@ -64,7 +64,7 @@ fn get_shell_nix() -> Result<NixFile, ExitError> {
 
 fn create_project(paths: &constants::Paths, shell_nix: NixFile) -> Result<Project, ExitError> {
     Project::new(shell_nix, &paths.gc_root_dir(), paths.cas_store().clone())
-        .or(Err(ExitError::errmsg("Could not set up project paths")))
+        .or_else(|_| Err(ExitError::errmsg("Could not set up project paths")))
 }
 
 /// Run the main function of the relevant command.
