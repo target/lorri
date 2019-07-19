@@ -17,8 +17,9 @@ use std::process::Command;
 use tempfile::{tempdir, TempDir};
 
 pub struct DirenvTestCase {
-    shell_file: NixFile,
     projectdir: TempDir,
+    // only kept around to not delete tempdir
+    #[allow(dead_code)]
     cachedir: TempDir,
     project: Project,
 }
@@ -42,7 +43,6 @@ impl DirenvTestCase {
         .unwrap();
 
         DirenvTestCase {
-            shell_file: shell_file.clone(),
             projectdir,
             cachedir,
             project,
