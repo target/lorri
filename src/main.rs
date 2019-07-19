@@ -68,7 +68,7 @@ fn create_project(paths: &constants::Paths, shell_nix: NixFile) -> Result<Projec
 }
 
 /// Run the main function of the relevant command.
-fn run_command<'a>(opts: Arguments) -> OpResult {
+fn run_command(opts: Arguments) -> OpResult {
     let paths = lorri::ops::get_paths()?;
 
     match opts.command {
