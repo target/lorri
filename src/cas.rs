@@ -67,10 +67,10 @@ impl ContentAddressable {
         AtomicFile::new_with_tmpdir(
             &file_name,
             // We can allow overwrites,
-            //because the same file will be written should it happen
+            // because the same file will be written should it happen
             OverwriteBehavior::AllowOverwrite,
             // This cannot conflict with our content files,
-            // because it uses a prefix for its filenames (see test below)
+            // because it uses a prefix for its filenames
             &self.store_dir,
         )
         .write(|f| f.write_all(content.as_bytes()))
