@@ -10,7 +10,7 @@ pkgs.rustPlatform.buildRustPackage rec {
   BUILD_REV_COUNT = src.revCount or 1;
   RUN_TIME_CLOSURE = pkgs.callPackage ./nix/runtime.nix {};
 
-  cargoSha256 = "094w2lp6jvxs8j59cjqp6b3kg4y4crlnqka5v2wmq4j0mn6hvhsj";
+  cargoSha256 = "1daff4plh7hwclfp21hkx4fiflh9r80y2c7k2sd3zm4lmpy0jpfz";
 
   NIX_PATH = "nixpkgs=${./nix/bogus-nixpkgs}";
 
