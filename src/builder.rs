@@ -19,11 +19,7 @@ use std::process::{Command, Stdio};
 use std::thread;
 use NixFile;
 
-/// Builds the Nix expression in `root_nix_file`.
-///
-/// Instruments the nix file to gain extra information,
-/// which is valuable even if the build fails.
-pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Error> {
+fn instrumented_build(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Error> {
     // We're looking for log lines matching:
     //
     //     copied source '...' -> '/nix/store/...'
@@ -109,6 +105,14 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Er
         paths,
         log_lines,
     })
+}
+
+/// Builds the Nix expression in `root_nix_file`.
+///
+/// Instruments the nix file to gain extra information,
+/// which is valuable even if the build fails.
+pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Error> {
+    instrumented_build(root_nix_file, cas)
 }
 
 #[derive(Debug, PartialEq)]
