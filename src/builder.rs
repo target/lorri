@@ -11,11 +11,9 @@ use cas::ContentAddressable;
 use regex::Regex;
 use std::any::Any;
 use std::collections::HashMap;
-use std::ffi::OsStr;
-use std::io::{BufRead, BufReader};
+use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use std::thread;
 use NixFile;
 
 /// Builds the Nix expression in `root_nix_file`.
@@ -53,37 +51,15 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Er
 
     debug!("$ {:?}", cmd);
 
-    let mut child = cmd.spawn()?;
+    let output = cmd.spawn()?.wait_with_output()?;
 
-    let stdout = child
-        .stdout
-        .take()
-        .expect("we must be able to access the stdout of nix-build");
-    let stderr = child
-        .stderr
-        .take()
-        .expect("we must be able to access the stderr of nix-build");
+    let stderr_results =
+        ::nix::parse_nix_output(&output.stderr, |line| parse_evaluation_line(line));
 
-    let stderr_results: thread::JoinHandle<Vec<LogDatum>> = thread::spawn(move || {
-        let reader = BufReader::new(stderr);
-        reader
-            .lines()
-            .map(|line| parse_evaluation_line(&line.unwrap()))
-            .collect::<Vec<LogDatum>>()
-    });
+    let produced_drvs = ::nix::parse_nix_output(&output.stdout, PathBuf::from);
 
-    let produced_drvs: thread::JoinHandle<Vec<PathBuf>> = thread::spawn(move || {
-        BufReader::new(stdout)
-            .lines()
-            .map(|line| PathBuf::from(line.unwrap()))
-            .collect::<Vec<PathBuf>>()
-    });
-
-    let (exec_result, drvs, results) =
-        (child.wait()?, produced_drvs.join()?, stderr_results.join()?);
-
-    let (paths, named_drvs, log_lines): (Vec<PathBuf>, HashMap<String, PathBuf>, Vec<String>) =
-        results.into_iter().fold(
+    let (paths, named_drvs, log_lines): (Vec<PathBuf>, HashMap<String, PathBuf>, Vec<OsString>) =
+        stderr_results.into_iter().fold(
             (vec![], HashMap::new(), vec![]),
             |(mut paths, mut named_drvs, mut log_lines), result| {
                 match result {
@@ -100,8 +76,8 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Er
             },
         );
     Ok(Info {
-        exec_result,
-        drvs,
+        exec_result: output.status,
+        drvs: produced_drvs,
         named_drvs,
         paths,
         log_lines,
@@ -112,12 +88,12 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Er
 enum LogDatum {
     Source(PathBuf),
     AttrDrv(String, PathBuf),
-    Text(String),
+    Text(OsString),
 }
 
 /// Examine a line of output and extract interesting log items in to
 /// structured data.
-fn parse_evaluation_line(line: &str) -> LogDatum {
+fn parse_evaluation_line(line: &OsStr) -> LogDatum {
     lazy_static! {
         static ref EVAL_FILE: Regex =
             Regex::new("^evaluating file '(?P<source>.*)'$").expect("invalid regex!");
@@ -130,21 +106,28 @@ fn parse_evaluation_line(line: &str) -> LogDatum {
                 .expect("invalid regex!");
     }
 
-    // Lines about evaluating a file are much more common, so looking
-    // for them first will reduce comparisons.
-    if let Some(matches) = EVAL_FILE.captures(&line) {
-        LogDatum::Source(PathBuf::from(&matches["source"]))
-    } else if let Some(matches) = COPIED_SOURCE.captures(&line) {
-        LogDatum::Source(PathBuf::from(&matches["source"]))
-    } else if let Some(matches) = LORRI_READ.captures(&line) {
-        LogDatum::Source(PathBuf::from(&matches["source"]))
-    } else if let Some(matches) = LORRI_ATTR_DRV.captures(&line) {
-        LogDatum::AttrDrv(
-            String::from(&matches["attribute"]),
-            PathBuf::from(&matches["drv"]),
-        )
-    } else {
-        LogDatum::Text(String::from(line))
+    match line.to_str() {
+        // If we can’t decode the output line to an UTF-8 string,
+        // we cannot match against regexes, so just pass it through.
+        None => LogDatum::Text(line.to_owned()),
+        Some(linestr) => {
+            // Lines about evaluating a file are much more common, so looking
+            // for them first will reduce comparisons.
+            if let Some(matches) = EVAL_FILE.captures(&linestr) {
+                LogDatum::Source(PathBuf::from(&matches["source"]))
+            } else if let Some(matches) = COPIED_SOURCE.captures(&linestr) {
+                LogDatum::Source(PathBuf::from(&matches["source"]))
+            } else if let Some(matches) = LORRI_READ.captures(&linestr) {
+                LogDatum::Source(PathBuf::from(&matches["source"]))
+            } else if let Some(matches) = LORRI_ATTR_DRV.captures(&linestr) {
+                LogDatum::AttrDrv(
+                    String::from(&matches["attribute"]),
+                    PathBuf::from(&matches["drv"]),
+                )
+            } else {
+                LogDatum::Text(line.to_owned())
+            }
+        }
     }
 }
 
@@ -170,7 +153,7 @@ pub struct Info {
     pub paths: Vec<PathBuf>,
 
     /// A list of stderr log lines
-    pub log_lines: Vec<String>,
+    pub log_lines: Vec<OsString>,
 }
 
 /// Possible errors from an individual evaluation
@@ -196,39 +179,40 @@ impl From<Box<dyn Any + Send + 'static>> for Error {
 #[cfg(test)]
 mod tests {
     use super::{parse_evaluation_line, LogDatum};
+    use std::ffi::OsString;
     use std::path::PathBuf;
 
     #[test]
     fn test_evaluation_line_to_path_evaluation() {
         assert_eq!(
-            parse_evaluation_line("evaluating file '/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/lib/systems/for-meta.nix'"),
+            parse_evaluation_line(&OsString::from("evaluating file '/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/lib/systems/for-meta.nix'")),
             LogDatum::Source(PathBuf::from("/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/lib/systems/for-meta.nix"))
         );
 
         assert_eq!(
-            parse_evaluation_line("copied source '/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/pkgs/stdenv/generic/default-builder.sh' -> '/nix/store/9krlzvny65gdc8s7kpb6lkx8cd02c25b-default-builder.sh'"),
+            parse_evaluation_line(&OsString::from("copied source '/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/pkgs/stdenv/generic/default-builder.sh' -> '/nix/store/9krlzvny65gdc8s7kpb6lkx8cd02c25b-default-builder.sh'")),
             LogDatum::Source(PathBuf::from("/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/pkgs/stdenv/generic/default-builder.sh"))
         );
 
         assert_eq!(
-            parse_evaluation_line(
+            parse_evaluation_line(&OsString::from(
                 "trace: lorri read: '/home/grahamc/projects/grahamc/lorri/nix/nixpkgs.json'"
-            ),
+            )),
             LogDatum::Source(PathBuf::from(
                 "/home/grahamc/projects/grahamc/lorri/nix/nixpkgs.json"
             ))
         );
 
         assert_eq!(
-            parse_evaluation_line("trace: lorri attribute: 'shell' -> '/nix/store/q3ngidzvincycjjvlilf1z6vj1w4wnas-lorri.drv'"),
+            parse_evaluation_line(&OsString::from("trace: lorri attribute: 'shell' -> '/nix/store/q3ngidzvincycjjvlilf1z6vj1w4wnas-lorri.drv'")),
             LogDatum::AttrDrv(String::from("shell"), PathBuf::from("/nix/store/q3ngidzvincycjjvlilf1z6vj1w4wnas-lorri.drv"))
         );
 
         assert_eq!(
-            parse_evaluation_line(
+            parse_evaluation_line(&OsString::from(
                 "downloading 'https://static.rust-lang.org/dist/channel-rust-stable.toml'..."
-            ),
-            LogDatum::Text(String::from(
+            )),
+            LogDatum::Text(OsString::from(
                 "downloading 'https://static.rust-lang.org/dist/channel-rust-stable.toml'..."
             ))
         );

@@ -35,7 +35,7 @@
 use serde_json;
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::io::BufRead;
+use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use vec1::Vec1;
@@ -294,9 +294,7 @@ impl CallOpts {
         let output = cmd.output()?;
 
         if output.status.success() {
-            let lines: Result<Vec<String>, _> = output.stdout.lines().collect();
-
-            let paths: Vec<PathBuf> = lines?.iter().map(PathBuf::from).collect();
+            let paths: Vec<PathBuf> = ::nix::parse_nix_output(&output.stdout, PathBuf::from);
 
             if let Ok(vec1) = Vec1::from_vec(paths) {
                 Ok((vec1, GcRootTempDir(gc_root_dir)))
@@ -337,6 +335,24 @@ impl CallOpts {
 
         ret
     }
+}
+
+/// Helper function to correctly parse the output of a `std::process::Output`’s
+/// `stdout` and `stderr` for nix outputs.
+pub fn parse_nix_output<'a, T, F>(output: &'a [u8], f: F) -> Vec<T>
+where
+    F: Fn(&'a OsStr) -> T,
+{
+    output
+        // We can split on \n to separate lines, because nix only runs in POSIX environments.
+        // Using `lines()` means having to convert to UTF-8 first,
+        // and nix output is not guaranteed to be valid UTF-8.
+        // (think for example a derivation that outputs random data).
+        .split(|b| &b'\n' == b)
+        .map(std::ffi::OsStr::from_bytes)
+        .filter(|s| !s.is_empty())
+        .map(f)
+        .collect()
 }
 
 /// Possible error conditions encountered when executing Nix evaluation commands.

@@ -36,7 +36,7 @@ pub struct BuildResults {
 #[derive(Debug, Clone)]
 pub struct BuildExitFailure {
     /// stderr log output
-    pub log_lines: Vec<String>,
+    pub log_lines: Vec<std::ffi::OsString>,
 }
 
 /// The BuildLoop repeatedly builds the Nix expression in
