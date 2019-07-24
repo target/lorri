@@ -11,7 +11,6 @@ use cas::ContentAddressable;
 use osstrlines;
 use regex::Regex;
 use std::any::Any;
-use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -19,7 +18,10 @@ use std::process::{Command, Stdio};
 use std::thread;
 use {NixFile, StorePath};
 
-fn instrumented_build(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Error> {
+fn instrumented_build(
+    root_nix_file: &NixFile,
+    cas: &ContentAddressable,
+) -> Result<Info<StorePath>, Error> {
     // We're looking for log lines matching:
     //
     //     copied source '...' -> '/nix/store/...'
@@ -81,27 +83,71 @@ fn instrumented_build(root_nix_file: &NixFile, cas: &ContentAddressable) -> Resu
         stderr_results.join()??,
     );
 
-    let (paths, named_drvs, log_lines): (Vec<PathBuf>, HashMap<String, StorePath>, Vec<OsString>) =
-        results.into_iter().fold(
-            (vec![], HashMap::new(), vec![]),
-            |(mut paths, mut named_drvs, mut log_lines), result| {
+    // iterate over all lines, parsing out the ones we are interested in
+    let (paths, output_paths, log_lines): (
+        Vec<PathBuf>,
+        // `None` if the field was not seen before, `Some` if it was
+        OutputPaths<Option<StorePath>>,
+        Vec<OsString>
+    ) =
+    results.into_iter().fold(
+        (vec![], OutputPaths { shell: None, shell_gc_root: None }, vec![]),
+        |(mut paths, mut output_paths, mut log_lines), result| {
                 match result {
                     LogDatum::Source(src) => {
                         paths.push(src);
                     }
-                    LogDatum::AttrDrv(name, drv) => {
-                        named_drvs.insert(name, StorePath(drv));
-                    }
+                    LogDatum::ShellDrv(drv) => {
+                        // check whether we have seen this field before
+                        match output_paths.shell {
+                            None => { output_paths.shell = Some(StorePath(drv)); }
+                            // programming error
+                            Some(StorePath(old)) => panic!(
+                                "`lorri read` got attribute `{}` a second time, first path was {:?} and second {:?}",
+                                "shell", old, drv)
+                        }
+                    },
+                    LogDatum::ShellGcRootDrv(drv) => {
+                        // check whether we have seen this field before
+                        match output_paths.shell_gc_root {
+                            None => { output_paths.shell_gc_root = Some(StorePath(drv)); }
+                            // programming error
+                            Some(StorePath(old)) => panic!(
+                                "`lorri read` got attribute `{}` a second time, first path was {:?} and second {:?}",
+                                "shell_gc_root", old, drv)
+                        }
+                    },
                     LogDatum::Text(line) => log_lines.push(line),
                 };
 
-                (paths, named_drvs, log_lines)
+                (paths, output_paths, log_lines)
             },
         );
+
+    // check whether we got all required `OutputPaths`
+    let output_paths = match output_paths {
+        // programming error
+        OutputPaths { shell: None, .. } => {
+            panic!("`lorri read` never got required attribute `shell`")
+        }
+        // programming error
+        OutputPaths {
+            shell_gc_root: None,
+            ..
+        } => panic!("`lorri read` never got required attribute `shell_gc_root`"),
+        OutputPaths {
+            shell: Some(shell),
+            shell_gc_root: Some(shell_gc_root),
+        } => OutputPaths {
+            shell,
+            shell_gc_root,
+        },
+    };
+
     Ok(Info {
         exec_result,
         drvs: produced_drvs,
-        named_drvs,
+        output_paths,
         paths,
         log_lines,
     })
@@ -111,14 +157,15 @@ fn instrumented_build(root_nix_file: &NixFile, cas: &ContentAddressable) -> Resu
 ///
 /// Instruments the nix file to gain extra information,
 /// which is valuable even if the build fails.
-pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Error> {
+pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info<StorePath>, Error> {
     instrumented_build(root_nix_file, cas)
 }
 
 #[derive(Debug, PartialEq)]
 enum LogDatum {
     Source(PathBuf),
-    AttrDrv(String, PathBuf),
+    ShellDrv(PathBuf),
+    ShellGcRootDrv(PathBuf),
     Text(OsString),
 }
 
@@ -154,10 +201,16 @@ where
             } else if let Some(matches) = LORRI_READ.captures(&linestr) {
                 LogDatum::Source(PathBuf::from(&matches["source"]))
             } else if let Some(matches) = LORRI_ATTR_DRV.captures(&linestr) {
-                LogDatum::AttrDrv(
-                    String::from(&matches["attribute"]),
-                    PathBuf::from(&matches["drv"]),
-                )
+                let drv = &matches["drv"];
+                let attr = &matches["attribute"];
+                match attr {
+                    "shell" => LogDatum::ShellDrv(PathBuf::from(drv)),
+                    "shell_gc_root" => LogDatum::ShellGcRootDrv(PathBuf::from(drv)),
+                    _ => panic!(
+                        "`lorri read` trace was `{} -> {}`, unknown attribute `{}`! (add to `builder.rs`)",
+                        attr, drv, attr
+                    ),
+                }
             } else {
                 LogDatum::Text(line.as_ref().to_owned())
             }
@@ -170,16 +223,14 @@ where
 /// valuable information in the output, like new paths
 /// to watch.
 #[derive(Debug)]
-pub struct Info {
+pub struct Info<T> {
     /// The result of executing Nix
     pub exec_result: std::process::ExitStatus,
 
-    // TODO: what?
-    // are those actual drv files?
-    /// All the attributes in the default expression which belong to
-    /// attributes.
-    pub named_drvs: HashMap<String, StorePath>,
+    /// See `OutputPaths`
+    pub output_paths: OutputPaths<T>,
 
+    // TODO: this is redundant with shell_gc_root
     /// A list of the evaluation's result derivations
     pub drvs: Vec<StorePath>,
 
@@ -189,6 +240,28 @@ pub struct Info {
 
     /// A list of stderr log lines
     pub log_lines: Vec<OsString>,
+}
+
+/// Output derivations generated by `logged-evaluation.nix`
+#[derive(Debug, Clone)]
+pub struct OutputPaths<T> {
+    /// Original shell derivation
+    pub shell: T,
+    /// Shell derivation modified to work as a gc root
+    pub shell_gc_root: T,
+}
+
+impl<T> OutputPaths<T> {
+    /// Similar to other `map` functions, but also provides the name of the field
+    pub fn map_with_attr_name<U, F, E>(self, f: F) -> Result<OutputPaths<U>, E>
+    where
+        F: Fn(&str, T) -> Result<U, E>,
+    {
+        Ok(OutputPaths {
+            shell: f("shell", self.shell)?,
+            shell_gc_root: f("shell_gc_root", self.shell_gc_root)?,
+        })
+    }
 }
 
 /// Possible errors from an individual evaluation
@@ -242,7 +315,11 @@ mod tests {
 
         assert_eq!(
             parse_evaluation_line("trace: lorri attribute: 'shell' -> '/nix/store/q3ngidzvincycjjvlilf1z6vj1w4wnas-lorri.drv'"),
-            LogDatum::AttrDrv(String::from("shell"), PathBuf::from("/nix/store/q3ngidzvincycjjvlilf1z6vj1w4wnas-lorri.drv"))
+            LogDatum::ShellDrv(PathBuf::from("/nix/store/q3ngidzvincycjjvlilf1z6vj1w4wnas-lorri.drv"))
+        );
+        assert_eq!(
+            parse_evaluation_line("trace: lorri attribute: 'shell_gc_root' -> '/nix/store/q3ngidzvincycjjvlilf1z6vj1w4wnas-lorri-keep-env-hack-foo.drv'"),
+            LogDatum::ShellGcRootDrv(PathBuf::from("/nix/store/q3ngidzvincycjjvlilf1z6vj1w4wnas-lorri-keep-env-hack-foo.drv"))
         );
 
         assert_eq!(
@@ -300,12 +377,6 @@ in {}
 
         let info = run(&::NixFile::from(cas.file_from_string(&nix_drv)?), &cas).unwrap();
         assert!(info.exec_result.success());
-        assert!(info
-            .named_drvs
-            .get("shell")
-            .unwrap()
-            .to_string_lossy()
-            .contains("-shell.drv"));
 
         let expect: OsString = OsStr::from_bytes(b"\"\xAB\xBC\xCD\xDE\xDE\xEF\"").to_owned();
         assert!(info.log_lines.contains(&expect));

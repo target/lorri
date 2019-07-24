@@ -27,8 +27,8 @@ pub enum Event {
 pub struct BuildResults {
     /// See `build::Info.drvs`
     drvs: HashMap<usize, roots::RootPath>,
-    /// See `build::Info.drvs`
-    pub named_drvs: HashMap<String, roots::RootPath>,
+    /// See `build::Info.outputPaths
+    pub output_paths: builder::OutputPaths<roots::RootPath>,
 }
 
 /// Results of a single, failing build.
@@ -105,17 +105,19 @@ impl<'a> BuildLoop<'a> {
         let paths = reduce_paths(&paths);
         debug!("  -> reduced to: {:?}", paths.len());
 
-        debug!("named drvs: {:#?}", build.named_drvs);
+        debug!("named drvs: {:#?}", build.output_paths);
+
+        // create root for every field in OutputPaths
+        let output_paths = build
+            .output_paths
+            .map_with_attr_name(|attr_name, store_path| {
+                roots.add(&format!("attr-{}", attr_name), &store_path)
+            })?;
 
         let mut event = BuildResults {
             drvs: HashMap::new(),
-            named_drvs: HashMap::new(),
+            output_paths,
         };
-        for (name, drv) in build.named_drvs.iter() {
-            event
-                .named_drvs
-                .insert(name.clone(), roots.add(&format!("attr-{}", name), drv)?);
-        }
 
         for (i, drv) in build.drvs.iter().enumerate() {
             event
