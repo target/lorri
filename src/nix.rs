@@ -40,6 +40,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use vec1::Vec1;
 
+use StorePath;
+
 /// Execute Nix commands using a builder-pattern abstraction.
 #[derive(Clone)]
 pub struct CallOpts {
@@ -204,7 +206,7 @@ impl CallOpts {
     ///         .unwrap()
     ///         ;
     ///
-    /// let location = location.into_os_string().into_string().unwrap();
+    /// let location = location.as_path().to_string_lossy().into_owned();
     /// println!("{:?}", location);
     /// assert!(location.contains("/nix/store"));
     /// assert!(location.contains("hello-"));
@@ -236,7 +238,7 @@ impl CallOpts {
     ///    otherwise => panic!(otherwise)
     /// }
     /// ```
-    pub fn path(&self) -> Result<(PathBuf, GcRootTempDir), OnePathError> {
+    pub fn path(&self) -> Result<(StorePath, GcRootTempDir), OnePathError> {
         let (pathsv1, gc_root) = self.paths()?;
         let mut paths = pathsv1.into_vec();
 
@@ -274,7 +276,7 @@ impl CallOpts {
     /// assert!(paths.next().unwrap().contains("hello-"));
     /// drop(gc_root);
     /// ```
-    pub fn paths(&self) -> Result<(Vec1<PathBuf>, GcRootTempDir), BuildError> {
+    pub fn paths(&self) -> Result<(Vec1<StorePath>, GcRootTempDir), BuildError> {
         // TODO: temp_dir writes to /tmp by default, we should
         // create a wrapper using XDG_RUNTIME_DIR instead,
         // which is per-user and (on systemd systems) a tmpfs.
@@ -295,9 +297,9 @@ impl CallOpts {
 
         if output.status.success() {
             let stdout: &[u8] = &output.stdout;
-            let paths: Vec<PathBuf> = osstrlines::Lines::from(stdout)
-                .map(|line| line.map(PathBuf::from))
-                .collect::<Result<Vec<PathBuf>, _>>()?;
+            let paths: Vec<StorePath> = osstrlines::Lines::from(stdout)
+                .map(|line| line.map(StorePath::from))
+                .collect::<Result<Vec<StorePath>, _>>()?;
 
             if let Ok(vec1) = Vec1::from_vec(paths) {
                 Ok((vec1, GcRootTempDir(gc_root_dir)))

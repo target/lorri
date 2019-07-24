@@ -114,13 +114,13 @@ impl<'a> BuildLoop<'a> {
         for (name, drv) in build.named_drvs.iter() {
             event
                 .named_drvs
-                .insert(name.clone(), roots.add(&format!("attr-{}", name), &drv)?);
+                .insert(name.clone(), roots.add(&format!("attr-{}", name), drv)?);
         }
 
         for (i, drv) in build.drvs.iter().enumerate() {
             event
                 .drvs
-                .insert(i, roots.add(&format!("build-{}", i), &drv)?);
+                .insert(i, roots.add(&format!("build-{}", i), drv)?);
         }
 
         // add all new (reduced) nix sources to the input source watchlist

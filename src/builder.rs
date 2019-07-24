@@ -17,7 +17,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
-use NixFile;
+use {NixFile, StorePath};
 
 fn instrumented_build(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Error> {
     // We're looking for log lines matching:
@@ -68,11 +68,11 @@ fn instrumented_build(root_nix_file: &NixFile, cas: &ContentAddressable) -> Resu
                 .collect::<Result<Vec<LogDatum>, _>>()
         });
 
-    let produced_drvs: thread::JoinHandle<std::io::Result<Vec<PathBuf>>> =
+    let produced_drvs: thread::JoinHandle<std::io::Result<Vec<StorePath>>> =
         thread::spawn(move || {
             osstrlines::Lines::from(BufReader::new(stdout))
-                .map(|line| line.map(PathBuf::from))
-                .collect::<Result<Vec<PathBuf>, _>>()
+                .map(|line| line.map(StorePath::from))
+                .collect::<Result<Vec<StorePath>, _>>()
         });
 
     let (exec_result, produced_drvs, results) = (
@@ -81,7 +81,7 @@ fn instrumented_build(root_nix_file: &NixFile, cas: &ContentAddressable) -> Resu
         stderr_results.join()??,
     );
 
-    let (paths, named_drvs, log_lines): (Vec<PathBuf>, HashMap<String, PathBuf>, Vec<OsString>) =
+    let (paths, named_drvs, log_lines): (Vec<PathBuf>, HashMap<String, StorePath>, Vec<OsString>) =
         results.into_iter().fold(
             (vec![], HashMap::new(), vec![]),
             |(mut paths, mut named_drvs, mut log_lines), result| {
@@ -90,7 +90,7 @@ fn instrumented_build(root_nix_file: &NixFile, cas: &ContentAddressable) -> Resu
                         paths.push(src);
                     }
                     LogDatum::AttrDrv(name, drv) => {
-                        named_drvs.insert(name, drv);
+                        named_drvs.insert(name, StorePath(drv));
                     }
                     LogDatum::Text(line) => log_lines.push(line),
                 };
@@ -178,11 +178,12 @@ pub struct Info {
     // are those actual drv files?
     /// All the attributes in the default expression which belong to
     /// attributes.
-    pub named_drvs: HashMap<String, PathBuf>,
+    pub named_drvs: HashMap<String, StorePath>,
 
     /// A list of the evaluation's result derivations
-    pub drvs: Vec<PathBuf>,
+    pub drvs: Vec<StorePath>,
 
+    // TODO: rename to `sources` (it’s the input sources we have to watch)
     /// A list of paths examined during the evaluation
     pub paths: Vec<PathBuf>,
 

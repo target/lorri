@@ -68,7 +68,7 @@ pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResul
         Ok((build_result, gc_root)) => {
             let status = Command::new("nix-env")
                 .arg("--install")
-                .arg(build_result)
+                .arg(build_result.as_path())
                 .status()
                 .expect("Error: failed to execute nix-env --install");
             // we can drop the temporary gc root

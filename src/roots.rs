@@ -42,7 +42,7 @@ impl Roots {
 
     // TODO: rename to create_root()
     /// Store a new root under name
-    pub fn add(&self, name: &str, store_path: &PathBuf) -> Result<RootPath, AddRootError> {
+    pub fn add(&self, name: &str, store_path: &::StorePath) -> Result<RootPath, AddRootError> {
         let mut path = self.root_dir.clone();
         path.push(name);
 
@@ -51,7 +51,8 @@ impl Roots {
 
         std::fs::remove_file(&path).or_else(|e| AddRootError::remove(e, &path))?;
 
-        symlink(&store_path, &path).map_err(|e| AddRootError::symlink(e, &store_path, &path))?;
+        symlink(store_path.as_path(), &path)
+            .map_err(|e| AddRootError::symlink(e, store_path.as_path(), &path))?;
 
         let mut root = if let Ok(path) = env::var("NIX_STATE_DIR") {
             PathBuf::from(path)
