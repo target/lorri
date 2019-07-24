@@ -9,7 +9,6 @@ use crate::roots;
 use crate::roots::Roots;
 use crate::watch::Watch;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 
 /// Builder events sent back over `BuildLoop.tx`.
@@ -27,9 +26,9 @@ pub enum Event {
 #[derive(Clone, Debug)]
 pub struct BuildResults {
     /// See `build::Info.drvs`
-    drvs: HashMap<usize, PathBuf>,
+    drvs: HashMap<usize, roots::RootPath>,
     /// See `build::Info.drvs`
-    pub named_drvs: HashMap<String, PathBuf>,
+    pub named_drvs: HashMap<String, roots::RootPath>,
 }
 
 /// Results of a single, failing build.
