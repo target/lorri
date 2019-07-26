@@ -29,7 +29,7 @@ impl PathReduction {
 pub fn reduce_paths(paths: &[PathBuf]) -> HashSet<PathBuf> {
     let mut reduced = paths
         .iter()
-        .map::<_, _>(|path| {
+        .map(|path| {
             let reducers = &[reduce_channel_path, reduce_nix_store_path];
 
             for reducer in reducers {
@@ -48,22 +48,19 @@ pub fn reduce_paths(paths: &[PathBuf]) -> HashSet<PathBuf> {
         })
         .filter(|reduction| reduction != &PathReduction::Remove)
         .map(|reduction| reduction.unwrap("previous filter got them"))
-        .collect::<HashSet<PathBuf>>()
-        .into_iter()
         .collect::<Vec<PathBuf>>();
 
     // Sort by length so we automatically select project roots when
     // possible, in the next fold.
     reduced.sort();
+    reduced.dedup();
     reduced
         .into_iter()
         .fold::<HashSet<PathBuf>, _>(HashSet::new(), |mut set, new_path| {
-            if set.iter().any(|path| new_path.starts_with(path)) {
-                set
-            } else {
+            if !set.iter().any(|path| new_path.starts_with(path)) {
                 set.insert(new_path);
-                set
             }
+            set
         })
 }
 
