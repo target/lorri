@@ -55,6 +55,40 @@ rec {
 
 
 # end
+# atomicwrites-0.2.3
+
+  crates.atomicwrites."0.2.3" = deps: { features?(features_.atomicwrites."0.2.3" deps {}) }: buildRustCrate {
+    crateName = "atomicwrites";
+    version = "0.2.3";
+    description = "Atomic file-writes.";
+    authors = [ "Markus Unterwaditzer <markus@unterwaditzer.net>" ];
+    sha256 = "0b838md2vafffbmnn4206kzwxyw3p10nf12rgddw9jnabh0qx4gg";
+    dependencies = mapFeatures features ([
+      (crates."tempdir"."${deps."atomicwrites"."0.2.3"."tempdir"}" deps)
+    ])
+      ++ (if (kernel == "linux" || kernel == "darwin") then mapFeatures features ([
+      (crates."nix"."${deps."atomicwrites"."0.2.3"."nix"}" deps)
+    ]) else [])
+      ++ (if kernel == "windows" then mapFeatures features ([
+      (crates."winapi"."${deps."atomicwrites"."0.2.3"."winapi"}" deps)
+    ]) else []);
+  };
+  features_.atomicwrites."0.2.3" = deps: f: updateFeatures f (rec {
+    atomicwrites."0.2.3".default = (f.atomicwrites."0.2.3".default or true);
+    nix."${deps.atomicwrites."0.2.3".nix}".default = true;
+    tempdir."${deps.atomicwrites."0.2.3".tempdir}".default = true;
+    winapi = fold recursiveUpdate {} [
+      { "${deps.atomicwrites."0.2.3".winapi}"."winbase" = true; }
+      { "${deps.atomicwrites."0.2.3".winapi}".default = true; }
+    ];
+  }) [
+    (features_.tempdir."${deps."atomicwrites"."0.2.3"."tempdir"}" deps)
+    (features_.nix."${deps."atomicwrites"."0.2.3"."nix"}" deps)
+    (features_.winapi."${deps."atomicwrites"."0.2.3"."winapi"}" deps)
+  ];
+
+
+# end
 # atty-0.2.11
 
   crates.atty."0.2.11" = deps: { features?(features_.atty."0.2.11" deps {}) }: buildRustCrate {
@@ -1519,6 +1553,66 @@ rec {
 
 
 # end
+# rand-0.4.6
+
+  crates.rand."0.4.6" = deps: { features?(features_.rand."0.4.6" deps {}) }: buildRustCrate {
+    crateName = "rand";
+    version = "0.4.6";
+    description = "Random number generators and other randomness functionality.\n";
+    authors = [ "The Rust Project Developers" ];
+    sha256 = "0c3rmg5q7d6qdi7cbmg5py9alm70wd3xsg0mmcawrnl35qv37zfs";
+    dependencies = (if abi == "sgx" then mapFeatures features ([
+      (crates."rand_core"."${deps."rand"."0.4.6"."rand_core"}" deps)
+      (crates."rdrand"."${deps."rand"."0.4.6"."rdrand"}" deps)
+    ]) else [])
+      ++ (if kernel == "fuchsia" then mapFeatures features ([
+      (crates."fuchsia_cprng"."${deps."rand"."0.4.6"."fuchsia_cprng"}" deps)
+    ]) else [])
+      ++ (if (kernel == "linux" || kernel == "darwin") then mapFeatures features ([
+    ]
+      ++ (if features.rand."0.4.6".libc or false then [ (crates.libc."${deps."rand"."0.4.6".libc}" deps) ] else [])) else [])
+      ++ (if kernel == "windows" then mapFeatures features ([
+      (crates."winapi"."${deps."rand"."0.4.6"."winapi"}" deps)
+    ]) else []);
+    features = mkFeatures (features."rand"."0.4.6" or {});
+  };
+  features_.rand."0.4.6" = deps: f: updateFeatures f (rec {
+    fuchsia_cprng."${deps.rand."0.4.6".fuchsia_cprng}".default = true;
+    libc."${deps.rand."0.4.6".libc}".default = true;
+    rand = fold recursiveUpdate {} [
+      { "0.4.6"."i128_support" =
+        (f.rand."0.4.6"."i128_support" or false) ||
+        (f.rand."0.4.6".nightly or false) ||
+        (rand."0.4.6"."nightly" or false); }
+      { "0.4.6"."libc" =
+        (f.rand."0.4.6"."libc" or false) ||
+        (f.rand."0.4.6".std or false) ||
+        (rand."0.4.6"."std" or false); }
+      { "0.4.6"."std" =
+        (f.rand."0.4.6"."std" or false) ||
+        (f.rand."0.4.6".default or false) ||
+        (rand."0.4.6"."default" or false); }
+      { "0.4.6".default = (f.rand."0.4.6".default or true); }
+    ];
+    rand_core."${deps.rand."0.4.6".rand_core}".default = (f.rand_core."${deps.rand."0.4.6".rand_core}".default or false);
+    rdrand."${deps.rand."0.4.6".rdrand}".default = true;
+    winapi = fold recursiveUpdate {} [
+      { "${deps.rand."0.4.6".winapi}"."minwindef" = true; }
+      { "${deps.rand."0.4.6".winapi}"."ntsecapi" = true; }
+      { "${deps.rand."0.4.6".winapi}"."profileapi" = true; }
+      { "${deps.rand."0.4.6".winapi}"."winnt" = true; }
+      { "${deps.rand."0.4.6".winapi}".default = true; }
+    ];
+  }) [
+    (features_.rand_core."${deps."rand"."0.4.6"."rand_core"}" deps)
+    (features_.rdrand."${deps."rand"."0.4.6"."rdrand"}" deps)
+    (features_.fuchsia_cprng."${deps."rand"."0.4.6"."fuchsia_cprng"}" deps)
+    (features_.libc."${deps."rand"."0.4.6"."libc"}" deps)
+    (features_.winapi."${deps."rand"."0.4.6"."winapi"}" deps)
+  ];
+
+
+# end
 # rand-0.6.5
 
   crates.rand."0.6.5" = deps: { features?(features_.rand."0.6.5" deps {}) }: buildRustCrate {
@@ -2608,6 +2702,30 @@ rec {
     (features_.proc_macro2."${deps."syn"."0.15.26"."proc_macro2"}" deps)
     (features_.quote."${deps."syn"."0.15.26"."quote"}" deps)
     (features_.unicode_xid."${deps."syn"."0.15.26"."unicode_xid"}" deps)
+  ];
+
+
+# end
+# tempdir-0.3.7
+
+  crates.tempdir."0.3.7" = deps: { features?(features_.tempdir."0.3.7" deps {}) }: buildRustCrate {
+    crateName = "tempdir";
+    version = "0.3.7";
+    description = "A library for managing a temporary directory and deleting all contents when it's\ndropped.\n";
+    authors = [ "The Rust Project Developers" ];
+    sha256 = "0y53sxybyljrr7lh0x0ysrsa7p7cljmwv9v80acy3rc6n97g67vy";
+    dependencies = mapFeatures features ([
+      (crates."rand"."${deps."tempdir"."0.3.7"."rand"}" deps)
+      (crates."remove_dir_all"."${deps."tempdir"."0.3.7"."remove_dir_all"}" deps)
+    ]);
+  };
+  features_.tempdir."0.3.7" = deps: f: updateFeatures f (rec {
+    rand."${deps.tempdir."0.3.7".rand}".default = true;
+    remove_dir_all."${deps.tempdir."0.3.7".remove_dir_all}".default = true;
+    tempdir."0.3.7".default = (f.tempdir."0.3.7".default or true);
+  }) [
+    (features_.rand."${deps."tempdir"."0.3.7"."rand"}" deps)
+    (features_.remove_dir_all."${deps."tempdir"."0.3.7"."remove_dir_all"}" deps)
   ];
 
 

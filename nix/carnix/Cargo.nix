@@ -14,6 +14,7 @@ rec {
       authors = [ "Graham Christensen <graham.christensen@target.com>" ];
       src = exclude [ ".git" "target" ] ./.;
       dependencies = mapFeatures features ([
+        (cratesIO.crates."atomicwrites"."${deps."lorri"."0.1.0"."atomicwrites"}" deps)
         (cratesIO.crates."bincode"."${deps."lorri"."0.1.0"."bincode"}" deps)
         (cratesIO.crates."directories"."${deps."lorri"."0.1.0"."directories"}" deps)
         (cratesIO.crates."env_logger"."${deps."lorri"."0.1.0"."env_logger"}" deps)
@@ -34,6 +35,7 @@ rec {
       ]);
     };
     features_.lorri."0.1.0" = deps: f: updateFeatures f (rec {
+      atomicwrites."${deps.lorri."0.1.0".atomicwrites}".default = true;
       bincode."${deps.lorri."0.1.0".bincode}".default = true;
       directories."${deps.lorri."0.1.0".directories}".default = true;
       env_logger."${deps.lorri."0.1.0".env_logger}".default = true;
@@ -53,6 +55,7 @@ rec {
       tempfile."${deps.lorri."0.1.0".tempfile}".default = true;
       vec1."${deps.lorri."0.1.0".vec1}".default = true;
     }) [
+      (cratesIO.features_.atomicwrites."${deps."lorri"."0.1.0"."atomicwrites"}" deps)
       (cratesIO.features_.bincode."${deps."lorri"."0.1.0"."bincode"}" deps)
       (cratesIO.features_.directories."${deps."lorri"."0.1.0"."directories"}" deps)
       (cratesIO.features_.env_logger."${deps."lorri"."0.1.0"."env_logger"}" deps)
@@ -83,6 +86,11 @@ rec {
     memchr = "2.2.0";
   };
   deps.ansi_term."0.11.0" = {
+    winapi = "0.3.6";
+  };
+  deps.atomicwrites."0.2.3" = {
+    tempdir = "0.3.7";
+    nix = "0.14.0";
     winapi = "0.3.6";
   };
   deps.atty."0.2.11" = {
@@ -181,6 +189,7 @@ rec {
     cfg_if = "0.1.6";
   };
   deps.lorri."0.1.0" = {
+    atomicwrites = "0.2.3";
     bincode = "1.1.3";
     directories = "1.0.2";
     env_logger = "0.6.0";
@@ -271,6 +280,13 @@ rec {
   deps.quick_error."1.2.2" = {};
   deps.quote."0.6.11" = {
     proc_macro2 = "0.4.27";
+  };
+  deps.rand."0.4.6" = {
+    rand_core = "0.3.1";
+    rdrand = "0.4.0";
+    fuchsia_cprng = "0.1.1";
+    libc = "0.2.55";
+    winapi = "0.3.6";
   };
   deps.rand."0.6.5" = {
     rand_chacha = "0.1.1";
@@ -384,6 +400,10 @@ rec {
     proc_macro2 = "0.4.27";
     quote = "0.6.11";
     unicode_xid = "0.1.0";
+  };
+  deps.tempdir."0.3.7" = {
+    rand = "0.4.6";
+    remove_dir_all = "0.5.1";
   };
   deps.tempfile."3.0.7" = {
     cfg_if = "0.1.6";
