@@ -133,6 +133,10 @@ let
 
       export > $out/bash-export
     '') ];
+
+    # Because it’s a trivially lightweight drv, we should never substitute.
+    preferLocalBuild = true;
+    allowSubstitutes = false;
   });
 
   trace_attribute = name: drv:
