@@ -4,8 +4,7 @@
 }:
 ((pkgs.callPackage ./Cargo.nix {
   cratesIO = pkgs.callPackage ./crates-io.nix {};
-}).lorri {
-}).override {
+}).lorri {}).override {
   crateOverrides = pkgs.defaultCrateOverrides // {
     lorri = attrs: {
       BUILD_REV_COUNT = src.revCount or 1;
