@@ -7,9 +7,11 @@
 //! can parse additional information from the `nix-build`
 //! `stderr`, like which source files are used by the evaluator.
 
+use cas::ContentAddressable;
 use regex::Regex;
 use std::any::Any;
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -20,7 +22,7 @@ use NixFile;
 ///
 /// Instruments the nix file to gain extra information,
 /// which is valuable even if the build fails.
-pub fn run(root_nix_file: &NixFile) -> Result<Info, Error> {
+pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Error> {
     // We're looking for log lines matching:
     //
     //     copied source '...' -> '/nix/store/...'
@@ -31,19 +33,20 @@ pub fn run(root_nix_file: &NixFile) -> Result<Info, Error> {
 
     let mut cmd = Command::new("nix-build");
 
+    let logged_evaluation_nix = cas.file_from_string(include_str!("./logged-evaluation.nix"))?;
+
     cmd.args(&[
-        "-vv",
-        // TODO: we should pass this as a file instead of a 12k argv string
-        "--expr",
-        include_str!("./logged-evaluation.nix"),
-        "--no-out-link",
-        "--argstr",
-        "runTimeClosure",
-        crate::RUN_TIME_CLOSURE,
-        "--argstr",
-        "src",
+        OsStr::new("-vv"),
+        OsStr::new("--no-out-link"),
+        OsStr::new("--argstr"),
+        OsStr::new("runTimeClosure"),
+        OsStr::new(crate::RUN_TIME_CLOSURE),
+        OsStr::new("--argstr"),
+        OsStr::new("src"),
+        root_nix_file.as_os_str(),
+        OsStr::new("--"),
+        &logged_evaluation_nix.as_os_str(),
     ])
-    .arg(root_nix_file.as_os_str())
     .stdin(Stdio::null())
     .stdout(Stdio::piped())
     .stderr(Stdio::piped());

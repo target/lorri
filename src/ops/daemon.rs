@@ -22,7 +22,7 @@ pub fn main() -> OpResult {
         e => panic!("{:?}", e),
     })?;
 
-    let (mut daemon, build_messages_rx) = Daemon::new(&paths);
+    let (mut daemon, build_messages_rx) = Daemon::new();
 
     // messages sent from accept handlers
     let (accept_messages_tx, accept_messages_rx) = mpsc::channel();
@@ -55,7 +55,14 @@ pub fn main() -> OpResult {
     // For each build instruction, add the corresponding file
     // to the watch list.
     for start_build in accept_messages_rx {
-        daemon.add(start_build.nix_file)
+        let project = ::project::Project::new(
+            start_build.nix_file,
+            paths.gc_root_dir(),
+            paths.cas_store().clone(),
+        )
+        // TODO: the project needs to create its gc root dir
+        .unwrap();
+        daemon.add(project)
     }
 
     ok()

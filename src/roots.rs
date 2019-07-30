@@ -15,11 +15,11 @@ impl Roots {
     // TODO: all use-cases are from_project; just save a reference to a project?
     /// Construct a Roots struct based on a project's GC root directory
     /// and ID.
-    pub fn from_project(project: &Project) -> Result<Roots, std::io::Error> {
-        Ok(Roots {
-            root_dir: project.gc_root_path()?,
-            id: project.hash(),
-        })
+    pub fn from_project(project: &Project) -> Roots {
+        Roots {
+            root_dir: project.gc_root_path.to_path_buf(),
+            id: project.hash().to_string(),
+        }
     }
 
     /// Store a new root under name

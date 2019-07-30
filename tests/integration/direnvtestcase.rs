@@ -4,9 +4,9 @@
 use direnv::DirenvEnv;
 use lorri::{
     build_loop::{BuildError, BuildLoop, BuildResults},
+    cas::ContentAddressable,
     ops::direnv,
     project::Project,
-    roots::Roots,
     NixFile,
 };
 use std::fs::File;
@@ -17,42 +17,47 @@ use std::process::Command;
 use tempfile::{tempdir, TempDir};
 
 pub struct DirenvTestCase {
-    shell_file: NixFile,
     projectdir: TempDir,
-    build_loop: BuildLoop,
+    // only kept around to not delete tempdir
+    #[allow(dead_code)]
+    cachedir: TempDir,
+    project: Project,
 }
 
 impl DirenvTestCase {
     pub fn new(name: &str) -> DirenvTestCase {
         let projectdir = tempdir().expect("tempfile::tempdir() failed us!");
+        let cachedir = tempdir().expect("tempfile::tempdir() failed us!");
 
         let test_root =
             PathBuf::from_iter(&[env!("CARGO_MANIFEST_DIR"), "tests", "integration", name]);
 
         let shell_file = NixFile::from(test_root.join("shell.nix"));
 
-        let pdpath = projectdir.path().to_owned();
-        let project = Project::new(&shell_file, &pdpath);
-
-        let build_loop = BuildLoop::new(shell_file.clone(), Roots::from_project(&project).unwrap());
+        let cas = ContentAddressable::new(cachedir.path().join("cas").to_owned()).unwrap();
+        let project = Project::new(
+            shell_file.clone(),
+            &cachedir.path().join("gc_roots").to_owned(),
+            cas,
+        )
+        .unwrap();
 
         DirenvTestCase {
-            shell_file: shell_file.clone(),
             projectdir,
-            build_loop,
+            cachedir,
+            project,
         }
     }
 
     /// Execute the build loop one time
     pub fn evaluate(&mut self) -> Result<BuildResults, BuildError> {
-        self.build_loop.once()
+        BuildLoop::new(&self.project).once()
     }
 
     /// Run `direnv allow` and then `direnv export json`, and return
     /// the environment DirEnv would produce.
     pub fn get_direnv_variables(&self) -> DirenvEnv {
-        let project = Project::new(&self.shell_file, self.projectdir.path());
-        let shell = direnv::main(&project)
+        let shell = direnv::main(self.project.clone())
             .unwrap()
             .expect("direnv::main should return a string of shell");
 

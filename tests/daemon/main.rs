@@ -2,6 +2,8 @@ extern crate lorri;
 extern crate tempfile;
 
 use lorri::build_loop;
+use lorri::cas::ContentAddressable;
+use lorri::project::Project;
 use lorri::socket::communicate::{client, listener};
 use lorri::socket::communicate::{CommunicationType, Ping};
 use lorri::socket::path::SocketPath;
@@ -34,10 +36,8 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     let socket_path = SocketPath::from(p);
     let listener = listener::Listener::new(&socket_path).unwrap();
 
-    let paths = lorri::constants::Paths::initialize()?;
-
     // The daemon knows how to build stuff
-    let (mut daemon, build_events_rx) = ::lorri::daemon::Daemon::new(&paths);
+    let (mut daemon, build_events_rx) = ::lorri::daemon::Daemon::new();
 
     let handlers = daemon.handlers();
     // listen for incoming messages
@@ -65,7 +65,10 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     let start_build = accept_messages_rx
         .recv_timeout(Duration::from_millis(100))
         .unwrap();
-    daemon.add(start_build.nix_file);
+
+    let cas = ContentAddressable::new(tempdir.path().join("cas")).unwrap();
+    let project = Project::new(start_build.nix_file, &tempdir.path().join("gc_root"), cas).unwrap();
+    daemon.add(project);
 
     // Read the first build event, which should be a `Started` message
     match build_events_rx

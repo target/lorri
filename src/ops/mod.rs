@@ -17,7 +17,7 @@ pub fn get_paths() -> Result<::constants::Paths, ExitError> {
 }
 
 /// Non-zero exit status from an op
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExitError {
     /// Exit code of the process, should be non-zero
     exitcode: i32,

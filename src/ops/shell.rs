@@ -1,6 +1,5 @@
 //! Open up a project shell
 
-use crate::build::{BuildInstruction, NixBuild};
 use crate::build_loop::{BuildLoop, Event};
 use crate::ops::{ok, ExitError, OpResult};
 use crate::project::Project;
@@ -13,36 +12,30 @@ use std::thread;
 /// details.
 pub fn main(project: Project) -> OpResult {
     let (tx, rx) = channel();
-    let root_nix_file = project.expression();
-    // TODO: handle unwrap
-    let roots = Roots::from_project(&project).unwrap();
-    let mut build_loop = BuildLoop::new(root_nix_file.to_owned(), roots.clone());
-
     println!(
         "WARNING: lorri shell is very simplistic and not suppported at the moment. \
          Please use the other commands."
     );
 
-    let initial_build_thread = thread::spawn(move || {
-        let result = build_loop.once();
-
-        (result, build_loop)
-    });
+    let proj = project.clone();
+    let initial_build_thread = thread::spawn(move || BuildLoop::new(&proj).once());
 
     debug!("Building bash...");
-    let bash = NixBuild::build(&BuildInstruction::Expression(
-        "(import <nixpkgs> {}).bashInteractive.out",
-    ))
-    .expect("Failed to get a bashInteractive")
-    .pop()
-    .expect("Failed to receive a bash path");
+    let bash = ::nix::CallOpts::file(
+        project
+            .cas
+            .file_from_string("(import <nixpkgs> {}).bashInteractive.out")
+            .expect("Failed to write to CAS"),
+    )
+    .path(&project.gc_root_path)
+    .expect("Failed to get a bashInteractive");
 
     debug!("running with bash: {:?}", bash);
-    roots.add("bash", &bash).unwrap();
+    Roots::from_project(&project).add("bash", &bash).unwrap();
 
     println!("Waiting for the builder to produce a drv for the 'shell' attribute.");
 
-    let (initial_result, mut build_loop) = initial_build_thread
+    let initial_result = initial_build_thread
         .join()
         .expect("Failed to join the initial evaluation thread");
 
@@ -51,7 +44,7 @@ pub fn main(project: Project) -> OpResult {
         Err(e) => {
             return Err(ExitError::errmsg(format!(
                 "Build for {} never produced a successful result: {:#?}",
-                root_nix_file, e
+                project.nix_file, e
             )));
         }
     };
@@ -65,7 +58,7 @@ pub fn main(project: Project) -> OpResult {
 
     let build_thread = {
         thread::spawn(move || {
-            build_loop.forever(tx);
+            BuildLoop::new(&project).forever(tx);
         })
     };
 

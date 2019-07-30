@@ -3,6 +3,7 @@ extern crate structopt;
 #[macro_use]
 extern crate log;
 
+use lorri::constants;
 use lorri::locate_file;
 use lorri::NixFile;
 
@@ -61,23 +62,29 @@ fn get_shell_nix() -> Result<NixFile, ExitError> {
     )?))
 }
 
+fn create_project(paths: &constants::Paths, shell_nix: NixFile) -> Result<Project, ExitError> {
+    Project::new(shell_nix, &paths.gc_root_dir(), paths.cas_store().clone())
+        .or_else(|_| Err(ExitError::errmsg("Could not set up project paths")))
+}
+
 /// Run the main function of the relevant command.
 fn run_command(opts: Arguments) -> OpResult {
     let paths = lorri::ops::get_paths()?;
+
     match opts.command {
-        Command::Info => info::main(&Project::new(&get_shell_nix()?, paths.gc_root_dir())),
+        Command::Info => get_shell_nix().and_then(|sn| info::main(create_project(&paths, sn)?)),
 
-        Command::Build => build::main(&Project::new(&get_shell_nix()?, paths.gc_root_dir())),
+        Command::Build => get_shell_nix().and_then(|sn| build::main(create_project(&paths, sn)?)),
 
-        Command::Direnv => direnv::main(&Project::new(&get_shell_nix()?, paths.gc_root_dir())),
+        Command::Direnv => get_shell_nix().and_then(|sn| direnv::main(create_project(&paths, sn)?)),
 
-        Command::Shell => shell::main(Project::new(&get_shell_nix()?, paths.gc_root_dir())),
+        Command::Shell => get_shell_nix().and_then(|sn| shell::main(create_project(&paths, sn)?)),
 
-        Command::Watch => watch::main(&Project::new(&get_shell_nix()?, paths.gc_root_dir())),
+        Command::Watch => get_shell_nix().and_then(|sn| watch::main(create_project(&paths, sn)?)),
 
         Command::Daemon => daemon::main(),
 
-        Command::Upgrade(args) => upgrade::main(args),
+        Command::Upgrade(args) => upgrade::main(args, paths.cas_store()),
 
         // TODO: remove
         Command::Ping_(p) => ping::main(p.nix_file),

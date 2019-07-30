@@ -41,11 +41,20 @@ use std::process::{Command, Stdio};
 use vec1::Vec1;
 
 /// Execute Nix commands using a builder-pattern abstraction.
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct CallOpts {
-    expression: String,
+    input: Input,
     attribute: Option<String>,
     argstrs: HashMap<String, String>,
+}
+
+/// Which input to give nix.
+#[derive(Clone)]
+enum Input {
+    /// A nix expression string.
+    Expression(String),
+    /// A nix file.
+    File(PathBuf),
 }
 
 impl CallOpts {
@@ -62,8 +71,18 @@ impl CallOpts {
     /// ```
     pub fn expression(expr: &str) -> CallOpts {
         CallOpts {
-            expression: expr.to_string(),
-            ..Default::default()
+            input: Input::Expression(expr.to_string()),
+            attribute: None,
+            argstrs: HashMap::new(),
+        }
+    }
+
+    /// Create a CallOpts with the Nix file `nix_file`.
+    pub fn file(nix_file: PathBuf) -> CallOpts {
+        CallOpts {
+            input: Input::File(nix_file),
+            attribute: None,
+            argstrs: HashMap::new(),
         }
     }
 
@@ -254,6 +273,8 @@ impl CallOpts {
         }
 
         let mut cmd = Command::new("nix-build");
+
+        // Create a gc root to the build output
         cmd.args(&[
             OsStr::new("--out-link"),
             gc_root_dir.join(Path::new("result")).as_os_str(),
@@ -282,23 +303,31 @@ impl CallOpts {
     /// Fetch common arguments passed to Nix's CLI, specifically
     /// the --expr expression, -A attribute, and --argstr values.
     fn command_arguments(&self) -> Vec<&OsStr> {
-        let mut ret: Vec<&str> = vec![];
-
-        ret.push("--expr");
-        ret.push(&self.expression);
+        let mut ret: Vec<&OsStr> = vec![];
 
         if let Some(ref attr) = self.attribute {
-            ret.push("-A");
-            ret.push(attr);
+            ret.push(OsStr::new("-A"));
+            ret.push(OsStr::new(attr));
         }
 
         for (name, value) in self.argstrs.iter() {
-            ret.push("--argstr");
-            ret.push(name);
-            ret.push(value);
+            ret.push(OsStr::new("--argstr"));
+            ret.push(OsStr::new(name));
+            ret.push(OsStr::new(value));
         }
 
-        ret.into_iter().map(OsStr::new).collect()
+        match self.input {
+            Input::Expression(ref exp) => {
+                ret.push(OsStr::new("--expr"));
+                ret.push(OsStr::new(exp.as_str()));
+            }
+            Input::File(ref fp) => {
+                ret.push(OsStr::new("--"));
+                ret.push(OsStr::new(fp));
+            }
+        }
+
+        ret
     }
 }
 
@@ -398,25 +427,46 @@ impl From<BuildError> for OnePathError {
 mod tests {
     use super::CallOpts;
     use std::ffi::OsStr;
+    use std::path::PathBuf;
 
     #[test]
-    fn cmd_arguments() {
+    fn cmd_arguments_expression() {
         let mut nix = CallOpts::expression("my-cool-expression");
         nix.attribute("hello");
         nix.argstr("foo", "bar");
 
         let exp: Vec<&OsStr> = [
-            "--expr",
-            "my-cool-expression",
             "-A",
             "hello",
             "--argstr",
             "foo",
             "bar",
+            "--expr",
+            "my-cool-expression",
         ]
         .into_iter()
         .map(OsStr::new)
         .collect();
         assert_eq!(exp, nix.command_arguments());
+    }
+
+    #[test]
+    fn cmd_arguments_test() {
+        let mut nix2 = CallOpts::file(PathBuf::from("/my-cool-file.nix"));
+        nix2.attribute("hello");
+        nix2.argstr("foo", "bar");
+        let exp2: Vec<&OsStr> = [
+            "-A",
+            "hello",
+            "--argstr",
+            "foo",
+            "bar",
+            "--",
+            "/my-cool-file.nix",
+        ]
+        .into_iter()
+        .map(OsStr::new)
+        .collect();
+        assert_eq!(exp2, nix2.command_arguments());
     }
 }

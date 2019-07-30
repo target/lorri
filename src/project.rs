@@ -1,65 +1,52 @@
-//! Project-level functions, like preferred configuration
-//! and on-disk locations.
+//! Wrap a nix file and manage corresponding state.
 
-use std::io;
+use cas::ContentAddressable;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use NixFile;
 
-/// A specific project which we are operating on
-#[derive(Debug)]
-pub struct Project<'a, 'b> {
-    /// The file on disk to the shell.nix
-    pub nix_file: &'a NixFile,
+/// A “project” knows how to handle the lorri state
+/// for a given nix file.
+#[derive(Clone)]
+pub struct Project {
+    /// Absolute path to this project’s nix file.
+    pub nix_file: NixFile,
 
-    /// Directory, in which garbage collection roots will be stored
-    pub base_gc_root_path: &'b Path,
+    /// Directory in which this project’s
+    /// garbage collection roots are stored.
+    pub gc_root_path: PathBuf,
+
+    /// Hash of the nix file’s absolute path.
+    hash: String,
+
+    /// Content-addressable store to save static files in
+    pub cas: ContentAddressable,
 }
 
-/// Error conditions encountered when finding and loading a Lorri
-/// config file.
-#[derive(Debug)]
-pub enum ProjectLoadError {
-    /// The shell.nix was not found in a directory search.
-    ConfigNotFound,
+impl Project {
+    /// Construct a `Project` from nix file path
+    /// and the base GC root directory
+    /// (as returned by `Paths.gc_root_dir()`),
+    pub fn new(
+        nix_file: NixFile,
+        gc_root_dir: &Path,
+        cas: ContentAddressable,
+    ) -> std::io::Result<Project> {
+        let hash = format!("{:x}", md5::compute(nix_file.as_os_str().as_bytes()));
+        let project_gc_root = gc_root_dir.join(&hash).join("gc_root").to_path_buf();
 
-    /// An IO error occured while finding the project
-    Io(io::Error),
-}
+        std::fs::create_dir_all(&project_gc_root)?;
 
-impl<'a, 'b> Project<'a, 'b> {
-    /// Given an absolute path to a shell.nix,
-    /// construct a Project and a ProjectConfig.
-    pub fn new(nix_file: &'a NixFile, gc_root: &'b Path) -> Project<'a, 'b> {
-        Project {
+        Ok(Project {
             nix_file,
-            base_gc_root_path: gc_root,
-        }
+            gc_root_path: project_gc_root,
+            hash,
+            cas,
+        })
     }
 
-    /// Absolute path to the the project's primary entry points
-    /// expression
-    pub fn expression(&self) -> &NixFile {
-        &self.nix_file
-    }
-
-    /// Absolute path to the projects' gc root directory, for pinning
-    /// build and evaluation products
-    pub fn gc_root_path(&self) -> Result<PathBuf, std::io::Error> {
-        // TODO: use a hash of the project’s abolute path here
-        // to avoid collisions
-        let path = self.base_gc_root_path.join(self.hash()).join("gc_root");
-
-        if !path.is_dir() {
-            debug!("Creating all directories for GC roots in {:?}", path);
-            std::fs::create_dir_all(&path)?;
-        }
-
-        Ok(path.to_path_buf())
-    }
-
-    /// Generate a "unique" ID for this project based on its absolute path
-    pub fn hash(&self) -> String {
-        format!("{:x}", md5::compute(self.nix_file.as_os_str().as_bytes()))
+    /// Generate a "unique" ID for this project based on its absolute path.
+    pub fn hash(&self) -> &str {
+        &self.hash
     }
 }

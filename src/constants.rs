@@ -3,12 +3,14 @@
 extern crate directories;
 
 use self::directories::ProjectDirs;
+use cas::ContentAddressable;
 use std::path::{Path, PathBuf};
 
 /// Path constants like the GC root directory.
 pub struct Paths {
     gc_root_dir: PathBuf,
     daemon_socket_file: PathBuf,
+    cas_store: ContentAddressable,
 }
 
 impl Paths {
@@ -28,6 +30,7 @@ impl Paths {
                     .to_owned(),
             )?
             .join("daemon.socket"),
+            cas_store: ContentAddressable::new(pd.cache_dir().join("cas"))?,
         })
     }
 
@@ -43,5 +46,13 @@ impl Paths {
     /// (see `::daemon` and `::socket::communicate`).
     pub fn daemon_socket_file(&self) -> &Path {
         &self.daemon_socket_file
+    }
+
+    /// content-addressable store.
+    ///
+    /// It should be used to reify strings that are needed as files,
+    /// e.g. nix expressions.
+    pub fn cas_store(&self) -> &ContentAddressable {
+        &self.cas_store
     }
 }

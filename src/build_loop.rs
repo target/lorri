@@ -4,10 +4,10 @@
 use crate::builder;
 use crate::notify;
 use crate::pathreduction::reduce_paths;
+use crate::project::Project;
 use crate::roots;
 use crate::roots::Roots;
 use crate::watch::Watch;
-use crate::NixFile;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
@@ -40,25 +40,23 @@ pub struct BuildExitFailure {
 }
 
 /// The BuildLoop repeatedly builds the Nix expression in
-/// `nix_root_path` each time a source file influencing
+/// `project` each time a source file influencing
 /// a previous build changes.
 /// Additionally, we create GC roots for the build results.
-pub struct BuildLoop {
-    /// A nix source file which can be built
-    nix_root_path: NixFile,
-    roots: Roots,
+pub struct BuildLoop<'a> {
+    /// Project to be built.
+    project: &'a Project,
     /// Watches all input files for changes.
     /// As new input files are discovered, they are added to the watchlist.
     watch: Watch,
 }
 
-impl BuildLoop {
+impl<'a> BuildLoop<'a> {
     /// Instatiate a new BuildLoop. Uses an internal filesystem
     /// watching implementation.
-    pub fn new(nix_root_path: NixFile, roots: Roots) -> BuildLoop {
+    pub fn new(project: &'a Project) -> BuildLoop<'a> {
         BuildLoop {
-            nix_root_path,
-            roots,
+            project,
             watch: Watch::init().expect("Failed to initialize watch"),
         }
     }
@@ -99,7 +97,8 @@ impl BuildLoop {
     /// This will create GC roots and expand the file watch list for
     /// the evaluation.
     pub fn once(&mut self) -> Result<BuildResults, BuildError> {
-        let build = builder::run(&self.nix_root_path)?;
+        let build = builder::run(&self.project.nix_file, &self.project.cas)?;
+        let roots = Roots::from_project(&self.project);
 
         let paths = build.paths;
         debug!("original paths: {:?}", paths.len());
@@ -114,16 +113,15 @@ impl BuildLoop {
             named_drvs: HashMap::new(),
         };
         for (name, drv) in build.named_drvs.iter() {
-            event.named_drvs.insert(
-                name.clone(),
-                self.roots.add(&format!("attr-{}", name), &drv)?,
-            );
+            event
+                .named_drvs
+                .insert(name.clone(), roots.add(&format!("attr-{}", name), &drv)?);
         }
 
         for (i, drv) in build.drvs.iter().enumerate() {
             event
                 .drvs
-                .insert(i, self.roots.add(&format!("build-{}", i), &drv)?);
+                .insert(i, roots.add(&format!("build-{}", i), &drv)?);
         }
 
         // add all new (reduced) nix sources to the input source watchlist
