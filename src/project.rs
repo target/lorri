@@ -1,5 +1,7 @@
 //! Wrap a nix file and manage corresponding state.
 
+pub mod roots;
+
 use cas::ContentAddressable;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};

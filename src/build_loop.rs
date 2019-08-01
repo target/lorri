@@ -4,9 +4,9 @@
 use crate::builder;
 use crate::notify;
 use crate::pathreduction::reduce_paths;
+use crate::project::roots;
+use crate::project::roots::Roots;
 use crate::project::Project;
-use crate::roots;
-use crate::roots::Roots;
 use crate::watch::Watch;
 use std::sync::mpsc::Sender;
 
