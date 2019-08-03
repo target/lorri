@@ -54,6 +54,10 @@ pub enum Command {
     /// Bootstrap files for a new setup
     #[structopt(name = "init")]
     Init,
+
+    /// Install the current environment.
+    #[structopt(name = "install", alias = "i")]
+    Install,
 }
 
 /// Send a message with a lorri project.

@@ -32,7 +32,7 @@ pub fn main(project: Project) -> OpResult {
 
     if !shell_root.exists() {
         return Err(ExitError::errmsg(
-            "Please start `lorri daemon` or run `lorri watch` before using direnv integration.",
+            "Please start `lorri daemon`, run `lorri watch`, or simply `lorri install` before using direnv integration.",
         ));
     }
 

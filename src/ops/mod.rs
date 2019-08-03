@@ -4,6 +4,7 @@ pub mod daemon;
 pub mod direnv;
 pub mod info;
 pub mod init;
+pub mod install;
 pub mod ping;
 pub mod shell;
 pub mod upgrade;

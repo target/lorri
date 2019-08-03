@@ -8,7 +8,9 @@ use lorri::locate_file;
 use lorri::NixFile;
 
 use lorri::cli::{Arguments, Command};
-use lorri::ops::{daemon, direnv, info, init, ping, shell, upgrade, watch, ExitError, OpResult};
+use lorri::ops::{
+    daemon, direnv, info, init, install, ping, shell, upgrade, watch, ExitError, OpResult,
+};
 use lorri::project::Project;
 use std::env;
 use structopt::StructOpt;
@@ -86,6 +88,10 @@ fn run_command(opts: Arguments) -> OpResult {
         Command::Ping_(p) => ping::main(p.nix_file),
 
         Command::Init => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
+
+        Command::Install => {
+            get_shell_nix().and_then(|sn| install::main(create_project(&paths, sn)?))
+        }
     }
 }
 
