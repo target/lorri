@@ -35,7 +35,7 @@ pub fn main(default_shell: &str, default_envrc: &str) -> OpResult {
     ))?;
 
     to_op(create_if_missing(
-        Path::new("./.envrc"), 
+        Path::new("./.envrc"),
         default_envrc,
         ".envrc exists, skipping. Please add 'eval \"$(lorri direnv)\" to it to set up lorri support.",
     ))?;
