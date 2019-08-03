@@ -22,10 +22,6 @@ pub struct Arguments {
 #[derive(StructOpt, Debug)]
 /// Sub-commands which Lorri can execute
 pub enum Command {
-    /// Build attributes inside your release.nix. Alias: b
-    #[structopt(name = "build", alias = "b")]
-    Build,
-
     /// Emit shell script intended to be evaluated as part of
     /// direnv's .envrc, via: `eval "$(lorri direnv)"`
     #[structopt(name = "direnv")]

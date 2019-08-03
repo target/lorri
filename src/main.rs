@@ -8,9 +8,7 @@ use lorri::locate_file;
 use lorri::NixFile;
 
 use lorri::cli::{Arguments, Command};
-use lorri::ops::{
-    build, daemon, direnv, info, init, ping, shell, upgrade, watch, ExitError, OpResult,
-};
+use lorri::ops::{daemon, direnv, info, init, ping, shell, upgrade, watch, ExitError, OpResult};
 use lorri::project::Project;
 use std::env;
 use structopt::StructOpt;
@@ -73,8 +71,6 @@ fn run_command(opts: Arguments) -> OpResult {
 
     match opts.command {
         Command::Info => get_shell_nix().and_then(|sn| info::main(create_project(&paths, sn)?)),
-
-        Command::Build => get_shell_nix().and_then(|sn| build::main(create_project(&paths, sn)?)),
 
         Command::Direnv => get_shell_nix().and_then(|sn| direnv::main(create_project(&paths, sn)?)),
 
