@@ -120,6 +120,9 @@ function declare() {
         # vars from: https://github.com/NixOS/nix/blob/92d08c02c84be34ec0df56ed718526c382845d1a/src/nix-build/nix-build.cc#L421
         "NIX_ENFORCE_PURITY="*) punt;;
 
+        # https://github.com/target/lorri/issues/97
+        "preHook="*) punt;;
+
         *) varmap "$@" ;;
     esac
 }
