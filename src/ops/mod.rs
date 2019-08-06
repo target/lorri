@@ -1,6 +1,5 @@
 //! Ops are command-line callables.
 
-pub mod build;
 pub mod daemon;
 pub mod direnv;
 pub mod info;
