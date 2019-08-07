@@ -27,10 +27,6 @@ pub enum Command {
     #[structopt(name = "direnv")]
     Direnv,
 
-    /// (Unsupported!) Open up a project development shell. Alias: s
-    #[structopt(name = "shell", alias = "s")]
-    Shell,
-
     /// Show information about the current Lorri project
     #[structopt(name = "info", alias = "information")]
     Info,
