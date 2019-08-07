@@ -25,15 +25,15 @@ pub enum Command {
     /// Emit shell script intended to be evaluated as part of
     /// direnv's .envrc, via: `eval "$(lorri direnv)"`
     #[structopt(name = "direnv")]
-    Direnv(NixShellFile),
+    Direnv(DirenvOptions),
 
     /// Show information about the current Lorri project
     #[structopt(name = "info", alias = "information")]
-    Info(NixShellFile),
+    Info(InfoOptions),
 
     /// Build `shell.nix` whenever an input file changes
     #[structopt(name = "watch")]
-    Watch(NixShellFile),
+    Watch(WatchOptions),
 
     /// Start the multi-project daemon. Replaces `lorri watch`
     #[structopt(name = "daemon")]
@@ -52,6 +52,33 @@ pub enum Command {
     Init,
 }
 
+/// Options for `watch` subcommand.
+#[derive(StructOpt, Debug)]
+pub struct DirenvOptions {
+    /// The .nix file in the current directory to use
+    #[structopt(long = "shell-file", parse(from_os_str), default_value = "shell.nix")]
+    pub nix_file: PathBuf,
+}
+
+/// Options for `watch` subcommand.
+#[derive(StructOpt, Debug)]
+pub struct InfoOptions {
+    /// The .nix file in the current directory to use
+    #[structopt(long = "shell-file", parse(from_os_str), default_value = "shell.nix")]
+    pub nix_file: PathBuf,
+}
+
+/// Options for `watch` subcommand.
+#[derive(StructOpt, Debug)]
+pub struct WatchOptions {
+    /// The .nix file in the current directory to use
+    #[structopt(long = "shell-file", parse(from_os_str), default_value = "shell.nix")]
+    pub nix_file: PathBuf,
+    /// Exit after a the first build
+    #[structopt(long = "once")]
+    pub once: bool,
+}
+
 /// Send a message with a lorri project.
 ///
 /// Pinging with a project tells the daemon that the project was recently interacted with.
@@ -62,14 +89,6 @@ pub struct Ping_ {
     /// The .nix file to watch and build on changes.
     #[structopt(parse(from_os_str))]
     pub nix_file: NixFile,
-}
-
-///  Add parameter to define the shell file in the current directory to use
-#[derive(StructOpt, Debug)]
-pub struct NixShellFile {
-    /// The .nix file in the current directory to use
-    #[structopt(long = "shell-file", parse(from_os_str), default_value = "shell.nix")]
-    pub nix_file: PathBuf,
 }
 
 /// A stub struct to represent how what we want to upgrade to.
