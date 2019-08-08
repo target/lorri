@@ -17,13 +17,12 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
-use NixFile;
+use {DrvFile, NixFile};
 
-// TODO: when moving to CallOpts, you have to change the names of the roots CallOpts generates!
-fn instrumented_build(
+fn instrumented_instantiation(
     root_nix_file: &NixFile,
     cas: &ContentAddressable,
-) -> Result<Info<StorePath>, Error> {
+) -> Result<Info<DrvFile, GcRootTempDir>, Error> {
     // We're looking for log lines matching:
     //
     //     copied source '...' -> '/nix/store/...'
@@ -32,20 +31,29 @@ fn instrumented_build(
     // to determine which files we should setup watches on.
     // Increasing verbosity by two levels via `-vv` satisfies that.
 
-    let mut cmd = Command::new("nix-build");
+    let mut cmd = Command::new("nix-instantiate");
 
     let logged_evaluation_nix = cas.file_from_string(include_str!("./logged-evaluation.nix"))?;
 
+    // TODO: see ::nix::CallOpts::paths for the problem with this
+    let gc_root_dir = tempfile::TempDir::new()?;
+
     cmd.args(&[
+        // verbose mode prints the files we track
         OsStr::new("-vv"),
-        // TODO: this must create a GcRootTempDir and pass it out
-        OsStr::new("--no-out-link"),
+        // we add a temporary indirect GC root
+        OsStr::new("--add-root"),
+        gc_root_dir.path().join("result").as_os_str(),
+        OsStr::new("--indirect"),
         OsStr::new("--argstr"),
+        // runtime nix paths to needed dependencies that come with lorri
         OsStr::new("runTimeClosure"),
         OsStr::new(crate::RUN_TIME_CLOSURE),
+        // the source file
         OsStr::new("--argstr"),
         OsStr::new("src"),
         root_nix_file.as_os_str(),
+        // instrumented by `./logged-evaluation.nix`
         OsStr::new("--"),
         &logged_evaluation_nix.as_os_str(),
     ])
@@ -73,11 +81,11 @@ fn instrumented_build(
                 .collect::<Result<Vec<LogDatum>, _>>()
         });
 
-    let build_products: thread::JoinHandle<std::io::Result<Vec<StorePath>>> =
+    let build_products: thread::JoinHandle<std::io::Result<Vec<DrvFile>>> =
         thread::spawn(move || {
             osstrlines::Lines::from(BufReader::new(stdout))
-                .map(|line| line.map(StorePath::from))
-                .collect::<Result<Vec<StorePath>, _>>()
+                .map(|line| line.map(|os_string| DrvFile::from(PathBuf::from(os_string))))
+                .collect::<Result<Vec<DrvFile>, _>>()
         });
 
     let (exec_result, mut build_products, results) = (
@@ -86,12 +94,8 @@ fn instrumented_build(
         stderr_results.join()??,
     );
 
-    assert!(
-        build_products.len() == 1,
-        "got more or less than one build product from logged_evaluation.nix: {:#?}",
-        build_products
-    );
-    let shell_gc_root = build_products.pop().unwrap();
+    // TODO: this can move entirely into the stderr thread,
+    // meaning we don’t have to keep the outputs in memory (fold directly)
 
     // iterate over all lines, parsing out the ones we are interested in
     let (paths, log_lines): (Vec<PathBuf>, Vec<OsString>) =
@@ -123,20 +127,60 @@ fn instrumented_build(
                 (paths, log_lines)
             });
 
-    Ok(Info {
-        exec_result,
+    if !exec_result.success() {
+        return Ok(Info::Failure(Failure {
+            exec_result,
+            log_lines,
+        }));
+    }
+
+    assert!(
+        build_products.len() == 1,
+        "got more or less than one build product from logged_evaluation.nix: {:#?}",
+        build_products
+    );
+    let shell_gc_root = build_products.pop().unwrap();
+
+    Ok(Info::Success(Success {
+        gc_root_temp_dir: GcRootTempDir(gc_root_dir),
         output_paths: OutputPaths { shell_gc_root },
         paths,
         log_lines,
-    })
+    }))
 }
+
+/// Opaque type to keep a temporary GC root directory alive.
+/// Once it is dropped, the GC root is removed.
+/// Copied from `nix`, because the type should stay opaque.
+#[derive(Debug)]
+struct GcRootTempDir(tempfile::TempDir);
 
 /// Builds the Nix expression in `root_nix_file`.
 ///
 /// Instruments the nix file to gain extra information,
 /// which is valuable even if the build fails.
-pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info<StorePath>, Error> {
-    instrumented_build(root_nix_file, cas)
+pub fn run(
+    root_nix_file: &NixFile,
+    cas: &ContentAddressable,
+) -> Result<Info<StorePath, ::nix::GcRootTempDir>, Error> {
+    let inst_info = instrumented_instantiation(root_nix_file, cas)?;
+    match inst_info {
+        Info::Success(s) => {
+            let drvs = s.output_paths.clone();
+            let realized = ::nix::CallOpts::file(drvs.shell_gc_root.as_path()).path()?;
+            Ok(Info::Success(Success {
+                output_paths: OutputPaths {
+                    shell_gc_root: realized.0,
+                },
+                gc_root_temp_dir: realized.1,
+                paths: s.paths,
+                // TODO: we are passing the instantiation stderr here,
+                // but we really want to get the CallOpts stderr
+                log_lines: s.log_lines,
+            }))
+        }
+        Info::Failure(f) => Ok(Info::Failure(f)),
+    }
 }
 
 /// Classifies the output of nix-instantiate -vv.
@@ -197,21 +241,42 @@ where
     }
 }
 
-/// The results of an individual build.
+/// The results of an individual instantiation/build.
 /// Even if the exit code is not 0, there is still
 /// valuable information in the output, like new paths
 /// to watch.
 #[derive(Debug)]
-pub struct Info<T> {
-    /// The result of executing Nix
-    pub exec_result: std::process::ExitStatus,
+pub enum Info<T, TempDir> {
+    /// Nix ran successfully.
+    Success(Success<T, TempDir>),
+    /// Nix returned a failing status code.
+    Failure(Failure),
+}
 
+/// A successful Nix run.
+#[derive(Debug)]
+pub struct Success<T, TempDir> {
     /// See `OutputPaths`
+    // TODO: move back to `OutputPaths<T>`
     pub output_paths: OutputPaths<T>,
+
+    /// Handle that keeps the temporary GC root directory around
+    pub gc_root_temp_dir: TempDir,
 
     // TODO: rename to `sources` (it’s the input sources we have to watch)
     /// A list of paths examined during the evaluation
     pub paths: Vec<PathBuf>,
+
+    // INFO: only used in test so far
+    /// A list of stderr log lines
+    pub log_lines: Vec<OsString>,
+}
+
+/// A failing Nix run.
+#[derive(Debug)]
+pub struct Failure {
+    /// The error status code
+    exec_result: std::process::ExitStatus,
 
     /// A list of stderr log lines
     pub log_lines: Vec<OsString>,
@@ -227,15 +292,23 @@ pub struct OutputPaths<T> {
 /// Possible errors from an individual evaluation
 #[derive(Debug)]
 pub enum Error {
-    /// IO error executing nix-instantiate
-    Io(std::io::Error),
+    /// Executing nix-instantiate failed
+    Instantiate(std::io::Error),
+
+    /// Executing nix-build failed
+    Build(::nix::OnePathError),
 
     /// Failed to spawn a log processing thread
     ThreadFailure(std::boxed::Box<(dyn std::any::Any + std::marker::Send + 'static)>),
 }
 impl From<std::io::Error> for Error {
     fn from(e: std::io::Error) -> Error {
-        Error::Io(e)
+        Error::Instantiate(e)
+    }
+}
+impl From<::nix::OnePathError> for Error {
+    fn from(e: ::nix::OnePathError) -> Error {
+        Error::Build(e)
     }
 }
 impl From<Box<dyn Any + Send + 'static>> for Error {
@@ -328,10 +401,15 @@ in {}
         print!("{}", nix_drv);
 
         let info = run(&::NixFile::from(cas.file_from_string(&nix_drv)?), &cas).unwrap();
-        assert!(info.exec_result.success());
-
-        let expect: OsString = OsStr::from_bytes(b"\"\xAB\xBC\xCD\xDE\xDE\xEF\"").to_owned();
-        assert!(info.log_lines.contains(&expect));
+        match info {
+            Info::Success(i) => {
+                let expect: OsString =
+                    OsStr::from_bytes(b"\"\xAB\xBC\xCD\xDE\xDE\xEF\"").to_owned();
+                assert!(i.log_lines.contains(&expect))
+            }
+            _ => panic!(),
+        }
         Ok(())
     }
+
 }
