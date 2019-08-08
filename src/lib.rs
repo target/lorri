@@ -91,3 +91,9 @@ impl DrvFile {
         self.0.as_ref()
     }
 }
+
+impl From<PathBuf> for DrvFile {
+    fn from(p: PathBuf) -> DrvFile {
+        DrvFile(p)
+    }
+}

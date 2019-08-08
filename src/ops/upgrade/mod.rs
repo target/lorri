@@ -34,15 +34,14 @@ pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResul
     3. nix-build the expression's package attribute
     4. nix-env -i the package
      */
-    let upgrade_expr = include_str!("./upgrade.nix");
+    let upgrade_expr = cas
+        .file_from_string(include_str!("./upgrade.nix"))
+        .expect("could not write to CAS");
 
     let expr = {
         let src = String::from(upgrade_target);
         println!("Upgrading from source: {}", src);
-        let mut expr = nix::CallOpts::file(
-            cas.file_from_string(upgrade_expr)
-                .expect("could not write to CAS"),
-        );
+        let mut expr = nix::CallOpts::file(&upgrade_expr);
         expr.argstr("src", &src);
         // ugly hack to prevent expr from being mutable outside,
         // since I can't sort out how to chain argstr and still

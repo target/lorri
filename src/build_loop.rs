@@ -2,6 +2,7 @@
 //! evaluate and build a given Nix file.
 
 use crate::builder;
+use crate::nix::{GcRootTempDir, StorePath};
 use crate::notify;
 use crate::pathreduction::reduce_paths;
 use crate::project::roots;
@@ -79,9 +80,7 @@ impl<'a> BuildLoop<'a> {
                     tx.send(Event::Failure(failure))
                         .expect("Failed to notify the results of a failed evaluation");
                 }
-                otherwise => {
-                    otherwise.unwrap();
-                }
+                Err(BuildError::Unrecoverable(err)) => panic!("Unrecoverable error!\n{:#?}", err),
             }
 
             self.watch.wait_for_change().expect("Waiter exited");
@@ -94,6 +93,19 @@ impl<'a> BuildLoop<'a> {
     /// the evaluation.
     pub fn once(&mut self) -> Result<BuildResults, BuildError> {
         let build = builder::run(&self.project.nix_file, &self.project.cas)?;
+
+        match build {
+            builder::Info::Failure(f) => Err(BuildError::Recoverable(BuildExitFailure {
+                log_lines: f.log_lines,
+            })),
+            builder::Info::Success(s) => self.once_(s),
+        }
+    }
+
+    fn once_(
+        &mut self,
+        build: builder::Success<StorePath, GcRootTempDir>,
+    ) -> Result<BuildResults, BuildError> {
         let roots = Roots::from_project(&self.project);
 
         let paths = build.paths;
@@ -107,17 +119,13 @@ impl<'a> BuildLoop<'a> {
         let event = BuildResults {
             output_paths: roots.create_roots(build.output_paths)?,
         };
+        // now we can drop the temporary gc_root in build because we added static roots
+        drop(build.gc_root_temp_dir);
 
         // add all new (reduced) nix sources to the input source watchlist
         self.watch.extend(&paths.into_iter().collect::<Vec<_>>())?;
 
-        if build.exec_result.success() {
-            Ok(event)
-        } else {
-            Err(BuildError::Recoverable(BuildExitFailure {
-                log_lines: build.log_lines,
-            }))
-        }
+        Ok(event)
     }
 }
 
