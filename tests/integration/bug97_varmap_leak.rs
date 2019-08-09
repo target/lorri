@@ -8,23 +8,36 @@ fn bug97_varmap_leak() {
     testcase.evaluate().expect("Failed to build the first time");
 
     let env = testcase.get_direnv_variables();
-    let keys: HashSet<String> = env.keys().cloned().collect();
-    let expect: HashSet<String> = vec![
+    let mut found_env_keys: HashSet<String> = env.keys().cloned().collect();
+
+    vec![
         "name",
+        "builder",
         "out",
+        "stdenv",
+        "PATH",
+        "extraClosure",
+        // Lorri dependency capture
         "origBuilder",
         "origArgs",
         "origOutputs",
-        "stdenv",
+        "origSystem",
+        "origPATH",
+        "origExtraClosure",
+        // Nix-set variables
+        "IN_NIX_SHELL",
         "NIX_BUILD_CORES",
-        "PATH",
+        "NIX_BUILD_TOP",
+        "NIX_LOG_FD",
         // Direnv State Vars
         "DIRENV_DIFF",
         "DIRENV_DIR",
         "DIRENV_WATCHES",
     ]
     .into_iter()
-    .map(str::to_string)
-    .collect();
-    assert_eq!(keys, expect);
+    .for_each(|okay_var| {
+        found_env_keys.remove(okay_var);
+    });
+
+    assert_eq!(found_env_keys, HashSet::new());
 }
