@@ -1,3 +1,4 @@
+use std::collections::hash_map::Keys;
 use std::collections::HashMap;
 
 /// The resulting environment Direnv after running Direnv. Note:
@@ -19,6 +20,11 @@ impl DirenvEnv {
             Some(None) => DirenvValue::Unset,
             None => DirenvValue::NotSet,
         }
+    }
+
+    /// Get the environment variable names defined by direnv
+    pub fn keys<'a>(&'a self) -> Keys<'a, String, Option<String>> {
+        self.0.keys()
     }
 }
 
