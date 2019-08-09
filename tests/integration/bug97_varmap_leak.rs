@@ -29,6 +29,9 @@ fn bug97_varmap_leak() {
         "NIX_BUILD_CORES",
         "NIX_BUILD_TOP",
         "NIX_LOG_FD",
+        "NIX_STORE",
+        "allowSubstitutes",
+        "preferLocalBuild",
         // Direnv State Vars
         "DIRENV_DIFF",
         "DIRENV_DIR",
