@@ -6,12 +6,21 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 223;
+        changes = ''
+          - Running lorri on a project where the nix-shell dependencies
+            are already cached (e.g. by running `nix-shell` directly before)
+            is a completely local operation now (no binary cache is queried).
+          - `lorri build` was a no-op, so it was removed
+        '';
+      }
+      {
         version = 171;
         changes = ''
           gc_root dirs move from `~/.cache/lorri` to `~/.cache/lorri/gc_roots`.
           You can delete every file in `~/.cache/lorri`.
         '';
-       }
+      }
       {
         version = 132;
         changes = ''
