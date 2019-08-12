@@ -23,6 +23,7 @@ pkgs.mkShell rec {
     pkgs.git
     pkgs.direnv
     pkgs.shellcheck
+    pkgs.carnix
   ] ++
   pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
     pkgs.darwin.Security
@@ -88,6 +89,9 @@ pkgs.mkShell rec {
 
       set -x
 
+      lorri_travis_fold carnix-update ./nix/update-carnix.sh
+      carnixupdate=$?
+
       lorri_travis_fold script-tests ./script-tests/run-all.sh
       scripttests=$?
 
@@ -103,6 +107,7 @@ pkgs.mkShell rec {
       cargoclippyexit=$?
 
       set +x
+      echo "carnix update: $carnixupdates"
       echo "script tests: $scripttests"
       echo "cargo test: $cargotestexit"
       echo "cargo fmt: $cargofmtexit"
