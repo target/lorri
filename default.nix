@@ -2,7 +2,7 @@
   pkgs ? import ./nix/nixpkgs.nix { },
   src ? pkgs.nix-gitignore.gitignoreSource [".git/"] ./.
 }:
-((pkgs.callPackage ./nix/carnix/Cargo.nix {
+((pkgs.callPackage ./Cargo.nix {
   cratesIO = pkgs.callPackage ./nix/carnix/crates-io.nix {};
 }).lorri {}).override {
   crateOverrides = pkgs.defaultCrateOverrides // {

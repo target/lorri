@@ -1,7 +1,8 @@
 #!/bin/sh
 
-set -eu
+set -eux
 
 cargo build
-carnix generate-nix --src .
-mv ./crates-io.nix ./Cargo.nix ./nix/carnix/
+cd nix/carnix
+
+carnix generate-nix --src ../..
