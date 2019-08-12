@@ -56,6 +56,7 @@ let
     origOutputs = drv.outputs or [];
     outputs = [ "out" ];
 
+    origPreHook = drv.preHook or "";
     preHook = ''
       # Redefine addToSearchPathWithCustomDelimiter to integrate with
       # lorri's environment variable setup map. Then, call the original
