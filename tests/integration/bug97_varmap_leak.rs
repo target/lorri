@@ -8,9 +8,15 @@ fn bug97_varmap_leak() {
     testcase.evaluate().expect("Failed to build the first time");
 
     let env = testcase.get_direnv_variables();
+
+    assert_eq!(env.get_env("preHook"), DirenvValue::Value("echo 'foo bar'"));
+
     let mut found_env_keys: HashSet<String> = env.keys().cloned().collect();
 
     vec![
+        // Scenario-specific variables
+        "preHook",
+        // Nix derivation variables
         "name",
         "builder",
         "out",

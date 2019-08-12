@@ -6,6 +6,30 @@ function punt () {
     :
 }
 
+# move "origPreHook" "preHook" "$@";;
+move() {
+    srcvarname=$1 # example: varname might contain the string "origPATH"
+    # drop off the source variable name
+    shift
+
+    destvarname=$1 # example: destvarname might contain the string "PATH"
+    # drop off the destination variable name
+    shift
+
+    # like: export origPATH="...some-value..."
+    export "${@?}";
+
+    # set $original to the contents of the variable $srcvarname
+    # refers to
+    eval "$destvarname=\"${!srcvarname}\""
+
+    # mark the destvarname as exported so direnv picks it up
+    export "$destvarname"
+
+    # remove the export from above, ie: export origPATH...
+    unset "$srcvarname"
+}
+
 function prepend() {
     varname=$1 # example: varname might contain the string "PATH"
 
@@ -46,7 +70,7 @@ function append() {
 
     # set $original to the contents of the the variable $varname
     # refers to
-    original="${!varname}"
+    original="${!varname:-}"
 
     # effectfully accept the new variable's contents
     export "${@?}";
@@ -122,6 +146,7 @@ function declare() {
 
         # https://github.com/target/lorri/issues/97
         "preHook="*) punt;;
+        "origPreHook="*) move "origPreHook" "preHook" "$@";;
 
         *) varmap "$@" ;;
     esac
