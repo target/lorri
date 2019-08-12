@@ -57,6 +57,10 @@ enum Input {
     File(PathBuf),
 }
 
+/// Opaque type to keep a temporary GC root directory alive.
+/// Once it is dropped, the GC root is removed.
+pub struct GcRootTempDir(tempfile::TempDir);
+
 impl CallOpts {
     /// Create a CallOpts with the Nix expression `expr`.
     ///
@@ -187,97 +191,101 @@ impl CallOpts {
     ///
     /// ```rust
     /// extern crate lorri;
-    /// extern crate tempfile;
     /// use lorri::nix;
     /// use std::path::{Path, PathBuf};
     /// # use std::env;
     /// # env::set_var("NIX_PATH", "nixpkgs=./nix/bogus-nixpkgs/");
     ///
-    /// let tempdir = tempfile::tempdir().unwrap();
-    /// let location = nix::CallOpts::expression(r#"
+    /// let (location, gc_root) = nix::CallOpts::expression(r#"
     ///             import <nixpkgs> {}
     /// "#)
     ///         .attribute("hello")
-    ///         .path(&tempdir.path())
+    ///         .path()
     ///         .unwrap()
-    ///         .into_os_string()
-    ///         .into_string().unwrap()
     ///         ;
     ///
+    /// let location = location.into_os_string().into_string().unwrap();
     /// println!("{:?}", location);
     /// assert!(location.contains("/nix/store"));
     /// assert!(location.contains("hello-"));
+    /// drop(gc_root);
     /// ```
     ///
-    /// Note, path() return an error if there are multiple paths
+    /// `path` returns a lock to the GC roots created by the Nix call
+    /// (`gc_root` in the example above). Until that is dropped,
+    /// a Nix garbage collect will not remove the store paths created
+    /// by `path()`.
+    ///
+    /// Note, `path()` returns an error if there are multiple store paths
     /// returned by Nix:
     ///
     /// ```rust
     /// extern crate lorri;
-    /// extern crate tempfile;
     /// use lorri::nix;
     /// use std::path::{Path, PathBuf};
     /// # use std::env;
     /// # env::set_var("NIX_PATH", "nixpkgs=./nix/bogus-nixpkgs/");
     ///
-    /// let tempdir = tempfile::tempdir().unwrap();
     /// let paths = nix::CallOpts::expression(r#"
     ///             { inherit (import <nixpkgs> {}) hello git; }
     /// "#)
-    ///         .path(&tempdir.path());
+    ///         .path();
     ///
     /// match paths {
     ///    Err(nix::OnePathError::TooManyResults) => {},
     ///    otherwise => panic!(otherwise)
     /// }
     /// ```
-    pub fn path(&self, gc_root_dir: &Path) -> Result<PathBuf, OnePathError> {
-        let mut paths = self.paths(gc_root_dir)?.into_vec();
+    pub fn path(&self) -> Result<(PathBuf, GcRootTempDir), OnePathError> {
+        let (pathsv1, gc_root) = self.paths()?;
+        let mut paths = pathsv1.into_vec();
 
         match (paths.pop(), paths.pop()) {
             // Exactly zero
             (None, _) => Err(BuildError::NoResult.into()),
 
             // Exactly one
-            (Some(path), None) => Ok(path),
+            (Some(path), None) => Ok((path, gc_root)),
 
             // More than one
             (Some(_), Some(_)) => Err(OnePathError::TooManyResults),
         }
     }
 
-    /// Build the expression and return a list of paths to the build results:
+    /// Build the expression and return a list of paths to the build results.
+    /// Like `.path()`, except it returns all store paths.
     ///
     /// ```rust
     /// extern crate lorri;
-    /// extern crate tempfile;
     /// use lorri::nix;
     /// use std::path::{Path, PathBuf};
     /// # use std::env;
     /// # env::set_var("NIX_PATH", "nixpkgs=./nix/bogus-nixpkgs/");
     ///
-    /// let tempdir = tempfile::tempdir().unwrap();
-    /// let mut paths = nix::CallOpts::expression(r#"
+    /// let (paths, gc_root) = nix::CallOpts::expression(r#"
     ///             { inherit (import <nixpkgs> {}) hello git; }
     /// "#)
-    ///         .paths(&tempdir.path())
-    ///         .unwrap()
+    ///         .paths()
+    ///         .unwrap();
+    /// let mut paths = paths
     ///         .into_iter()
     ///         .map(|path| { println!("{:?}", path); format!("{:?}", path) });
     /// assert!(paths.next().unwrap().contains("git-"));
     /// assert!(paths.next().unwrap().contains("hello-"));
+    /// drop(gc_root);
     /// ```
-    pub fn paths(&self, gc_root_dir: &Path) -> Result<Vec1<PathBuf>, BuildError> {
-        if !gc_root_dir.exists() || !gc_root_dir.is_dir() {
-            return Err(BuildError::GcRootNotADirectory);
-        }
+    pub fn paths(&self) -> Result<(Vec1<PathBuf>, GcRootTempDir), BuildError> {
+        // TODO: temp_dir writes to /tmp by default, we should
+        // create a wrapper using XDG_RUNTIME_DIR instead,
+        // which is per-user and (on systemd systems) a tmpfs.
+        let gc_root_dir = tempfile::TempDir::new()?;
 
         let mut cmd = Command::new("nix-build");
 
         // Create a gc root to the build output
         cmd.args(&[
             OsStr::new("--out-link"),
-            gc_root_dir.join(Path::new("result")).as_os_str(),
+            gc_root_dir.path().join(Path::new("result")).as_os_str(),
         ]);
 
         cmd.args(self.command_arguments());
@@ -291,7 +299,7 @@ impl CallOpts {
             let paths: Vec<PathBuf> = lines?.iter().map(PathBuf::from).collect();
 
             if let Ok(vec1) = Vec1::from_vec(paths) {
-                Ok(vec1)
+                Ok((vec1, GcRootTempDir(gc_root_dir)))
             } else {
                 Err(BuildError::NoResult)
             }

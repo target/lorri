@@ -11,7 +11,6 @@ use crate::ops::{ExitError, OpResult};
 use crate::VERSION_BUILD_REV;
 use cas::ContentAddressable;
 use std::process::Command;
-use tempfile::tempdir;
 
 impl From<cli::UpgradeTo> for String {
     fn from(desc: cli::UpgradeTo) -> Self {
@@ -65,14 +64,15 @@ pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResul
     }
 
     println!("Building ...");
-    let tmpdir = tempdir().unwrap();
-    match expr.clone().attribute("package").path(&tmpdir.path()) {
-        Ok(build_result) => {
+    match expr.clone().attribute("package").path() {
+        Ok((build_result, gc_root)) => {
             let status = Command::new("nix-env")
                 .arg("--install")
                 .arg(build_result)
                 .status()
                 .expect("Error: failed to execute nix-env --install");
+            // we can drop the temporary gc root
+            drop(gc_root);
 
             if status.success() {
                 Ok(Some(String::from("\nUpgrade successful.")))
@@ -82,7 +82,7 @@ pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResul
                 )))
             }
         }
-        e => Err(ExitError::errmsg(format!(
+        Err(e) => Err(ExitError::errmsg(format!(
             "Failed to build the update! Please report a bug!\n\
              {:?}",
             e
