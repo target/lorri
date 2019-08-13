@@ -25,15 +25,15 @@ pub enum Command {
     /// Emit shell script intended to be evaluated as part of
     /// direnv's .envrc, via: `eval "$(lorri direnv)"`
     #[structopt(name = "direnv")]
-    Direnv,
+    Direnv(NixShellFile),
 
     /// Show information about the current Lorri project
     #[structopt(name = "info", alias = "information")]
-    Info,
+    Info(NixShellFile),
 
     /// Build `shell.nix` whenever an input file changes
     #[structopt(name = "watch")]
-    Watch,
+    Watch(NixShellFile),
 
     /// Start the multi-project daemon. Replaces `lorri watch`
     #[structopt(name = "daemon")]
@@ -62,6 +62,14 @@ pub struct Ping_ {
     /// The .nix file to watch and build on changes.
     #[structopt(parse(from_os_str))]
     pub nix_file: NixFile,
+}
+
+///  Add parameter to define the shell file in the current directory to use
+#[derive(StructOpt, Debug)]
+pub struct NixShellFile {
+    /// The .nix file in the current directory to use
+    #[structopt(long = "shell-file", parse(from_os_str), default_value = "shell.nix")]
+    pub nix_file: PathBuf,
 }
 
 /// A stub struct to represent how what we want to upgrade to.
