@@ -54,8 +54,8 @@ pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResul
     println!("Changelog when upgrading from {}:", VERSION_BUILD_REV);
     for entry in changelog.entries {
         if VERSION_BUILD_REV < entry.version {
-            println!("{}:", entry.version);
             println!();
+            println!("{}:", entry.version);
             for line in entry.changes.lines() {
                 println!("    {}", line);
             }
