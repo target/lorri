@@ -22,7 +22,7 @@ impl From<std::io::Error> for FileLocationError {
 }
 
 /// Hunt for filename `name` in the current directory
-pub fn in_cwd(name: &str) -> Result<PathBuf, FileLocationError> {
+pub fn in_cwd(name: &PathBuf) -> Result<PathBuf, FileLocationError> {
     let mut path = env::current_dir()?;
     path.push(name);
     if path.is_file() {
@@ -36,18 +36,21 @@ pub fn in_cwd(name: &str) -> Result<PathBuf, FileLocationError> {
 mod tests {
     use super::{in_cwd, FileLocationError};
     use std::path::Path;
+    use std::path::PathBuf;
 
     #[test]
     fn test_locate_config_file() {
-        let result = in_cwd("shell.nix");
+        let mut path = PathBuf::from("shell.nix");
+        let result = in_cwd(&path);
         assert_eq!(
             result.expect("Should find the shell.nix in this projects' root"),
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("shell.nix")
                 .to_path_buf()
         );
-
-        let result = in_cwd("this-lorri-specific-file-probably-does-not-exist");
+        path.pop();
+        path.push("this-lorri-specific-file-probably-does-not-exist");
+        let result = in_cwd(&path);
 
         match result {
             Err(FileLocationError::NotFound) => (),

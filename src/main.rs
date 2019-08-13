@@ -10,7 +10,7 @@ use lorri::NixFile;
 use lorri::cli::{Arguments, Command};
 use lorri::ops::{daemon, direnv, info, init, ping, upgrade, watch, ExitError, OpResult};
 use lorri::project::Project;
-use std::env;
+use std::path::PathBuf;
 use structopt::StructOpt;
 
 const TRIVIAL_SHELL_SRC: &str = include_str!("./trivial-shell.nix");
@@ -41,19 +41,15 @@ fn main() {
 }
 
 /// Try to read `shell.nix` from the current working dir.
-fn get_shell_nix() -> Result<NixFile, ExitError> {
-    let current_dir_msg = || match env::current_dir() {
-        Err(_) => String::from(""),
-        Ok(pb) => format!(" ({})", pb.display()),
-    };
+fn get_shell_nix(shellfile: &PathBuf) -> Result<NixFile, ExitError> {
     // use shell.nix from cwd
-    Ok(NixFile::from(locate_file::in_cwd("shell.nix").map_err(
+    Ok(NixFile::from(locate_file::in_cwd(&shellfile).map_err(
         |_| {
             ExitError::errmsg(format!(
-                "There is no `shell.nix` in the current directory{}\n\
+                "`{}` does not exist\n\
                  You can use the following minimal `shell.nix` to get started:\n\n\
                  {}",
-                current_dir_msg(),
+                shellfile.display(),
                 TRIVIAL_SHELL_SRC
             ))
         },
@@ -68,13 +64,18 @@ fn create_project(paths: &constants::Paths, shell_nix: NixFile) -> Result<Projec
 /// Run the main function of the relevant command.
 fn run_command(opts: Arguments) -> OpResult {
     let paths = lorri::ops::get_paths()?;
-
     match opts.command {
-        Command::Info => get_shell_nix().and_then(|sn| info::main(create_project(&paths, sn)?)),
+        Command::Info(p) => {
+            get_shell_nix(&p.nix_file).and_then(|sn| info::main(create_project(&paths, sn)?))
+        }
 
-        Command::Direnv => get_shell_nix().and_then(|sn| direnv::main(create_project(&paths, sn)?)),
+        Command::Direnv(p) => {
+            get_shell_nix(&p.nix_file).and_then(|sn| direnv::main(create_project(&paths, sn)?))
+        }
 
-        Command::Watch => get_shell_nix().and_then(|sn| watch::main(create_project(&paths, sn)?)),
+        Command::Watch(p) => {
+            get_shell_nix(&p.nix_file).and_then(|sn| watch::main(create_project(&paths, sn)?))
+        }
 
         Command::Daemon => daemon::main(),
 
