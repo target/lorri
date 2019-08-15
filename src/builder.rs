@@ -8,6 +8,7 @@
 //! `stderr`, like which source files are used by the evaluator.
 
 use cas::ContentAddressable;
+use osstrlines;
 use regex::Regex;
 use std::any::Any;
 use std::collections::HashMap;
@@ -66,8 +67,9 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Er
 
     let stderr_results: thread::JoinHandle<std::io::Result<Vec<LogDatum>>> =
         thread::spawn(move || {
-            let reader = BufReader::new(stderr);
-            ::nix::parse_nix_output(reader, |line| parse_evaluation_line(&line))
+            osstrlines::Lines::from(BufReader::new(stderr))
+                .map(|line| line.map(parse_evaluation_line))
+                .collect::<Result<Vec<LogDatum>, _>>()
         });
 
     let produced_drvs: thread::JoinHandle<std::io::Result<Vec<PathBuf>>> =
