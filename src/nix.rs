@@ -32,6 +32,7 @@
 //! }
 //! ```
 
+use osstrlines;
 use serde_json;
 use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
@@ -296,7 +297,9 @@ impl CallOpts {
 
         if output.status.success() {
             let stdout: &[u8] = &output.stdout;
-            let paths: Vec<PathBuf> = ::nix::parse_nix_output(stdout, PathBuf::from)?;
+            let paths: Vec<PathBuf> = osstrlines::Lines::from(stdout)
+                .map(|line| line.map(PathBuf::from))
+                .collect::<Result<Vec<PathBuf>, _>>()?;
 
             if let Ok(vec1) = Vec1::from_vec(paths) {
                 Ok((vec1, GcRootTempDir(gc_root_dir)))
