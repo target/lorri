@@ -73,7 +73,11 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Er
         });
 
     let produced_drvs: thread::JoinHandle<std::io::Result<Vec<PathBuf>>> =
-        thread::spawn(move || ::nix::parse_nix_output(BufReader::new(stdout), PathBuf::from));
+        thread::spawn(move || {
+            osstrlines::Lines::from(BufReader::new(stdout))
+                .map(|line| line.map(PathBuf::from))
+                .collect::<Result<Vec<PathBuf>, _>>()
+        });
 
     let (exec_result, produced_drvs, results) = (
         child.wait()?,
