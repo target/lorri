@@ -80,7 +80,7 @@ Create a file named `.envrc` in your project's root with the contents:
 eval "$(lorri direnv)"
 ```
 
-Then, run `lorri watch`. The first time you run `lorri watch` on a
+Then, run `lorri daemon`. The first time you run `lorri daemon` on a
 project, wait for it to print `Completed` before continuing. Leave
 this terminal open.
 
@@ -90,9 +90,9 @@ In a new terminal:
 2. run `direnv allow`
 3. watch as direnv loads the environment
 
-The `lorri watch` process will continue monitoring and evaluating
+The `lorri daemon` process will continue monitoring and evaluating
 the Nix expressions, and direnv will automatically reload the
-environment as it changes. If you close `lorri watch`, direnv will
+environment as it changes. If you close `lorri daemon`, direnv will
 still load the cached environment when you enter the directory,
 but the environment will not reload.
 
