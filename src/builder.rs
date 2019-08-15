@@ -211,6 +211,7 @@ mod tests {
     use super::*;
     use cas::ContentAddressable;
     use std::ffi::OsString;
+    use std::os::unix::ffi::OsStrExt;
     use std::path::PathBuf;
 
     #[test]
@@ -262,13 +263,11 @@ derivation {{
   allowSubstitutes = false;
   preferLocalBuild = true;
   system = builtins.currentSystem;
-  # this is to make nix rebuild for every test, I’m so sorry
-  random = {:?};
+  # this is to make nix rebuild for every test
+  random = builtins.currentTime;
   {}
 }}"##,
-                name,
-                tmp.path(),
-                args
+                name, args
             )
         };
 
@@ -296,6 +295,15 @@ in {}
 
         let info = run(&::NixFile::from(cas.file_from_string(&nix_drv)?), &cas).unwrap();
         assert!(info.exec_result.success());
+        assert!(info
+            .named_drvs
+            .get("shell")
+            .unwrap()
+            .to_string_lossy()
+            .contains("-shell.drv"));
+
+        let expect: OsString = OsStr::from_bytes(b"\"\xAB\xBC\xCD\xDE\xDE\xEF\"").to_owned();
+        assert!(info.log_lines.contains(&expect));
         Ok(())
     }
 }
