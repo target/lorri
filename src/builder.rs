@@ -12,8 +12,10 @@ use regex::Regex;
 use std::any::Any;
 use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
+use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::thread;
 use NixFile;
 
 /// Builds the Nix expression in `root_nix_file`.
@@ -51,15 +53,34 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Er
 
     debug!("$ {:?}", cmd);
 
-    let output = cmd.spawn()?.wait_with_output()?;
+    let mut child = cmd.spawn()?;
 
-    let stderr_results =
-        ::nix::parse_nix_output(&output.stderr, |line| parse_evaluation_line(line));
+    let stdout = child
+        .stdout
+        .take()
+        .expect("we must be able to access the stdout of nix-build");
+    let stderr = child
+        .stderr
+        .take()
+        .expect("we must be able to access the stderr of nix-build");
 
-    let produced_drvs = ::nix::parse_nix_output(&output.stdout, PathBuf::from);
+    let stderr_results: thread::JoinHandle<std::io::Result<Vec<LogDatum>>> =
+        thread::spawn(move || {
+            let reader = BufReader::new(stderr);
+            ::nix::parse_nix_output(reader, |line| parse_evaluation_line(&line))
+        });
+
+    let produced_drvs: thread::JoinHandle<std::io::Result<Vec<PathBuf>>> =
+        thread::spawn(move || ::nix::parse_nix_output(BufReader::new(stdout), PathBuf::from));
+
+    let (exec_result, produced_drvs, results) = (
+        child.wait()?,
+        produced_drvs.join()??,
+        stderr_results.join()??,
+    );
 
     let (paths, named_drvs, log_lines): (Vec<PathBuf>, HashMap<String, PathBuf>, Vec<OsString>) =
-        stderr_results.into_iter().fold(
+        results.into_iter().fold(
             (vec![], HashMap::new(), vec![]),
             |(mut paths, mut named_drvs, mut log_lines), result| {
                 match result {
@@ -76,7 +97,7 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Er
             },
         );
     Ok(Info {
-        exec_result: output.status,
+        exec_result,
         drvs: produced_drvs,
         named_drvs,
         paths,
@@ -93,7 +114,10 @@ enum LogDatum {
 
 /// Examine a line of output and extract interesting log items in to
 /// structured data.
-fn parse_evaluation_line(line: &OsStr) -> LogDatum {
+fn parse_evaluation_line<T>(line: T) -> LogDatum
+where
+    T: AsRef<OsStr>,
+{
     lazy_static! {
         static ref EVAL_FILE: Regex =
             Regex::new("^evaluating file '(?P<source>.*)'$").expect("invalid regex!");
@@ -106,10 +130,10 @@ fn parse_evaluation_line(line: &OsStr) -> LogDatum {
                 .expect("invalid regex!");
     }
 
-    match line.to_str() {
+    match line.as_ref().to_str() {
         // If we can’t decode the output line to an UTF-8 string,
         // we cannot match against regexes, so just pass it through.
-        None => LogDatum::Text(line.to_owned()),
+        None => LogDatum::Text(line.as_ref().to_owned()),
         Some(linestr) => {
             // Lines about evaluating a file are much more common, so looking
             // for them first will reduce comparisons.
@@ -125,7 +149,7 @@ fn parse_evaluation_line(line: &OsStr) -> LogDatum {
                     PathBuf::from(&matches["drv"]),
                 )
             } else {
-                LogDatum::Text(line.to_owned())
+                LogDatum::Text(line.as_ref().to_owned())
             }
         }
     }
@@ -178,43 +202,94 @@ impl From<Box<dyn Any + Send + 'static>> for Error {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_evaluation_line, LogDatum};
+    use super::*;
+    use cas::ContentAddressable;
     use std::ffi::OsString;
     use std::path::PathBuf;
 
     #[test]
     fn test_evaluation_line_to_path_evaluation() {
         assert_eq!(
-            parse_evaluation_line(&OsString::from("evaluating file '/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/lib/systems/for-meta.nix'")),
+            parse_evaluation_line("evaluating file '/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/lib/systems/for-meta.nix'"),
             LogDatum::Source(PathBuf::from("/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/lib/systems/for-meta.nix"))
         );
 
         assert_eq!(
-            parse_evaluation_line(&OsString::from("copied source '/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/pkgs/stdenv/generic/default-builder.sh' -> '/nix/store/9krlzvny65gdc8s7kpb6lkx8cd02c25b-default-builder.sh'")),
+            parse_evaluation_line("copied source '/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/pkgs/stdenv/generic/default-builder.sh' -> '/nix/store/9krlzvny65gdc8s7kpb6lkx8cd02c25b-default-builder.sh'"),
             LogDatum::Source(PathBuf::from("/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/pkgs/stdenv/generic/default-builder.sh"))
         );
 
         assert_eq!(
-            parse_evaluation_line(&OsString::from(
+            parse_evaluation_line(
                 "trace: lorri read: '/home/grahamc/projects/grahamc/lorri/nix/nixpkgs.json'"
-            )),
+            ),
             LogDatum::Source(PathBuf::from(
                 "/home/grahamc/projects/grahamc/lorri/nix/nixpkgs.json"
             ))
         );
 
         assert_eq!(
-            parse_evaluation_line(&OsString::from("trace: lorri attribute: 'shell' -> '/nix/store/q3ngidzvincycjjvlilf1z6vj1w4wnas-lorri.drv'")),
+            parse_evaluation_line("trace: lorri attribute: 'shell' -> '/nix/store/q3ngidzvincycjjvlilf1z6vj1w4wnas-lorri.drv'"),
             LogDatum::AttrDrv(String::from("shell"), PathBuf::from("/nix/store/q3ngidzvincycjjvlilf1z6vj1w4wnas-lorri.drv"))
         );
 
         assert_eq!(
-            parse_evaluation_line(&OsString::from(
+            parse_evaluation_line(
                 "downloading 'https://static.rust-lang.org/dist/channel-rust-stable.toml'..."
-            )),
+            ),
             LogDatum::Text(OsString::from(
                 "downloading 'https://static.rust-lang.org/dist/channel-rust-stable.toml'..."
             ))
         );
+    }
+
+    #[test]
+    fn non_utf8_nix_output() -> std::io::Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let cas = ContentAddressable::new(tmp.path().to_owned())?;
+        let drv = |name: &str, args: &str| {
+            format!(
+                r##"
+derivation {{
+  name = "{}";
+  builder = "/bin/sh";
+  allowSubstitutes = false;
+  preferLocalBuild = true;
+  system = builtins.currentSystem;
+  # this is to make nix rebuild for every test, I’m so sorry
+  random = {:?};
+  {}
+}}"##,
+                name,
+                tmp.path(),
+                args
+            )
+        };
+
+        let nix_drv = format!(
+            r##"
+let dep = {};
+in {}
+"##,
+            drv(
+                "dep",
+                r##"
+  args = [
+    "-c"
+    ''
+    # non-utf8 sequence to stdout (which is nix stderr)
+    printf '"\xab\xbc\xcd\xde\xde\xef"'
+    echo > $out
+    ''
+  ];"##
+            ),
+            drv("shell", "inherit dep;")
+        );
+
+        print!("{}", nix_drv);
+
+        let info = run(&::NixFile::from(cas.file_from_string(&nix_drv)?), &cas).unwrap();
+        assert!(info.exec_result.success());
+        Ok(())
     }
 }
