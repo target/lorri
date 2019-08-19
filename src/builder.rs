@@ -8,11 +8,12 @@
 //! `stderr`, like which source files are used by the evaluator.
 
 use cas::ContentAddressable;
+use osstrlines;
 use regex::Regex;
 use std::any::Any;
 use std::collections::HashMap;
-use std::ffi::OsStr;
-use std::io::{BufRead, BufReader};
+use std::ffi::{OsStr, OsString};
+use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
@@ -64,25 +65,27 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Er
         .take()
         .expect("we must be able to access the stderr of nix-build");
 
-    let stderr_results: thread::JoinHandle<Vec<LogDatum>> = thread::spawn(move || {
-        let reader = BufReader::new(stderr);
-        reader
-            .lines()
-            .map(|line| parse_evaluation_line(&line.unwrap()))
-            .collect::<Vec<LogDatum>>()
-    });
+    let stderr_results: thread::JoinHandle<std::io::Result<Vec<LogDatum>>> =
+        thread::spawn(move || {
+            osstrlines::Lines::from(BufReader::new(stderr))
+                .map(|line| line.map(parse_evaluation_line))
+                .collect::<Result<Vec<LogDatum>, _>>()
+        });
 
-    let produced_drvs: thread::JoinHandle<Vec<PathBuf>> = thread::spawn(move || {
-        BufReader::new(stdout)
-            .lines()
-            .map(|line| PathBuf::from(line.unwrap()))
-            .collect::<Vec<PathBuf>>()
-    });
+    let produced_drvs: thread::JoinHandle<std::io::Result<Vec<PathBuf>>> =
+        thread::spawn(move || {
+            osstrlines::Lines::from(BufReader::new(stdout))
+                .map(|line| line.map(PathBuf::from))
+                .collect::<Result<Vec<PathBuf>, _>>()
+        });
 
-    let (exec_result, drvs, results) =
-        (child.wait()?, produced_drvs.join()?, stderr_results.join()?);
+    let (exec_result, produced_drvs, results) = (
+        child.wait()?,
+        produced_drvs.join()??,
+        stderr_results.join()??,
+    );
 
-    let (paths, named_drvs, log_lines): (Vec<PathBuf>, HashMap<String, PathBuf>, Vec<String>) =
+    let (paths, named_drvs, log_lines): (Vec<PathBuf>, HashMap<String, PathBuf>, Vec<OsString>) =
         results.into_iter().fold(
             (vec![], HashMap::new(), vec![]),
             |(mut paths, mut named_drvs, mut log_lines), result| {
@@ -101,7 +104,7 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Er
         );
     Ok(Info {
         exec_result,
-        drvs,
+        drvs: produced_drvs,
         named_drvs,
         paths,
         log_lines,
@@ -112,12 +115,15 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Er
 enum LogDatum {
     Source(PathBuf),
     AttrDrv(String, PathBuf),
-    Text(String),
+    Text(OsString),
 }
 
 /// Examine a line of output and extract interesting log items in to
 /// structured data.
-fn parse_evaluation_line(line: &str) -> LogDatum {
+fn parse_evaluation_line<T>(line: T) -> LogDatum
+where
+    T: AsRef<OsStr>,
+{
     lazy_static! {
         static ref EVAL_FILE: Regex =
             Regex::new("^evaluating file '(?P<source>.*)'$").expect("invalid regex!");
@@ -130,21 +136,28 @@ fn parse_evaluation_line(line: &str) -> LogDatum {
                 .expect("invalid regex!");
     }
 
-    // Lines about evaluating a file are much more common, so looking
-    // for them first will reduce comparisons.
-    if let Some(matches) = EVAL_FILE.captures(&line) {
-        LogDatum::Source(PathBuf::from(&matches["source"]))
-    } else if let Some(matches) = COPIED_SOURCE.captures(&line) {
-        LogDatum::Source(PathBuf::from(&matches["source"]))
-    } else if let Some(matches) = LORRI_READ.captures(&line) {
-        LogDatum::Source(PathBuf::from(&matches["source"]))
-    } else if let Some(matches) = LORRI_ATTR_DRV.captures(&line) {
-        LogDatum::AttrDrv(
-            String::from(&matches["attribute"]),
-            PathBuf::from(&matches["drv"]),
-        )
-    } else {
-        LogDatum::Text(String::from(line))
+    match line.as_ref().to_str() {
+        // If we can’t decode the output line to an UTF-8 string,
+        // we cannot match against regexes, so just pass it through.
+        None => LogDatum::Text(line.as_ref().to_owned()),
+        Some(linestr) => {
+            // Lines about evaluating a file are much more common, so looking
+            // for them first will reduce comparisons.
+            if let Some(matches) = EVAL_FILE.captures(&linestr) {
+                LogDatum::Source(PathBuf::from(&matches["source"]))
+            } else if let Some(matches) = COPIED_SOURCE.captures(&linestr) {
+                LogDatum::Source(PathBuf::from(&matches["source"]))
+            } else if let Some(matches) = LORRI_READ.captures(&linestr) {
+                LogDatum::Source(PathBuf::from(&matches["source"]))
+            } else if let Some(matches) = LORRI_ATTR_DRV.captures(&linestr) {
+                LogDatum::AttrDrv(
+                    String::from(&matches["attribute"]),
+                    PathBuf::from(&matches["drv"]),
+                )
+            } else {
+                LogDatum::Text(line.as_ref().to_owned())
+            }
+        }
     }
 }
 
@@ -170,7 +183,7 @@ pub struct Info {
     pub paths: Vec<PathBuf>,
 
     /// A list of stderr log lines
-    pub log_lines: Vec<String>,
+    pub log_lines: Vec<OsString>,
 }
 
 /// Possible errors from an individual evaluation
@@ -195,7 +208,10 @@ impl From<Box<dyn Any + Send + 'static>> for Error {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_evaluation_line, LogDatum};
+    use super::*;
+    use cas::ContentAddressable;
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStrExt;
     use std::path::PathBuf;
 
     #[test]
@@ -228,9 +244,66 @@ mod tests {
             parse_evaluation_line(
                 "downloading 'https://static.rust-lang.org/dist/channel-rust-stable.toml'..."
             ),
-            LogDatum::Text(String::from(
+            LogDatum::Text(OsString::from(
                 "downloading 'https://static.rust-lang.org/dist/channel-rust-stable.toml'..."
             ))
         );
+    }
+
+    #[test]
+    fn non_utf8_nix_output() -> std::io::Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let cas = ContentAddressable::new(tmp.path().to_owned())?;
+        let drv = |name: &str, args: &str| {
+            format!(
+                r##"
+derivation {{
+  name = "{}";
+  builder = "/bin/sh";
+  allowSubstitutes = false;
+  preferLocalBuild = true;
+  system = builtins.currentSystem;
+  # this is to make nix rebuild for every test
+  random = builtins.currentTime;
+  {}
+}}"##,
+                name, args
+            )
+        };
+
+        let nix_drv = format!(
+            r##"
+let dep = {};
+in {}
+"##,
+            drv(
+                "dep",
+                r##"
+  args = [
+    "-c"
+    ''
+    # non-utf8 sequence to stdout (which is nix stderr)
+    printf '"\xab\xbc\xcd\xde\xde\xef"'
+    echo > $out
+    ''
+  ];"##
+            ),
+            drv("shell", "inherit dep;")
+        );
+
+        print!("{}", nix_drv);
+
+        let info = run(&::NixFile::from(cas.file_from_string(&nix_drv)?), &cas).unwrap();
+        assert!(info.exec_result.success());
+        assert!(info
+            .named_drvs
+            .get("shell")
+            .unwrap()
+            .to_string_lossy()
+            .contains("-shell.drv"));
+
+        let expect: OsString = OsStr::from_bytes(b"\"\xAB\xBC\xCD\xDE\xDE\xEF\"").to_owned();
+        assert!(info.log_lines.contains(&expect));
+        Ok(())
     }
 }

@@ -32,10 +32,10 @@
 //! }
 //! ```
 
+use osstrlines;
 use serde_json;
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use vec1::Vec1;
@@ -294,9 +294,10 @@ impl CallOpts {
         let output = cmd.output()?;
 
         if output.status.success() {
-            let lines: Result<Vec<String>, _> = output.stdout.lines().collect();
-
-            let paths: Vec<PathBuf> = lines?.iter().map(PathBuf::from).collect();
+            let stdout: &[u8] = &output.stdout;
+            let paths: Vec<PathBuf> = osstrlines::Lines::from(stdout)
+                .map(|line| line.map(PathBuf::from))
+                .collect::<Result<Vec<PathBuf>, _>>()?;
 
             if let Ok(vec1) = Vec1::from_vec(paths) {
                 Ok((vec1, GcRootTempDir(gc_root_dir)))

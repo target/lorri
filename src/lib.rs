@@ -40,6 +40,7 @@ pub mod logging;
 pub mod mpsc;
 pub mod nix;
 pub mod ops;
+pub mod osstrlines;
 pub mod pathreduction;
 pub mod project;
 pub mod roots;
