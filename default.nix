@@ -7,6 +7,7 @@
 }).lorri {}).override {
   crateOverrides = pkgs.defaultCrateOverrides // {
     lorri = attrs: {
+      name = "lorri";
       BUILD_REV_COUNT = src.revCount or 1;
       RUN_TIME_CLOSURE = pkgs.callPackage ./nix/runtime.nix {};
       NIX_PATH = "nixpkgs=${./nix/bogus-nixpkgs}";
