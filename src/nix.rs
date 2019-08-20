@@ -238,7 +238,7 @@ impl CallOpts {
     ///             import <nixpkgs> {}
     /// "#)
     ///         .attribute("hello")
-    ///         .path()
+    ///         .build_path()
     ///         .unwrap()
     ///         ;
     ///
@@ -252,10 +252,10 @@ impl CallOpts {
     /// `path` returns a lock to the GC roots created by the Nix call
     /// (`gc_root` in the example above). Until that is dropped,
     /// a Nix garbage collect will not remove the store paths created
-    /// by `path()`.
+    /// by `build_path()`.
     ///
-    /// Note, `path()` returns an error if there are multiple store paths
-    /// returned by Nix:
+    /// Note, `build_path()` returns an error if there are multiple store
+    /// paths returned by Nix:
     ///
     /// ```rust
     /// extern crate lorri;
@@ -267,15 +267,15 @@ impl CallOpts {
     /// let paths = nix::CallOpts::expression(r#"
     ///             { inherit (import <nixpkgs> {}) hello git; }
     /// "#)
-    ///         .path();
+    ///         .build_path();
     ///
     /// match paths {
     ///    Err(nix::OnePathError::TooManyResults) => {},
     ///    otherwise => panic!(otherwise)
     /// }
     /// ```
-    pub fn path(&self) -> Result<(PathBuf, GcRootTempDir), OnePathError> {
-        let (pathsv1, gc_root) = self.paths()?;
+    pub fn build_path(&self) -> Result<(PathBuf, GcRootTempDir), OnePathError> {
+        let (pathsv1, gc_root) = self.build_paths()?;
         let mut paths = pathsv1.into_vec();
 
         match (paths.pop(), paths.pop()) {
@@ -291,7 +291,7 @@ impl CallOpts {
     }
 
     /// Build the expression and return a list of paths to the build results.
-    /// Like `.path()`, except it returns all store paths.
+    /// Like `.build_path()`, except it returns all store paths.
     ///
     /// ```rust
     /// extern crate lorri;
@@ -303,7 +303,7 @@ impl CallOpts {
     /// let (paths, gc_root) = nix::CallOpts::expression(r#"
     ///             { inherit (import <nixpkgs> {}) hello git; }
     /// "#)
-    ///         .paths()
+    ///         .build_paths()
     ///         .unwrap();
     /// let mut paths = paths
     ///         .into_iter()
@@ -312,7 +312,7 @@ impl CallOpts {
     /// assert!(paths.next().unwrap().contains("hello-"));
     /// drop(gc_root);
     /// ```
-    pub fn paths(&self) -> Result<(Vec1<PathBuf>, GcRootTempDir), BuildError> {
+    pub fn build_paths(&self) -> Result<(Vec1<PathBuf>, GcRootTempDir), BuildError> {
         // TODO: temp_dir writes to /tmp by default, we should
         // create a wrapper using XDG_RUNTIME_DIR instead,
         // which is per-user and (on systemd systems) a tmpfs.

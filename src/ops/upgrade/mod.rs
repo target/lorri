@@ -64,7 +64,7 @@ pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResul
     }
 
     println!("Building ...");
-    match expr.clone().attribute("package").path() {
+    match expr.clone().attribute("package").build_path() {
         Ok((build_result, gc_root)) => {
             let status = Command::new("nix-env")
                 .arg("--install")
