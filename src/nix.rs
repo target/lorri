@@ -46,6 +46,7 @@ pub struct CallOpts {
     input: Input,
     attribute: Option<String>,
     argstrs: HashMap<String, String>,
+    log_level: LogLevel,
 }
 
 /// Which input to give nix.
@@ -55,6 +56,35 @@ enum Input {
     Expression(String),
     /// A nix file.
     File(PathBuf),
+}
+
+/// Nix's log levels
+#[derive(Clone)]
+pub enum LogLevel {
+    /// Only capture messages explaining why the Nix invocation failed.
+    ErrorsOnly,
+    /// Capture useful messages about what Nix is doing. This is the default.
+    Informational,
+    /// Capture more informational messages.
+    Talkative,
+    /// Capture even more informational messages.
+    Chatty,
+    /// Capture debug information.
+    Debug,
+    /// Capture vast amounts of debug information.
+    Vomit,
+}
+impl LogLevel {
+    fn to_argument(&self) -> Option<&'static OsStr> {
+        match self {
+            LogLevel::ErrorsOnly => Some(OsStr::new("-q")),
+            LogLevel::Informational => None,
+            LogLevel::Talkative => Some(OsStr::new("-v")),
+            LogLevel::Chatty => Some(OsStr::new("-vv")),
+            LogLevel::Debug => Some(OsStr::new("-vvv")),
+            LogLevel::Vomit => Some(OsStr::new("-vvvv")),
+        }
+    }
 }
 
 /// Opaque type to keep a temporary GC root directory alive.
@@ -78,6 +108,7 @@ impl CallOpts {
             input: Input::Expression(expr.to_string()),
             attribute: None,
             argstrs: HashMap::new(),
+            log_level: LogLevel::Informational,
         }
     }
 
@@ -87,6 +118,7 @@ impl CallOpts {
             input: Input::File(nix_file),
             attribute: None,
             argstrs: HashMap::new(),
+            log_level: LogLevel::Informational,
         }
     }
 
@@ -132,6 +164,12 @@ impl CallOpts {
     /// ```
     pub fn argstr(&mut self, name: &str, value: &str) -> &mut Self {
         self.argstrs.insert(name.to_string(), value.to_string());
+        self
+    }
+
+    /// Specify the log level for the Nix instantiation
+    pub fn log_level(&mut self, log_level: LogLevel) -> &mut Self {
+        self.log_level = log_level;
         self
     }
 
@@ -314,6 +352,10 @@ impl CallOpts {
     fn command_arguments(&self) -> Vec<&OsStr> {
         let mut ret: Vec<&OsStr> = vec![];
 
+        if let Some(log_argument) = self.log_level.to_argument() {
+            ret.push(log_argument);
+        }
+
         if let Some(ref attr) = self.attribute {
             ret.push(OsStr::new("-A"));
             ret.push(OsStr::new(attr));
@@ -434,7 +476,7 @@ impl From<BuildError> for OnePathError {
 
 #[cfg(test)]
 mod tests {
-    use super::CallOpts;
+    use super::{CallOpts, LogLevel};
     use std::ffi::OsStr;
     use std::path::PathBuf;
 
@@ -465,6 +507,28 @@ mod tests {
         nix2.attribute("hello");
         nix2.argstr("foo", "bar");
         let exp2: Vec<&OsStr> = [
+            "-A",
+            "hello",
+            "--argstr",
+            "foo",
+            "bar",
+            "--",
+            "/my-cool-file.nix",
+        ]
+        .into_iter()
+        .map(OsStr::new)
+        .collect();
+        assert_eq!(exp2, nix2.command_arguments());
+    }
+
+    #[test]
+    fn cmd_arguments_loglevel() {
+        let mut nix2 = CallOpts::file(PathBuf::from("/my-cool-file.nix"));
+        nix2.attribute("hello");
+        nix2.argstr("foo", "bar");
+        nix2.log_level(LogLevel::ErrorsOnly);
+        let exp2: Vec<&OsStr> = [
+            "-q",
             "-A",
             "hello",
             "--argstr",
