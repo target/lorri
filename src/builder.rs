@@ -7,6 +7,7 @@
 //! can parse additional information from the `nix-build`
 //! `stderr`, like which source files are used by the evaluator.
 
+use crate::nix;
 use cas::ContentAddressable;
 use osstrlines;
 use regex::Regex;
@@ -32,25 +33,25 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Er
     // to determine which files we should setup watches on.
     // Increasing verbosity by two levels via `-vv` satisfies that.
 
-    let mut cmd = Command::new("nix-build");
-
     let logged_evaluation_nix = cas.file_from_string(include_str!("./logged-evaluation.nix"))?;
 
-    cmd.args(&[
-        OsStr::new("-vv"),
-        OsStr::new("--no-out-link"),
-        OsStr::new("--argstr"),
-        OsStr::new("runTimeClosure"),
-        OsStr::new(crate::RUN_TIME_CLOSURE),
-        OsStr::new("--argstr"),
-        OsStr::new("src"),
-        root_nix_file.as_os_str(),
-        OsStr::new("--"),
-        &logged_evaluation_nix.as_os_str(),
-    ])
-    .stdin(Stdio::null())
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped());
+    let mut nix = nix::CallOpts::file(logged_evaluation_nix);
+    nix.argstr("runTimeClosure", crate::RUN_TIME_CLOSURE);
+    nix.argstr(
+        "src",
+        &root_nix_file
+            .as_os_str()
+            .to_str()
+            .expect("Failed to convert the logged evaluation file in to a UTF-8 clean path"),
+    );
+    nix.log_level(nix::LogLevel::Chatty);
+
+    let mut cmd = Command::new("nix-build");
+
+    cmd.args(&[OsStr::new("-vv")])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
 
     debug!("$ {:?}", cmd);
 

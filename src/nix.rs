@@ -37,7 +37,8 @@ use serde_json;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{ChildStderr, ChildStdout, Command, ExitStatus, Stdio};
+use std::thread::{spawn, JoinHandle};
 use vec1::Vec1;
 
 /// Execute Nix commands using a builder-pattern abstraction.
@@ -47,6 +48,7 @@ pub struct CallOpts {
     attribute: Option<String>,
     argstrs: HashMap<String, String>,
     log_level: LogLevel,
+    stderr_inspector: Option<()>,
 }
 
 /// Which input to give nix.
@@ -109,6 +111,7 @@ impl CallOpts {
             attribute: None,
             argstrs: HashMap::new(),
             log_level: LogLevel::Informational,
+            stderr_inspector: None,
         }
     }
 
@@ -119,6 +122,7 @@ impl CallOpts {
             attribute: None,
             argstrs: HashMap::new(),
             log_level: LogLevel::Informational,
+            stderr_inspector: None,
         }
     }
 
@@ -173,6 +177,11 @@ impl CallOpts {
         self
     }
 
+    pub fn inspect_stderr(&mut self, f: ()) -> &mut Self {
+        self.stderr_inspector = Some(f);
+        self
+    }
+
     /// Evaluate the expression and parameters, and interpret as type T:
     ///
     /// ```rust
@@ -209,19 +218,19 @@ impl CallOpts {
     /// ```
     pub fn value<T>(&self) -> Result<T, EvaluationError>
     where
-        T: serde::de::DeserializeOwned,
+        T: serde::de::DeserializeOwned + Send,
     {
         let mut cmd = Command::new("nix-instantiate");
         cmd.args(&["--eval", "--json", "--strict"]);
 
         cmd.args(self.command_arguments());
 
-        let output = cmd.output()?;
+        let ret = self.execute(cmd, serde_json::from_reader, (|_| ()))?;
 
-        if output.status.success() {
-            Ok(serde_json::from_slice(&output.stdout.clone())?)
+        if ret.0.success() {
+            Ok(ret.1?)
         } else {
-            Err(output.into())
+            Err(ret.into())
         }
     }
 
@@ -345,6 +354,53 @@ impl CallOpts {
         } else {
             Err(output.into())
         }
+    }
+
+    /// Execute the interior Nix command, passing in stdout and stderr
+    /// handlers.
+    ///
+    /// `stdout_f` and `stderr_f` are run in separate threads, and
+    /// care should be taken that they don't block. Neither may panic.
+    ///
+    /// This command returns Ok as long as the Nix command was started
+    /// successfully. In other words, an Ok does NOT imply the command
+    /// was _successful_.
+    fn execute<SOF, SOR, SEF, SER, E>(
+        &self,
+        mut cmd: Command,
+        stdout_f: SOF,
+        stderr_f: SEF,
+    ) -> std::io::Result<(ExitStatus, SOR, SER)>
+    where
+        SOF: (Fn(ChildStdout) -> SOR) + Send + 'static,
+        SOR: Send + 'static,
+        SEF: (Fn(ChildStderr) -> SER) + Send + 'static,
+        SER: Send + 'static,
+        E: std::convert::From<std::io::Error>,
+    {
+        cmd.stdin(Stdio::null());
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+
+        let mut child = cmd.spawn()?;
+
+        // Process stdout and stderr with the user-defined functions
+        let stdout = child.stdout.take().expect("stdout must be piped()");
+        let stderr = child.stderr.take().expect("stderr must be piped()");
+
+        let stdout_thread: JoinHandle<SOR> = spawn(move || stdout_f(stdout));
+        let stderr_thread: JoinHandle<SER> = spawn(move || stderr_f(stderr));
+
+        // Collect the results and return
+        Ok((
+            child.wait()?,
+            stdout_thread
+                .join()
+                .expect("must not panic when processing stdout"),
+            stderr_thread
+                .join()
+                .expect("must not panic when processing stderr"),
+        ))
     }
 
     /// Fetch common arguments passed to Nix's CLI, specifically
