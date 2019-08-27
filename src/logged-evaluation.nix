@@ -144,6 +144,5 @@ let
     builtins.trace (trace_attribute_msg name drv);
 
   gc-root = keep-env-hack imported;
-in (trace_attribute "shell" imported)
-   (trace_attribute "shell_gc_root" gc-root)
+in (trace_attribute "shell_gc_root" gc-root)
    gc-root
