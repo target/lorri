@@ -11,6 +11,24 @@ pub struct Roots {
     id: String,
 }
 
+/// A path to a gc root.
+#[derive(Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+pub struct RootPath(PathBuf);
+
+impl RootPath {
+    /// Underlying `&OsStr`.
+    pub fn as_os_str(&self) -> &std::ffi::OsStr {
+        self.0.as_os_str()
+    }
+}
+
+/// Proxy through the `Display` class for `PathBuf`.
+impl std::fmt::Display for RootPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.0.display().fmt(f)
+    }
+}
+
 impl Roots {
     // TODO: all use-cases are from_project; just save a reference to a project?
     /// Construct a Roots struct based on a project's GC root directory
@@ -22,8 +40,9 @@ impl Roots {
         }
     }
 
+    // TODO: rename to create_root()
     /// Store a new root under name
-    pub fn add(&self, name: &str, store_path: &PathBuf) -> Result<PathBuf, AddRootError> {
+    pub fn add(&self, name: &str, store_path: &::nix::StorePath) -> Result<RootPath, AddRootError> {
         let mut path = self.root_dir.clone();
         path.push(name);
 
@@ -32,7 +51,8 @@ impl Roots {
 
         std::fs::remove_file(&path).or_else(|e| AddRootError::remove(e, &path))?;
 
-        symlink(&store_path, &path).map_err(|e| AddRootError::symlink(e, &store_path, &path))?;
+        symlink(store_path.as_path(), &path)
+            .map_err(|e| AddRootError::symlink(e, store_path.as_path(), &path))?;
 
         let mut root = if let Ok(path) = env::var("NIX_STATE_DIR") {
             PathBuf::from(path)
@@ -58,7 +78,7 @@ impl Roots {
 
         symlink(&path, &root).map_err(|e| AddRootError::symlink(e, &path, &root))?;
 
-        Ok(path)
+        Ok(RootPath(path))
     }
 }
 

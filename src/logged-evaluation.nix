@@ -20,9 +20,6 @@ let
     then raw {}
     else raw;
 
-  trace_attribute_msg = name: value:
-    "lorri attribute: '${name}' -> '${value.drvPath}'";
-
   # If you add a .drv to a gc-root, the `.drv` itself is protected
   # from GC, and the parent `drv`s up the tree are also protected.
   # However, the output paths referenced in any of the drvs are NOT
@@ -140,10 +137,6 @@ let
     allowSubstitutes = false;
   });
 
-  trace_attribute = name: drv:
-    builtins.trace (trace_attribute_msg name drv);
-
   gc-root = keep-env-hack imported;
-in (trace_attribute "shell" imported)
-   (trace_attribute "shell_gc_root" gc-root)
-   gc-root
+
+in gc-root

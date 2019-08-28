@@ -8,10 +8,10 @@
 //! `stderr`, like which source files are used by the evaluator.
 
 use cas::ContentAddressable;
+use nix::StorePath;
 use osstrlines;
 use regex::Regex;
 use std::any::Any;
-use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -19,11 +19,10 @@ use std::process::{Command, Stdio};
 use std::thread;
 use NixFile;
 
-/// Builds the Nix expression in `root_nix_file`.
-///
-/// Instruments the nix file to gain extra information,
-/// which is valuable even if the build fails.
-pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Error> {
+fn instrumented_build(
+    root_nix_file: &NixFile,
+    cas: &ContentAddressable,
+) -> Result<Info<StorePath>, Error> {
     // We're looking for log lines matching:
     //
     //     copied source '...' -> '/nix/store/...'
@@ -38,6 +37,7 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Er
 
     cmd.args(&[
         OsStr::new("-vv"),
+        // TODO: this must create a GcRootTempDir and pass it out
         OsStr::new("--no-out-link"),
         OsStr::new("--argstr"),
         OsStr::new("runTimeClosure"),
@@ -72,49 +72,60 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info, Er
                 .collect::<Result<Vec<LogDatum>, _>>()
         });
 
-    let produced_drvs: thread::JoinHandle<std::io::Result<Vec<PathBuf>>> =
+    let build_products: thread::JoinHandle<std::io::Result<Vec<StorePath>>> =
         thread::spawn(move || {
             osstrlines::Lines::from(BufReader::new(stdout))
-                .map(|line| line.map(PathBuf::from))
-                .collect::<Result<Vec<PathBuf>, _>>()
+                .map(|line| line.map(StorePath::from))
+                .collect::<Result<Vec<StorePath>, _>>()
         });
 
-    let (exec_result, produced_drvs, results) = (
+    let (exec_result, mut build_products, results) = (
         child.wait()?,
-        produced_drvs.join()??,
+        build_products.join()??,
         stderr_results.join()??,
     );
 
-    let (paths, named_drvs, log_lines): (Vec<PathBuf>, HashMap<String, PathBuf>, Vec<OsString>) =
-        results.into_iter().fold(
-            (vec![], HashMap::new(), vec![]),
-            |(mut paths, mut named_drvs, mut log_lines), result| {
+    assert!(
+        build_products.len() == 1,
+        "got more or less than one build product from logged_evaluation.nix: {:#?}",
+        build_products
+    );
+    let shell_gc_root = build_products.pop().unwrap();
+
+    // iterate over all lines, parsing out the ones we are interested in
+    let (paths, log_lines): (Vec<PathBuf>, Vec<OsString>) =
+        results
+            .into_iter()
+            .fold((vec![], vec![]), |(mut paths, mut log_lines), result| {
                 match result {
                     LogDatum::Source(src) => {
                         paths.push(src);
                     }
-                    LogDatum::AttrDrv(name, drv) => {
-                        named_drvs.insert(name, drv);
-                    }
                     LogDatum::Text(line) => log_lines.push(line),
                 };
 
-                (paths, named_drvs, log_lines)
-            },
-        );
+                (paths, log_lines)
+            });
+
     Ok(Info {
         exec_result,
-        drvs: produced_drvs,
-        named_drvs,
+        output_paths: OutputPaths { shell_gc_root },
         paths,
         log_lines,
     })
 }
 
+/// Builds the Nix expression in `root_nix_file`.
+///
+/// Instruments the nix file to gain extra information,
+/// which is valuable even if the build fails.
+pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info<StorePath>, Error> {
+    instrumented_build(root_nix_file, cas)
+}
+
 #[derive(Debug, PartialEq)]
 enum LogDatum {
     Source(PathBuf),
-    AttrDrv(String, PathBuf),
     Text(OsString),
 }
 
@@ -131,9 +142,6 @@ where
             Regex::new("^copied source '(?P<source>.*)' -> '(?:.*)'$").expect("invalid regex!");
         static ref LORRI_READ: Regex =
             Regex::new("^trace: lorri read: '(?P<source>.*)'$").expect("invalid regex!");
-        static ref LORRI_ATTR_DRV: Regex =
-            Regex::new("^trace: lorri attribute: '(?P<attribute>.*)' -> '(?P<drv>/nix/store/.*)'$")
-                .expect("invalid regex!");
     }
 
     match line.as_ref().to_str() {
@@ -149,11 +157,6 @@ where
                 LogDatum::Source(PathBuf::from(&matches["source"]))
             } else if let Some(matches) = LORRI_READ.captures(&linestr) {
                 LogDatum::Source(PathBuf::from(&matches["source"]))
-            } else if let Some(matches) = LORRI_ATTR_DRV.captures(&linestr) {
-                LogDatum::AttrDrv(
-                    String::from(&matches["attribute"]),
-                    PathBuf::from(&matches["drv"]),
-                )
             } else {
                 LogDatum::Text(line.as_ref().to_owned())
             }
@@ -166,24 +169,26 @@ where
 /// valuable information in the output, like new paths
 /// to watch.
 #[derive(Debug)]
-pub struct Info {
+pub struct Info<T> {
     /// The result of executing Nix
     pub exec_result: std::process::ExitStatus,
 
-    // TODO: what?
-    // are those actual drv files?
-    /// All the attributes in the default expression which belong to
-    /// attributes.
-    pub named_drvs: HashMap<String, PathBuf>,
+    /// See `OutputPaths`
+    pub output_paths: OutputPaths<T>,
 
-    /// A list of the evaluation's result derivations
-    pub drvs: Vec<PathBuf>,
-
+    // TODO: rename to `sources` (it’s the input sources we have to watch)
     /// A list of paths examined during the evaluation
     pub paths: Vec<PathBuf>,
 
     /// A list of stderr log lines
     pub log_lines: Vec<OsString>,
+}
+
+/// Output paths generated by `logged-evaluation.nix`
+#[derive(Debug, Clone)]
+pub struct OutputPaths<T> {
+    /// Shell path modified to work as a gc root
+    pub shell_gc_root: T,
 }
 
 /// Possible errors from an individual evaluation
@@ -233,11 +238,6 @@ mod tests {
             LogDatum::Source(PathBuf::from(
                 "/home/grahamc/projects/grahamc/lorri/nix/nixpkgs.json"
             ))
-        );
-
-        assert_eq!(
-            parse_evaluation_line("trace: lorri attribute: 'shell' -> '/nix/store/q3ngidzvincycjjvlilf1z6vj1w4wnas-lorri.drv'"),
-            LogDatum::AttrDrv(String::from("shell"), PathBuf::from("/nix/store/q3ngidzvincycjjvlilf1z6vj1w4wnas-lorri.drv"))
         );
 
         assert_eq!(
@@ -295,12 +295,6 @@ in {}
 
         let info = run(&::NixFile::from(cas.file_from_string(&nix_drv)?), &cas).unwrap();
         assert!(info.exec_result.success());
-        assert!(info
-            .named_drvs
-            .get("shell")
-            .unwrap()
-            .to_string_lossy()
-            .contains("-shell.drv"));
 
         let expect: OsString = OsStr::from_bytes(b"\"\xAB\xBC\xCD\xDE\xDE\xEF\"").to_owned();
         assert!(info.log_lines.contains(&expect));

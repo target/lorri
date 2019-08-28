@@ -8,8 +8,6 @@ use crate::project::Project;
 use crate::roots;
 use crate::roots::Roots;
 use crate::watch::Watch;
-use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 
 /// Builder events sent back over `BuildLoop.tx`.
@@ -26,10 +24,8 @@ pub enum Event {
 /// Results of a single, successful build.
 #[derive(Clone, Debug)]
 pub struct BuildResults {
-    /// See `build::Info.drvs`
-    drvs: HashMap<usize, PathBuf>,
-    /// See `build::Info.drvs`
-    pub named_drvs: HashMap<String, PathBuf>,
+    /// See `build::Info.outputPaths
+    pub output_paths: builder::OutputPaths<roots::RootPath>,
 }
 
 /// Results of a single, failing build.
@@ -106,23 +102,15 @@ impl<'a> BuildLoop<'a> {
         let paths = reduce_paths(&paths);
         debug!("  -> reduced to: {:?}", paths.len());
 
-        debug!("named drvs: {:#?}", build.named_drvs);
+        debug!("named drvs: {:#?}", build.output_paths);
 
-        let mut event = BuildResults {
-            drvs: HashMap::new(),
-            named_drvs: HashMap::new(),
+        // create root for every field in OutputPaths
+        // TODO: remove build-0 dependency (see direnv.rs)
+        let output_paths = ::builder::OutputPaths {
+            shell_gc_root: roots.add("build-0", &build.output_paths.shell_gc_root)?,
         };
-        for (name, drv) in build.named_drvs.iter() {
-            event
-                .named_drvs
-                .insert(name.clone(), roots.add(&format!("attr-{}", name), &drv)?);
-        }
 
-        for (i, drv) in build.drvs.iter().enumerate() {
-            event
-                .drvs
-                .insert(i, roots.add(&format!("build-{}", i), &drv)?);
-        }
+        let event = BuildResults { output_paths };
 
         // add all new (reduced) nix sources to the input source watchlist
         self.watch.extend(&paths.into_iter().collect::<Vec<_>>())?;
