@@ -25,8 +25,6 @@ pub enum Event {
 /// Results of a single, successful build.
 #[derive(Clone, Debug)]
 pub struct BuildResults {
-    /// See `build::Info.drvs`
-    drvs: HashMap<usize, roots::RootPath>,
     /// See `build::Info.outputPaths
     pub output_paths: builder::OutputPaths<roots::RootPath>,
 }
@@ -114,16 +112,15 @@ impl<'a> BuildLoop<'a> {
                 roots.add(&format!("attr-{}", attr_name), &store_path)
             })?;
 
-        let mut event = BuildResults {
-            drvs: HashMap::new(),
+        let event = BuildResults {
             output_paths,
         };
 
-        for (i, drv) in build.drvs.iter().enumerate() {
-            event
-                .drvs
-                .insert(i, roots.add(&format!("build-{}", i), drv)?);
-        }
+        // for (i, drv) in build.drvs.iter().enumerate() {
+        //     event
+        //         .drvs
+        //         .insert(i, roots.add(&format!("build-{}", i), drv)?);
+        // }
 
         // add all new (reduced) nix sources to the input source watchlist
         self.watch.extend(&paths.into_iter().collect::<Vec<_>>())?;
