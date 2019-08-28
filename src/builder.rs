@@ -36,6 +36,7 @@ fn instrumented_build(
 
     cmd.args(&[
         OsStr::new("-vv"),
+        // TODO: this must create a GcRootTempDir and pass it out
         OsStr::new("--no-out-link"),
         OsStr::new("--argstr"),
         OsStr::new("runTimeClosure"),
@@ -70,66 +71,44 @@ fn instrumented_build(
                 .collect::<Result<Vec<LogDatum>, _>>()
         });
 
-    let produced_drvs: thread::JoinHandle<std::io::Result<Vec<StorePath>>> =
+    let build_products: thread::JoinHandle<std::io::Result<Vec<StorePath>>> =
         thread::spawn(move || {
             osstrlines::Lines::from(BufReader::new(stdout))
                 .map(|line| line.map(StorePath::from))
                 .collect::<Result<Vec<StorePath>, _>>()
         });
 
-    let (exec_result, produced_drvs, results) = (
+    let (exec_result, mut build_products, results) = (
         child.wait()?,
-        produced_drvs.join()??,
+        build_products.join()??,
         stderr_results.join()??,
     );
 
+    assert!(
+        build_products.len() == 1,
+        "got more or less than one build product from logged_evaluation.nix: {:#?}",
+        build_products
+    );
+    let shell_gc_root = build_products.pop().unwrap();
+
     // iterate over all lines, parsing out the ones we are interested in
-    let (paths, output_paths, log_lines): (
-        Vec<PathBuf>,
-        // `None` if the field was not seen before, `Some` if it was
-        OutputPaths<Option<StorePath>>,
-        Vec<OsString>
-    ) =
-    results.into_iter().fold(
-        (vec![], OutputPaths { shell_gc_root: None }, vec![]),
-        |(mut paths, mut output_paths, mut log_lines), result| {
+    let (paths, log_lines): (Vec<PathBuf>, Vec<OsString>) =
+        results
+            .into_iter()
+            .fold((vec![], vec![]), |(mut paths, mut log_lines), result| {
                 match result {
                     LogDatum::Source(src) => {
                         paths.push(src);
                     }
-                    LogDatum::ShellGcRootDrv(drv) => {
-                        // check whether we have seen this field before
-                        match output_paths.shell_gc_root {
-                            None => { output_paths.shell_gc_root = Some(StorePath(drv)); }
-                            // programming error
-                            Some(StorePath(old)) => panic!(
-                                "`lorri read` got attribute `{}` a second time, first path was {:?} and second {:?}",
-                                "shell_gc_root", old, drv)
-                        }
-                    },
                     LogDatum::Text(line) => log_lines.push(line),
                 };
 
-                (paths, output_paths, log_lines)
-            },
-        );
-
-    // check whether we got all required `OutputPaths`
-    let output_paths = match output_paths {
-        // programming error
-        OutputPaths {
-            shell_gc_root: None,
-            ..
-        } => panic!("`lorri read` never got required attribute `shell_gc_root`"),
-        OutputPaths {
-            shell_gc_root: Some(shell_gc_root),
-        } => OutputPaths { shell_gc_root },
-    };
+                (paths, log_lines)
+            });
 
     Ok(Info {
         exec_result,
-        drvs: produced_drvs,
-        output_paths,
+        output_paths: OutputPaths { shell_gc_root },
         paths,
         log_lines,
     })
@@ -146,7 +125,6 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info<Sto
 #[derive(Debug, PartialEq)]
 enum LogDatum {
     Source(PathBuf),
-    ShellGcRootDrv(PathBuf),
     Text(OsString),
 }
 
@@ -163,9 +141,6 @@ where
             Regex::new("^copied source '(?P<source>.*)' -> '(?:.*)'$").expect("invalid regex!");
         static ref LORRI_READ: Regex =
             Regex::new("^trace: lorri read: '(?P<source>.*)'$").expect("invalid regex!");
-        static ref LORRI_ATTR_DRV: Regex =
-            Regex::new("^trace: lorri attribute: '(?P<attribute>.*)' -> '(?P<drv>/nix/store/.*)'$")
-                .expect("invalid regex!");
     }
 
     match line.as_ref().to_str() {
@@ -181,16 +156,6 @@ where
                 LogDatum::Source(PathBuf::from(&matches["source"]))
             } else if let Some(matches) = LORRI_READ.captures(&linestr) {
                 LogDatum::Source(PathBuf::from(&matches["source"]))
-            } else if let Some(matches) = LORRI_ATTR_DRV.captures(&linestr) {
-                let drv = &matches["drv"];
-                let attr = &matches["attribute"];
-                match attr {
-                    "shell_gc_root" => LogDatum::ShellGcRootDrv(PathBuf::from(drv)),
-                    _ => panic!(
-                        "`lorri read` trace was `{} -> {}`, unknown attribute `{}`! (add to `builder.rs`)",
-                        attr, drv, attr
-                    ),
-                }
             } else {
                 LogDatum::Text(line.as_ref().to_owned())
             }
@@ -210,10 +175,6 @@ pub struct Info<T> {
     /// See `OutputPaths`
     pub output_paths: OutputPaths<T>,
 
-    // TODO: this is redundant with shell_gc_root
-    /// A list of the evaluation's result derivations
-    pub drvs: Vec<StorePath>,
-
     // TODO: rename to `sources` (it’s the input sources we have to watch)
     /// A list of paths examined during the evaluation
     pub paths: Vec<PathBuf>,
@@ -222,23 +183,11 @@ pub struct Info<T> {
     pub log_lines: Vec<OsString>,
 }
 
-/// Output derivations generated by `logged-evaluation.nix`
+/// Output paths generated by `logged-evaluation.nix`
 #[derive(Debug, Clone)]
 pub struct OutputPaths<T> {
-    /// Shell derivation modified to work as a gc root
+    /// Shell path modified to work as a gc root
     pub shell_gc_root: T,
-}
-
-impl<T> OutputPaths<T> {
-    /// Similar to other `map` functions, but also provides the name of the field
-    pub fn map_with_attr_name<U, F, E>(self, f: F) -> Result<OutputPaths<U>, E>
-    where
-        F: Fn(&str, T) -> Result<U, E>,
-    {
-        Ok(OutputPaths {
-            shell_gc_root: f("shell_gc_root", self.shell_gc_root)?,
-        })
-    }
 }
 
 /// Possible errors from an individual evaluation
@@ -288,11 +237,6 @@ mod tests {
             LogDatum::Source(PathBuf::from(
                 "/home/grahamc/projects/grahamc/lorri/nix/nixpkgs.json"
             ))
-        );
-
-        assert_eq!(
-            parse_evaluation_line("trace: lorri attribute: 'shell_gc_root' -> '/nix/store/q3ngidzvincycjjvlilf1z6vj1w4wnas-lorri-keep-env-hack-foo.drv'"),
-            LogDatum::ShellGcRootDrv(PathBuf::from("/nix/store/q3ngidzvincycjjvlilf1z6vj1w4wnas-lorri-keep-env-hack-foo.drv"))
         );
 
         assert_eq!(
