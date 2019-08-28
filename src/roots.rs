@@ -42,7 +42,7 @@ impl Roots {
 
     // TODO: rename to create_root()
     /// Store a new root under name
-    pub fn add(&self, name: &str, store_path: &::StorePath) -> Result<RootPath, AddRootError> {
+    pub fn add(&self, name: &str, store_path: &::nix::StorePath) -> Result<RootPath, AddRootError> {
         let mut path = self.root_dir.clone();
         path.push(name);
 

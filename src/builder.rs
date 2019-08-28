@@ -8,6 +8,7 @@
 //! `stderr`, like which source files are used by the evaluator.
 
 use cas::ContentAddressable;
+use nix::StorePath;
 use osstrlines;
 use regex::Regex;
 use std::any::Any;
@@ -16,7 +17,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
-use {NixFile, StorePath};
+use NixFile;
 
 fn instrumented_build(
     root_nix_file: &NixFile,
