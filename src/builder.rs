@@ -19,6 +19,7 @@ use std::process::{Command, Stdio};
 use std::thread;
 use NixFile;
 
+// TODO: when moving to CallOpts, you have to change the names of the roots CallOpts generates!
 fn instrumented_build(
     root_nix_file: &NixFile,
     cas: &ContentAddressable,

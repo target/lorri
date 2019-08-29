@@ -20,7 +20,7 @@ pub struct DirenvTestCase {
     projectdir: TempDir,
     // only kept around to not delete tempdir
     #[allow(dead_code)]
-    cachedir: TempDir,
+    pub cachedir: TempDir,
     project: Project,
 }
 

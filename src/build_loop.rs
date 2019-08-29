@@ -4,9 +4,9 @@
 use crate::builder;
 use crate::notify;
 use crate::pathreduction::reduce_paths;
+use crate::project::roots;
+use crate::project::roots::Roots;
 use crate::project::Project;
-use crate::roots;
-use crate::roots::Roots;
 use crate::watch::Watch;
 use std::sync::mpsc::Sender;
 
@@ -104,13 +104,9 @@ impl<'a> BuildLoop<'a> {
 
         debug!("named drvs: {:#?}", build.output_paths);
 
-        // create root for every field in OutputPaths
-        // TODO: remove build-0 dependency (see direnv.rs)
-        let output_paths = ::builder::OutputPaths {
-            shell_gc_root: roots.add("build-0", &build.output_paths.shell_gc_root)?,
+        let event = BuildResults {
+            output_paths: roots.create_roots(build.output_paths)?,
         };
-
-        let event = BuildResults { output_paths };
 
         // add all new (reduced) nix sources to the input source watchlist
         self.watch.extend(&paths.into_iter().collect::<Vec<_>>())?;

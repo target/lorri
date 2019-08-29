@@ -43,7 +43,6 @@ pub mod ops;
 pub mod osstrlines;
 pub mod pathreduction;
 pub mod project;
-pub mod roots;
 pub mod socket;
 pub mod watch;
 

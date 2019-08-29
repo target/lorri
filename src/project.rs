@@ -1,5 +1,7 @@
 //! Wrap a nix file and manage corresponding state.
 
+pub mod roots;
+
 use cas::ContentAddressable;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
@@ -14,7 +16,7 @@ pub struct Project {
 
     /// Directory in which this project’s
     /// garbage collection roots are stored.
-    pub gc_root_path: PathBuf,
+    gc_root_path: PathBuf,
 
     /// Hash of the nix file’s absolute path.
     hash: String,

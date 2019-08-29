@@ -4,6 +4,7 @@ mod version;
 
 use self::version::{DirenvVersion, MIN_DIRENV_VERSION};
 use crate::ops::{ok, ok_msg, ExitError, OpResult};
+use crate::project::roots::Roots;
 use crate::project::Project;
 use crate::socket::communicate::client;
 use crate::socket::communicate::{Ping, DEFAULT_READ_TIMEOUT};
@@ -13,9 +14,6 @@ use std::process::Command;
 /// details.
 pub fn main(project: Project) -> OpResult {
     check_direnv_version()?;
-
-    let mut shell_root = project.gc_root_path.to_owned();
-    shell_root.push("build-0"); // !!!
 
     // TODO: don’t start build/evaluation automatically, let the user decide
     if let Ok(client) = client::ping(DEFAULT_READ_TIMEOUT).connect(
@@ -30,7 +28,9 @@ pub fn main(project: Project) -> OpResult {
         eprintln!("Uh oh, your lorri daemon is not running.");
     }
 
-    if !shell_root.exists() {
+    let root_paths = Roots::from_project(&project).paths();
+
+    if !root_paths.all_exist() {
         return Err(ExitError::errmsg(
             "Please start `lorri daemon` or run `lorri watch` before using direnv integration.",
         ));
@@ -50,7 +50,7 @@ watch_file "$EVALUATION_ROOT"
 
 {}
 "#,
-        shell_root.display(),
+        root_paths.shell_gc_root,
         include_str!("envrc.bash")
     ))
 }
