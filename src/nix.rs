@@ -32,6 +32,7 @@
 //! }
 //! ```
 
+use std::ops::DerefMut;
 use osstrlines;
 use serde_json;
 use std::collections::HashMap;
@@ -45,7 +46,7 @@ pub struct CallOpts<'a> {
     input: Input<'a>,
     attribute: Option<String>,
     argstrs: HashMap<String, String>,
-    stderr_line_handler: Option<Box<&'a FnMut(&OsStr) -> ()>>,
+    stderr_line_handler: Option<&'a FnMut(&OsStr) -> ()>,
 }
 
 /// Which input to give nix.
@@ -166,7 +167,7 @@ impl<'a> CallOpts<'a> {
     where
         T: FnMut(&OsStr) -> (),
     {
-        self.stderr_line_handler = Some(Box::new(line_fn));
+        self.stderr_line_handler = Some(line_fn);
         self
     }
 
@@ -271,7 +272,7 @@ impl<'a> CallOpts<'a> {
     ///    otherwise => panic!(otherwise)
     /// }
     /// ```
-    pub fn path(&self) -> Result<(StorePath, GcRootTempDir), OnePathError> {
+    pub fn path(&mut self) -> Result<(StorePath, GcRootTempDir), OnePathError> {
         let (pathsv1, gc_root) = self.paths()?;
         let mut paths = pathsv1.into_vec();
 
@@ -309,7 +310,7 @@ impl<'a> CallOpts<'a> {
     /// assert!(paths.next().unwrap().contains("hello-"));
     /// drop(gc_root);
     /// ```
-    pub fn paths(&self) -> Result<(Vec1<StorePath>, GcRootTempDir), BuildError> {
+    pub fn paths(&mut self) -> Result<(Vec1<StorePath>, GcRootTempDir), BuildError> {
         // TODO: temp_dir writes to /tmp by default, we should
         // create a wrapper using XDG_RUNTIME_DIR instead,
         // which is per-user and (on systemd systems) a tmpfs.
@@ -332,6 +333,16 @@ impl<'a> CallOpts<'a> {
         let output = cmd.output()?;
 
         if output.status.success() {
+            //if let Some(mut handler) = self.stderr_line_handler {a
+            let handler: &FnMut(&OsStr) -> () = self.stderr_line_handler.unwrap();
+                let stderr: &[u8] = &output.stderr;
+                for line in osstrlines::Lines::from(stderr) {
+                    if let Ok(line) = line {
+                      handler(&line);
+                    }
+                }
+            //}
+
             let stdout: &[u8] = &output.stdout;
             let paths: Vec<StorePath> = osstrlines::Lines::from(stdout)
                 .map(|line| line.map(StorePath::from))
