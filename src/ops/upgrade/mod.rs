@@ -27,7 +27,7 @@ impl From<cli::UpgradeTo> for String {
     }
 }
 
-pub fn upgrade_callopts<'a>(upgrade_expr: &'a Path, upgrade_target: &str) -> nix::CallOpts<'a> {
+fn upgrade_callopts<'a>(upgrade_expr: &'a Path, upgrade_target: &str) -> nix::CallOpts<'a> {
     println!("Upgrading from source: {}", upgrade_target);
     let mut expr = nix::CallOpts::file(&upgrade_expr);
     expr.argstr("src", upgrade_target);
