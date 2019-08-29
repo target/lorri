@@ -151,12 +151,13 @@ pub fn run(
 ) -> Result<Info<StorePath, ::nix::GcRootTempDir>, Error> {
     let inst_info = instrumented_instantiation(root_nix_file, cas)?;
     match inst_info {
-        Info::Success(s) => {
+        Info::Success(mut s) => {
             let drvs = s.output_paths.clone();
             let mut loglines: Vec<OsString> = vec![];
             let realized = ::nix::CallOpts::file(drvs.shell_gc_root.as_path())
-                .stderr(&mut |line: &OsStr| loglines.push(line.to_owned()))
+                .stderr(&mut |line: &OsStr| s.log_lines.push(line.to_owned()))
                 .path()?;
+            println!("{:#?}", loglines);
             Ok(Info::Success(Success {
                 output_paths: OutputPaths {
                     shell_gc_root: realized.0,

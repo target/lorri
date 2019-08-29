@@ -10,7 +10,6 @@ use crate::nix;
 use crate::ops::{ExitError, OpResult};
 use crate::VERSION_BUILD_REV;
 use cas::ContentAddressable;
-use std::ffi::OsStr;
 use std::path::Path;
 use std::process::Command;
 

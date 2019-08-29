@@ -36,7 +36,6 @@ use osstrlines;
 use serde_json;
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use vec1::Vec1;
