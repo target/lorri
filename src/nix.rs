@@ -46,6 +46,7 @@ pub struct CallOpts<'a> {
     input: Input<'a>,
     attribute: Option<String>,
     argstrs: HashMap<String, String>,
+    stderr_line_handler: Option<Box<(FnMut(&OsStr) -> ())>>,
 }
 
 /// Which input to give nix.
@@ -102,6 +103,7 @@ impl<'a> CallOpts<'a> {
             input: Input::Expression(expr),
             attribute: None,
             argstrs: HashMap::new(),
+            stderr_line_handler: None,
         }
     }
 
@@ -111,6 +113,7 @@ impl<'a> CallOpts<'a> {
             input: Input::File(nix_file),
             attribute: None,
             argstrs: HashMap::new(),
+            stderr_line_handler: None,
         }
     }
 
@@ -156,6 +159,14 @@ impl<'a> CallOpts<'a> {
     /// ```
     pub fn argstr(&mut self, name: &str, value: &str) -> &mut Self {
         self.argstrs.insert(name.to_string(), value.to_string());
+        self
+    }
+
+    pub fn stderr<T: 'static>(&mut self, line_fn: T) -> &mut Self
+    where
+        T: FnMut(&OsStr) -> (),
+    {
+        self.stderr_line_handler = Some(Box::new(line_fn));
         self
     }
 
