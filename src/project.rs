@@ -16,7 +16,7 @@ pub struct Project {
 
     /// Directory in which this project’s
     /// garbage collection roots are stored.
-    pub gc_root_path: PathBuf,
+    gc_root_path: PathBuf,
 
     /// Hash of the nix file’s absolute path.
     hash: String,
