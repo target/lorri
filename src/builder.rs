@@ -155,7 +155,7 @@ pub fn run(
             let drvs = s.output_paths.clone();
             let mut loglines: Vec<OsString> = vec![];
             let realized = ::nix::CallOpts::file(drvs.shell_gc_root.as_path())
-                .stderr(&|line: &OsStr| loglines.push(line.to_owned()))
+                .stderr(&mut |line: &OsStr| loglines.push(line.to_owned()))
                 .path()?;
             Ok(Info::Success(Success {
                 output_paths: OutputPaths {

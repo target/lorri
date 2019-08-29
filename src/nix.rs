@@ -32,11 +32,11 @@
 //! }
 //! ```
 
-use std::ops::DerefMut;
 use osstrlines;
 use serde_json;
 use std::collections::HashMap;
 use std::ffi::OsStr;
+use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use vec1::Vec1;
@@ -46,7 +46,7 @@ pub struct CallOpts<'a> {
     input: Input<'a>,
     attribute: Option<String>,
     argstrs: HashMap<String, String>,
-    stderr_line_handler: Option<&'a FnMut(&OsStr) -> ()>,
+    stderr_line_handler: Option<&'a mut FnMut(&OsStr)>,
 }
 
 /// Which input to give nix.
@@ -98,7 +98,7 @@ impl<'a> CallOpts<'a> {
     ///   output.unwrap(), 5
     /// );
     /// ```
-    pub fn expression(expr: &str) -> CallOpts {
+    pub fn expression(expr: &'a str) -> Self {
         CallOpts {
             input: Input::Expression(expr),
             attribute: None,
@@ -108,7 +108,7 @@ impl<'a> CallOpts<'a> {
     }
 
     /// Create a CallOpts with the Nix file `nix_file`.
-    pub fn file(nix_file: &Path) -> CallOpts {
+    pub fn file(nix_file: &'a Path) -> Self {
         CallOpts {
             input: Input::File(nix_file),
             attribute: None,
@@ -163,9 +163,9 @@ impl<'a> CallOpts<'a> {
     }
 
     /// Add a per-line stderr handler
-    pub fn stderr<T>(&mut self, line_fn: &'a T) -> &mut Self
+    pub fn stderr<F>(&mut self, line_fn: &'a mut F) -> &mut Self
     where
-        T: FnMut(&OsStr) -> (),
+        F: FnMut(&OsStr),
     {
         self.stderr_line_handler = Some(line_fn);
         self
@@ -333,15 +333,14 @@ impl<'a> CallOpts<'a> {
         let output = cmd.output()?;
 
         if output.status.success() {
-            //if let Some(mut handler) = self.stderr_line_handler {a
-            let handler: &FnMut(&OsStr) -> () = self.stderr_line_handler.unwrap();
+            if let Some(handler) = &mut self.stderr_line_handler {
                 let stderr: &[u8] = &output.stderr;
                 for line in osstrlines::Lines::from(stderr) {
                     if let Ok(line) = line {
-                      handler(&line);
+                        handler(&line);
                     }
                 }
-            //}
+            }
 
             let stdout: &[u8] = &output.stdout;
             let paths: Vec<StorePath> = osstrlines::Lines::from(stdout)
