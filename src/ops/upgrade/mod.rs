@@ -10,6 +10,7 @@ use crate::nix;
 use crate::ops::{ExitError, OpResult};
 use crate::VERSION_BUILD_REV;
 use cas::ContentAddressable;
+use std::path::Path;
 use std::process::Command;
 
 impl From<cli::UpgradeTo> for String {
@@ -26,6 +27,13 @@ impl From<cli::UpgradeTo> for String {
     }
 }
 
+pub fn upgrade_callopts<'a>(upgrade_expr: &'a Path, upgrade_target: &str) -> nix::CallOpts<'a> {
+    println!("Upgrading from source: {}", upgrade_target);
+    let mut expr = nix::CallOpts::file(&upgrade_expr);
+    expr.argstr("src", upgrade_target);
+    expr
+}
+
 /// nix-env upgrade Lorri in the default profile.
 pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResult {
     /*
@@ -37,19 +45,10 @@ pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResul
     let upgrade_expr = cas
         .file_from_string(include_str!("./upgrade.nix"))
         .expect("could not write to CAS");
+    let upgrade_target = String::from(upgrade_target);
 
-    let expr = {
-        let src = String::from(upgrade_target);
-        println!("Upgrading from source: {}", src);
-        let mut expr = nix::CallOpts::file(&upgrade_expr);
-        expr.argstr("src", &src);
-        // ugly hack to prevent expr from being mutable outside,
-        // since I can't sort out how to chain argstr and still
-        // keep a reference
-        expr
-    };
-
-    let changelog: changelog::Log = expr.clone().attribute("changelog").value().unwrap();
+    let mut expr = upgrade_callopts(&upgrade_expr, &upgrade_target);
+    let changelog: changelog::Log = expr.attribute("changelog").value().unwrap();
 
     println!("Changelog when upgrading from {}:", VERSION_BUILD_REV);
     for entry in changelog.entries {
@@ -62,8 +61,9 @@ pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResul
         }
     }
 
+    let mut expr = upgrade_callopts(&upgrade_expr, &upgrade_target);
     println!("Building ...");
-    match expr.clone().attribute("package").path() {
+    match expr.attribute("package").path() {
         Ok((build_result, gc_root)) => {
             let status = Command::new("nix-env")
                 .arg("--install")

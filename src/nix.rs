@@ -41,7 +41,6 @@ use std::process::Command;
 use vec1::Vec1;
 
 /// Execute Nix commands using a builder-pattern abstraction.
-#[derive(Clone)]
 pub struct CallOpts<'a> {
     input: Input<'a>,
     attribute: Option<String>,
