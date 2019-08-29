@@ -45,7 +45,7 @@ pub struct CallOpts<'a> {
     input: Input<'a>,
     attribute: Option<String>,
     argstrs: HashMap<String, String>,
-    stderr_line_handler: Option<Box<(FnMut(&OsStr) -> ())>>,
+    stderr_line_handler: Option<Box<&'a FnMut(&OsStr) -> ()>>,
 }
 
 /// Which input to give nix.
@@ -161,7 +161,8 @@ impl<'a> CallOpts<'a> {
         self
     }
 
-    pub fn stderr<T: 'static>(&mut self, line_fn: T) -> &mut Self
+    /// Add a per-line stderr handler
+    pub fn stderr<T>(&mut self, line_fn: &'a T) -> &mut Self
     where
         T: FnMut(&OsStr) -> (),
     {
