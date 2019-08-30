@@ -52,6 +52,8 @@ pub fn main() -> OpResult {
         }
     });
 
+    println!("lorri: ready");
+
     // For each build instruction, add the corresponding file
     // to the watch list.
     for start_build in accept_messages_rx {
