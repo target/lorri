@@ -99,9 +99,21 @@ fn instrumented_build(
             .into_iter()
             .fold((vec![], vec![]), |(mut paths, mut log_lines), result| {
                 match result {
-                    LogDatum::CopiedSource(src)
-                    | LogDatum::NixSourceFile(src)
-                    | LogDatum::ReadFileOrDir(src) => {
+                    LogDatum::CopiedSource(src) | LogDatum::ReadFileOrDir(src) => {
+                        paths.push(src);
+                    }
+                    LogDatum::NixSourceFile(mut src) => {
+                        // We need to emulate nix’s `default.nix` mechanism here.
+                        // That is, if the user uses something like
+                        // `import ./foo`
+                        // and `foo` is a directory, nix will actually import
+                        // `./foo/default.nix`
+                        // but still print `./foo`.
+                        // Since this is the only time directories are printed,
+                        // we can just manually re-implement that behavior.
+                        if src.is_dir() {
+                            src.push("default.nix");
+                        }
                         paths.push(src);
                     }
                     LogDatum::Text(line) => log_lines.push(OsString::from(line)),
