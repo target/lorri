@@ -45,7 +45,7 @@ let
         lorri_travis_fold travis-yml-idempotent \
           git diff -q ./.travis.yml
         lorri_travis_fold carnix-idempotent \
-          git diff -q ./.travis.yml
+          git diff -q ./Cargo.nix
 
       '';
       # delete all our own artifacts from the cache dir

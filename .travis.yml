@@ -58,7 +58,7 @@
       lorri_travis_fold travis-yml-idempotent \
         git diff -q ./.travis.yml
       lorri_travis_fold carnix-idempotent \
-        git diff -q ./.travis.yml
+        git diff -q ./Cargo.nix
 
   - "before_cache":
     - >-
@@ -113,7 +113,7 @@
       lorri_travis_fold travis-yml-idempotent \
         git diff -q ./.travis.yml
       lorri_travis_fold carnix-idempotent \
-        git diff -q ./.travis.yml
+        git diff -q ./Cargo.nix
 
   - "language": >-
       nix
