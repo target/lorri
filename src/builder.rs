@@ -43,6 +43,7 @@ struct InstantiateOutput {
 }
 
 /// Wraps io::Error with a special case for the nix executable
+#[derive(Debug)]
 enum NixNotFoundError {
     /// one of the nix executables not found
     NixNotFound,
@@ -527,4 +528,71 @@ in {}
         Ok(())
     }
 
+    // TODO: builtins.fetchTarball and the like? What happens with those?
+    // Are they directories and if yes, should we watch them?
+    /// The paths that are returned by the nix-instantiate call
+    /// must not contain directories, otherwise the watcher will
+    /// watch those recursively, which leads to a lot of wasted resources
+    /// and often exhausts the amount of available file handles
+    /// (especially on macOS).
+    #[test]
+    fn no_unnecessary_files_or_directories_watched() -> std::io::Result<()> {
+        let root_tmp = tempfile::tempdir()?;
+        let cas_tmp = tempfile::tempdir()?;
+        let root = root_tmp.path();
+        let shell = root.join("shell.nix");
+        std::fs::write(
+            &shell,
+            drv(
+                "shell",
+                r##"
+# The `foo/default.nix` is implicitely imported
+# (we only want to watch that one, not the whole directory)
+foo = import ./foo;
+# `dir` is imported as source directory (no `import`).
+# We *do* want to watch this directory, because we need to react
+# when the user updates it.
+dir-as-source = ./dir;
+"##,
+            ),
+        )?;
+
+        // ./foo
+        // ./foo/default.nix
+        // ./foo/bar <- should not be watched
+        // ./foo/baz <- should be watched
+        // ./dir <- should be watched, because imported as source
+        let foo = root.join("foo");
+        std::fs::create_dir(&foo)?;
+        let dir = root.join("dir");
+        std::fs::create_dir(&dir)?;
+        let foo_default = &foo.join("default.nix");
+        std::fs::write(&foo_default, "import ./baz")?;
+        let foo_bar = &foo.join("bar");
+        std::fs::write(&foo_bar, "This file should not be watched")?;
+        let foo_baz = &foo.join("baz");
+        std::fs::write(&foo_baz, "\"This file should be watched\"")?;
+
+        let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        let inst_info = instrumented_instantiation(tx, &NixFile::from(shell), &cas).unwrap();
+        let ends_with = |end| inst_info.referenced_paths.iter().any(|p| p.ends_with(end));
+        assert!(
+            ends_with("foo/default.nix"),
+            "foo/default.nix should be watched!"
+        );
+        assert!(!ends_with("foo/bar"), "foo/bar should not be watched!");
+        assert!(ends_with("foo/baz"), "foo/baz should be watched!");
+        assert!(ends_with("dir"), "dir should be watched!");
+        assert!(
+            !ends_with("foo"),
+            "No imported directories must exist in watched paths: {:#?}",
+            inst_info.referenced_paths
+        );
+        // unused
+        drop(rx);
+
+        Ok(())
+    }
 }
