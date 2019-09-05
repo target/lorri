@@ -357,13 +357,11 @@ mod tests {
         );
     }
 
-    #[test]
-    fn non_utf8_nix_output() -> std::io::Result<()> {
-        let tmp = tempfile::tempdir()?;
-        let cas = ContentAddressable::new(tmp.path().to_owned())?;
-        let drv = |name: &str, args: &str| {
-            format!(
-                r##"
+    /// Create a locally built base derivation expression.
+    /// `args` is just interpolated into the derivation fields.
+    fn drv(name: &str, args: &str) -> String {
+        format!(
+            r##"
 derivation {{
   name = "{}";
   builder = "/bin/sh";
@@ -374,9 +372,16 @@ derivation {{
   random = builtins.currentTime;
   {}
 }}"##,
-                name, args
-            )
-        };
+            name, args
+        )
+    }
+
+    /// Some nix builds can output non-UTF-8 encoded text
+    /// (arbitrary binary output). We should not crash in that case.
+    #[test]
+    fn non_utf8_nix_output() -> std::io::Result<()> {
+        let tmp = tempfile::tempdir()?;
+        let cas = ContentAddressable::new(tmp.path().to_owned())?;
 
         let nix_drv = format!(
             r##"
