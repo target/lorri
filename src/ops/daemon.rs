@@ -22,10 +22,15 @@ pub fn main() -> OpResult {
         e => panic!("{:?}", e),
     })?;
 
+    // The daemon sends back build messages from its various build loops
     let (mut daemon, build_messages_rx) = Daemon::new();
 
-    // messages sent from accept handlers
+    // messages sent from the (unix socket) accept handler
     let (accept_messages_tx, accept_messages_rx) = mpsc::channel();
+
+    // threads don’t throw their panics to the main thread,
+    // so we need to catch unrecoverable stuff manually
+    let (panic_button_tx, panic_button_rx) = mpsc::channel();
 
     let handlers = daemon.handlers();
 
@@ -46,9 +51,20 @@ pub fn main() -> OpResult {
     });
 
     // TODO: join handle
-    let _start_build_loop_handle = std::thread::spawn(|| {
+    let _start_build_loop_handle = std::thread::spawn(move || {
         for msg in build_messages_rx {
-            println!("{:#?}", msg);
+            match msg {
+                Ok(m) => println!("{:#?}", m),
+                // This is the case where a builder catches an unexpected error
+                // and we have to crash.
+                // TODO: add human-message to get a nice stack & link for people to open an issue
+                Err(unrecoverable) => panic_button_tx
+                    .send(format!(
+                        "An unrecoverable error has occured. Please open an issue!\n{:#?}",
+                        unrecoverable
+                    ))
+                    .unwrap(),
+            }
         }
     });
 
@@ -56,15 +72,21 @@ pub fn main() -> OpResult {
 
     // For each build instruction, add the corresponding file
     // to the watch list.
-    for start_build in accept_messages_rx {
-        let project = ::project::Project::new(
-            start_build.nix_file,
-            paths.gc_root_dir(),
-            paths.cas_store().clone(),
-        )
-        // TODO: the project needs to create its gc root dir
-        .unwrap();
-        daemon.add(project)
+    let gc_root_dir = paths.gc_root_dir().to_owned();
+    let cas_store = paths.cas_store().to_owned();
+    let _add_project_daemon_handle = std::thread::spawn(move || {
+        for start_build in accept_messages_rx {
+            let project =
+                ::project::Project::new(start_build.nix_file, &gc_root_dir, cas_store.clone())
+                    // TODO: the project needs to create its gc root dir
+                    .unwrap();
+            daemon.add(project)
+        }
+    });
+
+    // if any unrecoverable error is received from a build thread, panic.
+    for panic in panic_button_rx {
+        panic!(panic);
     }
 
     ok()

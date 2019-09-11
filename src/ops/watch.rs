@@ -19,7 +19,14 @@ pub fn main(project: Project) -> OpResult {
     };
 
     for msg in rx {
-        println!("{:#?}", msg);
+        match msg {
+            // TODO: add human-message to get a nice stack & link for people to open an issue
+            Err(unrecoverable) => panic!(
+                "An unrecoverable error has occured. Please open an issue!\n{:#?}",
+                unrecoverable
+            ),
+            Ok(m) => println!("{:#?}", m),
+        }
     }
 
     build_thread.join().unwrap();

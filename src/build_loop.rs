@@ -61,27 +61,27 @@ impl<'a> BuildLoop<'a> {
     /// Sends `Event`s over `Self.tx` once they happen.
     /// When new filesystem changes are detected while a build is
     /// still running, it is finished first before starting a new build.
-    pub fn forever(&mut self, tx: Sender<Event>) {
+    pub fn forever(&mut self, tx: Sender<Result<Event, UnrecoverableErrors>>) {
         loop {
             // TODO: Make err use Display instead of Debug.
             // Otherwise user errors (especially for IO errors)
             // are pretty hard to debug. Might need to review
             // whether we can handle some errors earlier than here.
-            tx.send(Event::Started)
+            tx.send(Ok(Event::Started))
                 .expect("Failed to notify a started evaluation");
 
             match self.once() {
                 Ok(result) => {
-                    tx.send(Event::Completed(result))
+                    tx.send(Ok(Event::Completed(result)))
                         .expect("Failed to notify the results of a completed evaluation");
                 }
                 Err(BuildError::Recoverable(failure)) => {
-                    tx.send(Event::Failure(failure))
+                    tx.send(Ok(Event::Failure(failure)))
                         .expect("Failed to notify the results of a failed evaluation");
                 }
-                otherwise => {
-                    otherwise.unwrap();
-                }
+                Err(BuildError::Unrecoverable(err)) => tx.send(Err(err)).expect(
+                    "Failed to notify the results of an unexpected error in the evaluation",
+                ),
             }
 
             self.watch.wait_for_change().expect("Waiter exited");
