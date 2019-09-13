@@ -19,6 +19,7 @@ let
   # $ env LORRI_REPO=$(pwd) lorri-mdsh-sandbox -i $(realpath ./README.md)
   mdsh-sandbox =
     let
+      emptySetupScript = pkgs.writeShellScriptBin "lorri-mdsh-sandbox" "";
       setupScript = pkgs.writeShellScriptBin "lorri-mdsh-sandbox" ''
         set -e
         export HOME=/work/sandbox-home
@@ -43,15 +44,19 @@ let
               --work_dir "$WORK_DIR/$SANDBOX_RELATIVE_WORK_DIR" \
               "$@"
       '';
-    in pkgs.buildSandbox setupScript {
-      # the whole nix store is mounted in the sandbox,
-      # to make nix builds possible
-      fullNixStore = true;
-      # The path in "$LORRI_REPO" is magically mounted into the sandbox
-      # read-write before running `setupScript`, at exactly the same
-      # absolute path as outside of the sandbox.
-      paths.required = [ "$LORRI_REPO" ];
-    };
+    in
+      # on Darwin there’s no way to sandbox, so the script should be a no-op
+      if pkgs.stdenv.isDarwin then emptySetupScript
+
+      else pkgs.buildSandbox setupScript {
+        # the whole nix store is mounted in the sandbox,
+        # to make nix builds possible
+        fullNixStore = true;
+        # The path in "$LORRI_REPO" is magically mounted into the sandbox
+        # read-write before running `setupScript`, at exactly the same
+        # absolute path as outside of the sandbox.
+        paths.required = [ "$LORRI_REPO" ];
+      };
 
 in
 pkgs.mkShell rec {
