@@ -8,7 +8,7 @@ the tutorial.
 In lorri’s toplevel `shell.nix`, we provide a tool to run mdsh
 on this file in a sandboxed environment. Execute
 ```
-$ env LORRI_REPO="$(pwd)/.. lorri-mdsh-sandbox -i $(realpath ./README.md)
+$ env SUBDIR=./example lorri-mdsh-sandbox -i $(realpath ./example/README.md)
 ```
 from the project root.
 -->

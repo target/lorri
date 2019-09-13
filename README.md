@@ -3,7 +3,7 @@
 
 Execute
 ```
-$ env LORRI_REPO="$(pwd)" lorri-mdsh-sandbox -i $(realpath ./README.md)
+$ lorri-mdsh-sandbox -i $(realpath ./README.md)
 ```
 to update.
 -->

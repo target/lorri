@@ -5,6 +5,9 @@
 assert isDevelopmentShell -> pkgs ? latest;
 
 let
+  # The root directory of this project
+  LORRI_ROOT = toString ./.;
+
   rustChannels =
     pkgs.lib.mapAttrs
       (_: v: pkgs.rustChannelOf v)
@@ -16,7 +19,7 @@ let
   # with a tmpfs root filesystem (that is deleted after execution).
   # You can run it like this, without having to worry about any dangerous
   # commands being executed on your files:
-  # $ env LORRI_REPO=$(pwd) lorri-mdsh-sandbox -i $(realpath ./README.md)
+  # $ env lorri-mdsh-sandbox -i $(realpath ./README.md)
   mdsh-sandbox =
     let
       emptySetupScript = pkgs.writeShellScriptBin "lorri-mdsh-sandbox" "";
@@ -27,9 +30,7 @@ let
 
         WORK_DIR=/work/lorri
         # copy the lorri repo to the temporary sandbox work directory
-        [ -d "''${LORRI_REPO:?LORRI_REPO env var must exist}" ] \
-          || (echo "LORRI_REPO must point to the absolute root of the lorri project")
-        cp -r "$LORRI_REPO" "$WORK_DIR"
+        cp -r "${LORRI_ROOT}" "$WORK_DIR"
 
         # required to run `nix-env` in mdsh
         mkdir /work/sandbox-home/.nix-defexpr
@@ -41,7 +42,7 @@ let
           PATH="$PATH" \
           NIX_PROFILE="$HOME/nix-profile" \
             ${pkgs.mdsh}/bin/mdsh \
-              --work_dir "$WORK_DIR/$SANDBOX_RELATIVE_WORK_DIR" \
+              --work_dir "$WORK_DIR/$SUBDIR" \
               "$@"
       '';
     in
@@ -52,10 +53,10 @@ let
         # the whole nix store is mounted in the sandbox,
         # to make nix builds possible
         fullNixStore = true;
-        # The path in "$LORRI_REPO" is magically mounted into the sandbox
+        # The path in "$LORRI_ROOT" is magically mounted into the sandbox
         # read-write before running `setupScript`, at exactly the same
         # absolute path as outside of the sandbox.
-        paths.required = [ "$LORRI_REPO" ];
+        paths.required = [ LORRI_ROOT ];
       };
 
 in
@@ -93,8 +94,7 @@ pkgs.mkShell rec {
 
   # Lorri-specific
 
-  # The root directory of this project
-  LORRI_ROOT = toString ./.;
+  inherit LORRI_ROOT;
   # Needed by the lorri build.rs to determine its own version
   # for the development repository (non-release), we set it to 1
   BUILD_REV_COUNT = 1;
@@ -105,7 +105,7 @@ pkgs.mkShell rec {
   # Rust-specific
 
   # Enable printing backtraces for rust binaries
-  RUST_BACKTRACE = 1;
+  # RUST_BACKTRACE = 1;
   # Needed for racer “jump to definition” editor support
   # In Emacs with `racer-mode`, you need to set
   # `racer-rust-src-path` to `nil` for it to pick
@@ -163,18 +163,15 @@ pkgs.mkShell rec {
 
       # check that the readme is up to date and works
       lorri_travis_fold mdsh-readme \
-        env \
-          LORRI_REPO="$(pwd)" \
-            lorri-mdsh-sandbox \
-              -i $(realpath README.md) \
-              --frozen
+        lorri-mdsh-sandbox \
+          -i $(realpath README.md) \
+          --frozen
       readmecheckexit=$?
 
       # check that the tutorial is up to date and works
       lorri_travis_fold mdsh-tutorial \
         env \
-          LORRI_REPO="$(pwd)" \
-          SANDBOX_RELATIVE_WORK_DIR="./example" \
+          SUBDIR="./example" \
             lorri-mdsh-sandbox \
               -i $(realpath example/README.md) \
               --frozen
