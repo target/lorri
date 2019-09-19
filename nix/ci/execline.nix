@@ -1,5 +1,5 @@
 # TODO: upstream all of this into nixpkgs
-{ pkgs, pipe }:
+{ pkgs }:
 # execline is a small utility which can be used as a general-purpose
 # way of executing a command from a script without requiring a full
 # posix shell.
@@ -45,16 +45,14 @@ let
   # Example:
   #   escapeExecline [ "if" [ "somecommand" ] "true" ]
   #   == ''"if" { "somecommand" } "true"''
-  escapeExecline = execlineList: pipe execlineList [
+  escapeExecline = execlineList: pkgs.lib.concatStringsSep " "
     (let
       go = arg:
         if      builtins.isString arg then [(escapeExeclineArg arg)]
         else if pkgs.lib.isDerivation arg then [(escapeExeclineArg arg)]
         else if builtins.isList arg then [ "{" ] ++ builtins.concatMap go arg ++ [ "}" ]
         else abort "escapeExecline can only hande nested lists of strings, was ${pkgs.lib.generators.toPretty {} arg}";
-     in builtins.concatMap go)
-    (pkgs.lib.concatStringsSep " ")
-  ];
+     in builtins.concatMap go execlineList);
 
   # Write a list of execline argv parameters to an execline script.
   # Everything is escaped correctly.
