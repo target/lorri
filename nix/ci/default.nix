@@ -9,8 +9,8 @@ let
   inherit (import ./lib.nix { inherit pkgs writeExecline; })
     pipe allCommandsSucceed pathAdd;
 
-  inherit (import ./sandbox.nix { inherit pkgs LORRI_ROOT; })
-    runInSourceSandboxed;
+  inherit (import ./sandbox.nix { inherit pkgs LORRI_ROOT writeExecline; })
+    runInSourceSandboxed runInEmptyEnv;
 
   # shellcheck a file
   shellcheck = file: writeExecline "lint-shellcheck" {} [
@@ -119,7 +119,7 @@ let
       }; });
       # bats can only parallelize if it finds GNU parallel in its environment.
       batsParallel = writeExecline "bats" {} [
-        (pathAdd "prepend") "${pkgs.parallel}/bin"
+        (pathAdd "prepend") (pkgs.lib.makeBinPath [ pkgs.coreutils pkgs.gnugrep pkgs.parallel ])
         "importas" "HOME" "HOME"
         # silence the stupid citation output of parallel
         "foreground" [ "${pkgs.coreutils}/bin/mkdir" "-p" ''''${HOME}/.parallel'' ]
@@ -137,6 +137,10 @@ let
       (pkgs.lib.concatStringsSep "\n")
       (pkgs.writeText "testsuite")
       (test-suite: writeExecline name {} [
+        # clean the environment;
+        # this is the only way we can have a non-diverging
+        # environment between developer machine and CI
+        (runInEmptyEnv [])
         batsParallel
         # this executes 4 tasks in parallel, which requires them to not depend on each other
         "--jobs" "4"

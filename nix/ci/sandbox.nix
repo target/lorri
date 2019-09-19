@@ -1,6 +1,18 @@
-{ pkgs, LORRI_ROOT }:
+{ pkgs, LORRI_ROOT, writeExecline }:
 
 let
+
+  # remove everything but a few selected environment variables
+  runInEmptyEnv = additionalVars:
+    let
+        baseVars = [ "USER" "HOME" "TERM" ];
+        keepVars = baseVars ++ additionalVars;
+        importas = pkgs.lib.concatMap (var: [ "importas" var var ]) keepVars;
+        # we have to explicitely call export here, because PATH is probably empty
+        export = pkgs.lib.concatMap (var: [ "${pkgs.execline}/bin/export" var ''''${${var}}'' ]) keepVars;
+    in writeExecline "empty-env" {}
+         (importas ++ [ "emptyenv" ] ++ export ++ [ "${pkgs.execline}/bin/exec" "$@" ]);
+
   # Generate script to run `executable` inside of a lightweight sandbox
   # within a tmpfs root filesystem (that is deleted after execution).
   # On Darwin the sandboxing does not work, so we just run in a tempdir.
@@ -19,24 +31,14 @@ let
 
         cd "$WORK_DIR"
 
-        # takes the name of an environment variable and returns
-        # an argument which can be passed to env(1) to pass the variable through
-        passEnv() {
-          printf '%s=%s' "$1" "''${!1}"
-        }
-
         # clean env and run the shell script with extra arguments
-        env -i \
-          $(passEnv "USER") \
-          $(passEnv "HOME") \
-          $(passEnv "TERM") \
-          ${pkgs.lib.concatMapStringsSep "\n" (env: ''$(passEnv "${env}") \'') passEnv} \
+        ${runInEmptyEnv passEnv} \
           ${executable} "$@"
       '';
 
       sandboxSetup = ''
         export HOME=/work/sandbox-home
-        mkdir -p "$HOME"
+        ${pkgs.coreutils}/bin/mkdir -p "$HOME"
 
         WORK_DIR=/work/lorri
       '';
@@ -67,4 +69,4 @@ let
         paths.required = [ LORRI_ROOT ];
       });
 
-in { inherit runInSourceSandboxed; }
+in { inherit runInSourceSandboxed runInEmptyEnv; }
