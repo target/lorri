@@ -12,7 +12,7 @@ let
         stableVersion = "1.35.0";
       });
 
-  ci = import ./nix/ci.nix { inherit pkgs LORRI_ROOT; rust = rustChannels.stable.rust; };
+  ci = import ./nix/ci { inherit pkgs LORRI_ROOT; rust = rustChannels.stable.rust; };
 
   # Lorri-specific
 
