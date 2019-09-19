@@ -11,6 +11,12 @@ let
       (import ./nix/rust-channels.nix {
         stableVersion = "1.35.0";
       });
+
+  # The root directory of this project
+  LORRI_ROOT = toString ./.;
+
+  ci = import ./nix/ci.nix { inherit pkgs LORRI_ROOT; rust = rustChannels.stable.rust; };
+
 in
 pkgs.mkShell rec {
   name = "lorri";
@@ -44,8 +50,7 @@ pkgs.mkShell rec {
 
   # Lorri-specific
 
-  # The root directory of this project
-  LORRI_ROOT = toString ./.;
+  inherit LORRI_ROOT;
   # Needed by the lorri build.rs to determine its own version
   # for the development repository (non-release), we set it to 1
   BUILD_REV_COUNT = 1;
@@ -95,20 +100,18 @@ pkgs.mkShell rec {
       set -x
 
       lorri_travis_fold carnix-update ./nix/update-carnix.sh
-      carnixupdate=$?
+      carnixupdates=$?
 
       lorri_travis_fold script-tests ./script-tests/run-all.sh
       scripttests=$?
 
-      lorri_travis_fold cargo-test cargo test
+      lorri_travis_fold cargo-test ${ci.tests.cargo-test.test}
       cargotestexit=$?
 
-      lorri_travis_fold cargo-fmt \
-        cargo fmt -- --check
+      lorri_travis_fold cargo-fmt ${ci.tests.cargo-fmt.test}
       cargofmtexit=$?
 
-      RUSTFLAGS='-D warnings' \
-        lorri_travis_fold cargo-clippy cargo clippy
+      lorri_travis_fold cargo-clippy ${ci.tests.cargo-clippy.test}
       cargoclippyexit=$?
 
       set +x
