@@ -12,6 +12,8 @@ let
         stableVersion = "1.35.0";
       });
 
+  ci = import ./nix/ci.nix { inherit pkgs LORRI_ROOT; rust = rustChannels.stable.rust; };
+
   # Lorri-specific
 
   # The root directory of this project
@@ -105,20 +107,18 @@ pkgs.mkShell {
       set -x
 
       lorri_travis_fold carnix-update ./nix/update-carnix.sh
-      carnixupdate=$?
+      carnixupdates=$?
 
       lorri_travis_fold script-tests ./script-tests/run-all.sh
       scripttests=$?
 
-      lorri_travis_fold cargo-test cargo test
+      lorri_travis_fold cargo-test ${ci.tests.cargo-test.test}
       cargotestexit=$?
 
-      lorri_travis_fold cargo-fmt \
-        cargo fmt -- --check
+      lorri_travis_fold cargo-fmt ${ci.tests.cargo-fmt.test}
       cargofmtexit=$?
 
-      RUSTFLAGS='-D warnings' \
-        lorri_travis_fold cargo-clippy cargo clippy
+      lorri_travis_fold cargo-clippy ${ci.tests.cargo-clippy.test}
       cargoclippyexit=$?
 
       set +x
