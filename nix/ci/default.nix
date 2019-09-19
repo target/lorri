@@ -1,5 +1,7 @@
-{ pkgs, LORRI_ROOT, rust }:
+{ pkgs, LORRI_ROOT, rust}:
 let
+
+  lorriBinDir = "${LORRI_ROOT}/target/debug";
 
   inherit (import ./execline.nix { inherit pkgs; })
     writeExecline;
@@ -49,12 +51,24 @@ let
       ];
     };
 
+    # TODO: it would be good to sandbox this (it changes files in the tree)
+    # but somehow carnix needs to compile the whole friggin binary in order
+    # to generate a few measly nix files …
+    carnix = {
+      description = "check carnix up-to-date";
+      test = writeExecline "lint-carnix" {} [
+        "if" [ pkgs.runtimeShell "${LORRI_ROOT}/nix/update-carnix.sh" ]
+        "${pkgs.git}/bin/git" "diff" "--exit-code"
+      ];
+    };
+
   };
 
   # Write a attrset which looks like
   # { "test description" = test-script-derviation }
   # to a script which can be read by `bats` (a simple testing framework).
-  batsScript = name: tests: pkgs.lib.pipe tests [
+  batsScript =
+    name: tests: pkgs.lib.pipe tests [
     (pkgs.lib.mapAttrsToList
       # a bats test looks like:
       # @test "name of test" {
