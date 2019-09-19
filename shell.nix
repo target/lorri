@@ -34,7 +34,6 @@ let
       pkgs.bashInteractive
       pkgs.git
       pkgs.direnv
-      pkgs.shellcheck
       pkgs.carnix
       pkgs.nix-prefetch-git
 
@@ -109,7 +108,7 @@ pkgs.mkShell {
       lorri_travis_fold carnix-update ./nix/update-carnix.sh
       carnixupdates=$?
 
-      lorri_travis_fold script-tests ./script-tests/run-all.sh
+      lorri_travis_fold script-tests ${ci.tests.shellcheck.test}
       scripttests=$?
 
       lorri_travis_fold cargo-test ${ci.tests.cargo-test.test}
@@ -155,7 +154,11 @@ pkgs.mkShell {
     export NIX_LDFLAGS="-F${pkgs.darwin.apple_sdk.frameworks.CoreFoundation}/Library/Frameworks -framework CoreFoundation $NIX_LDFLAGS"
   '');
 
-  passthru.allBuildInputs = allBuildInputs;
+  passthru = {
+    inherit
+      ci
+      allBuildInputs;
+  };
 
   preferLocalBuild = true;
   allowSubstitutes = false;
