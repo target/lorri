@@ -22,9 +22,14 @@ impl DirenvEnv {
         }
     }
 
-    /// Get the environment variable names defined by direnv
-    pub fn keys<'a>(&'a self) -> Keys<'a, String, Option<String>> {
-        self.0.keys()
+    /// Like HashMap.retain, but don’t mutate self.
+    pub fn retain<F>(&self, f: F) -> HashMap<String, Option<String>>
+    where
+        F: Fn(&str) -> bool,
+    {
+        let mut new = self.0.to_owned();
+        new.retain(|k, _| f(&k));
+        new
     }
 }
 
