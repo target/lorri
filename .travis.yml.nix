@@ -63,14 +63,21 @@ let
       name = "cargo build & linters";
       script = [
         ''set -e''
-        ''nix-build -A allBuildInputs shell.nix > ./shell-inputs''
+        ''
+          export LC_ALL=C.UTF-8
+          export LC_CTYPE=C.UTF-8
+          export LANG=C.UTF-8
+          export LANGUAGE=C.UTF-8
+        ''
+        ''nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix > ./testsuite''
       ]
-      ++ pushToCachix { inherit isDarwin; } "./shell-inputs"
+      ++ pushToCachix { inherit isDarwin; } "./testsuite"
       ++ [
-        ''nix-shell --quiet --arg isDevelopmentShell false --run ci_check''
         ''cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml''
         ''git diff -q ./.travis.yml''
         ''git diff -q ./Cargo.nix''
+        # run testsuite
+        ''eval $(cat ./testsuite)''
       ];
     };
 
@@ -80,6 +87,8 @@ let
       # based on https://gist.github.com/jkcclemens/000456ca646bd502cac0dbddcb8fa307
       before_cache =
         let rmTarget = path: ''rm -rvf "$TRAVIS_BUILD_DIR/target/debug/${path}"'';
+        # delete all our own artifacts from the cache dir
+        # based on https://gist.github.com/jkcclemens/000456ca646bd502cac0dbddcb8fa307
         in (map rmTarget [
           "lib${projectname}.rlib"
           # our own binaries/libraries (keep all other deps)

@@ -53,24 +53,32 @@
     "script":
     - >-
       set -e
+    - >
+      export LC_ALL=C.UTF-8
+
+      export LC_CTYPE=C.UTF-8
+
+      export LANG=C.UTF-8
+
+      export LANGUAGE=C.UTF-8
     - >-
-      nix-build -A allBuildInputs shell.nix > ./shell-inputs
+      nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix > ./testsuite
     - >-
       echo "pushing these paths to cachix:"
     - >-
-      cat ./shell-inputs
+      cat ./testsuite
     - >
       if [ -n "$CACHIX_SIGNING_KEY" ]; then
-        cachix push lorri-test < ./shell-inputs
+        cachix push lorri-test < ./testsuite
       fi
-    - >-
-      nix-shell --quiet --arg isDevelopmentShell false --run ci_check
     - >-
       cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
     - >-
       git diff -q ./.travis.yml
     - >-
       git diff -q ./Cargo.nix
+    - >-
+      eval $(cat ./testsuite)
   - "before_cache":
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
@@ -121,16 +129,24 @@
     "script":
     - >-
       set -e
+    - >
+      export LC_ALL=C.UTF-8
+
+      export LC_CTYPE=C.UTF-8
+
+      export LANG=C.UTF-8
+
+      export LANGUAGE=C.UTF-8
     - >-
-      nix-build -A allBuildInputs shell.nix > ./shell-inputs
-    - >-
-      nix-shell --quiet --arg isDevelopmentShell false --run ci_check
+      nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix > ./testsuite
     - >-
       cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
     - >-
       git diff -q ./.travis.yml
     - >-
       git diff -q ./Cargo.nix
+    - >-
+      eval $(cat ./testsuite)
   - "install":
     - >-
       nix-env -iA cachix -f https://cachix.org/api/v1/install
