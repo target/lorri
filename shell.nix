@@ -5,9 +5,7 @@
 assert isDevelopmentShell -> pkgs ? latest;
 
 let
-  # The root directory of this project
-  LORRI_ROOT = toString ./.;
-
+  # import a static version of the mozilla overlay’s rust distribution
   rustChannels =
     pkgs.lib.mapAttrs
       (_: v: pkgs.rustChannelOf v)
@@ -15,8 +13,22 @@ let
         stableVersion = "1.35.0";
       });
 
+  # Lorri-specific
 
-  ci = import ./nix/ci { inherit pkgs LORRI_ROOT; rust = rustChannels.stable.rust; };
+  # The root directory of this project
+  LORRI_ROOT = toString ./.;
+  # Needed by the lorri build.rs to determine its own version
+  # for the development repository (non-release), we set it to 1
+  BUILD_REV_COUNT = 1;
+  # Needed by the lorri build.rs to access some tools used during
+  # the build of lorri's environment derivations.
+  RUN_TIME_CLOSURE = pkgs.callPackage ./nix/runtime.nix {};
+
+  # CI testsuite
+  ci = import ./nix/ci {
+    inherit pkgs LORRI_ROOT BUILD_REV_COUNT RUN_TIME_CLOSURE;
+    rust = rustChannels.stable.rust;
+  };
 
 in
 pkgs.mkShell rec {
@@ -49,15 +61,7 @@ pkgs.mkShell rec {
   # Keep project-specific shell commands local
   HISTFILE = "${toString ./.}/.bash_history";
 
-  # Lorri-specific
-
-  inherit LORRI_ROOT;
-  # Needed by the lorri build.rs to determine its own version
-  # for the development repository (non-release), we set it to 1
-  BUILD_REV_COUNT = 1;
-  # Needed by the lorri build.rs to access some tools used during
-  # the build of lorri's environment derivations.
-  RUN_TIME_CLOSURE = pkgs.callPackage ./nix/runtime.nix {};
+  inherit LORRI_ROOT BUILD_REV_COUNT RUN_TIME_CLOSURE;
 
   # Rust-specific
 

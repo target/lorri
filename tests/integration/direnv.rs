@@ -1,4 +1,3 @@
-use std::collections::hash_map::Keys;
 use std::collections::HashMap;
 
 /// The resulting environment Direnv after running Direnv. Note:

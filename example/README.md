@@ -148,7 +148,7 @@ mkShell {
 ```
 
 <!-- mdsh
-`$ sed -ie "/buildInputs/a hello" shell.nix`
+`$ sed -e "/buildInputs/a hello" -i shell.nix`
 
 `$ lorri watch --once`
 
@@ -195,7 +195,7 @@ mkShell {
 ```
 
 <!-- mdsh
-`$ sed -ie "/hello/d" shell.nix`
+`$ sed -e "/hello/d" -i shell.nix`
 
 `$ lorri watch --once`
 

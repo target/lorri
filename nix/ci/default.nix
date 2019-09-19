@@ -1,4 +1,4 @@
-{ pkgs, LORRI_ROOT, rust}:
+{ pkgs, LORRI_ROOT, BUILD_REV_COUNT, RUN_TIME_CLOSURE, rust}:
 let
 
   lorriBinDir = "${LORRI_ROOT}/target/debug";
@@ -43,6 +43,17 @@ let
     (runInSourceSandboxed {})
   ];
 
+  cargoEnvironment = name: cmds: writeExecline name {} (
+    # we have to add the bin to PATH,
+    # otherwise cargo doesn’t find its subcommands
+    [ (pathAdd "prepend") (pkgs.lib.makeBinPath [ rust pkgs.gcc ])
+      "export" "BUILD_REV_COUNT" (toString BUILD_REV_COUNT)
+      "export" "RUN_TIME_CLOSURE" RUN_TIME_CLOSURE ]
+    ++ cmds);
+
+  cargo = name: setup: args:
+    cargoEnvironment name (setup ++ [ "cargo" ] ++ args);
+
   # the CI tests we want to run
   # Tests should not depend on each other (or block if they do),
   # so that they can run in parallel.
@@ -61,20 +72,20 @@ let
 
     cargo-fmt = {
       description = "cargo fmt was done";
-      test = writeExecline "lint-cargo-fmt" {} [ "${rust}/bin/cargo" "fmt" "--" "--check" ];
+      test = cargo "lint-cargo-fmt" [] [ "fmt" "--" "--check" ];
     };
 
     cargo-test = {
       description = "run cargo test";
-      test = writeExecline "cargo-test" {} [ "${rust}/bin/cargo" "test" ];
+      test = cargo "cargo-test"
+        # the tests need bash and nix and direnv
+        [ (pathAdd "prepend") (pkgs.lib.makeBinPath [ pkgs.bash pkgs.nix pkgs.direnv ])]
+        [ "test" ];
     };
 
     cargo-clippy = {
       description = "run cargo clippy";
-      test = writeExecline "cargo-clippy" {} [
-        "export" "RUSTFLAGS" "-D warnings"
-        "${rust}/bin/cargo" "clippy"
-      ];
+      test = cargo "cargo-clippy" [ "export" "RUSTFLAGS" "-D warnings" ] [ "clippy" ];
     };
 
     mdsh-readme = {
@@ -97,9 +108,10 @@ let
     # to generate a few measly nix files …
     carnix = {
       description = "check carnix up-to-date";
-      test = writeExecline "lint-carnix" {} [
+      test = cargoEnvironment "lint-carnix" [
+        (pathAdd "prepend") (pkgs.lib.makeBinPath [ pkgs.carnix ])
         "if" [ pkgs.runtimeShell "${LORRI_ROOT}/nix/update-carnix.sh" ]
-        "${pkgs.git}/bin/git" "diff" "--exit-code"
+        "${pkgs.gitMinimal}/bin/git" "diff" "--exit-code"
       ];
     };
 
