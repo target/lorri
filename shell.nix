@@ -108,26 +108,14 @@ pkgs.mkShell {
       lorri_travis_fold carnix-update ./nix/update-carnix.sh
       carnixupdates=$?
 
-      lorri_travis_fold script-tests ${ci.tests.shellcheck.test}
-      scripttests=$?
-
-      lorri_travis_fold cargo-test ${ci.tests.cargo-test.test}
-      cargotestexit=$?
-
-      lorri_travis_fold cargo-fmt ${ci.tests.cargo-fmt.test}
-      cargofmtexit=$?
-
-      lorri_travis_fold cargo-clippy ${ci.tests.cargo-clippy.test}
-      cargoclippyexit=$?
+      ${ci.testsuite}
+      testsuite=$?
 
       set +x
       echo "carnix update: $carnixupdates"
-      echo "script tests: $scripttests"
-      echo "cargo test: $cargotestexit"
-      echo "cargo fmt: $cargofmtexit"
-      echo "cargo clippy: $cargoclippyexit"
+      echo "testsuite: $testsuite"
 
-      sum=$((carnixupdate + scripttest + cargotestexit + cargofmtexit + cargoclippyexit))
+      sum=$((carnixupdates + testsuite))
       if [ "$sum" -gt 0 ]; then
         return 1
       fi
