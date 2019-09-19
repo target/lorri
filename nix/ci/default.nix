@@ -9,7 +9,10 @@ let
   inherit (import ./lib.nix { inherit pkgs writeExecline; })
     allCommandsSucceed pathAdd;
 
-  # shellcheck file
+  inherit (import ./sandbox.nix { inherit pkgs writeExecline; })
+    runInEmptyEnv;
+
+  # shellcheck a file
   shellcheck = file: writeExecline "lint-shellcheck" {} [
     "cd" LORRI_ROOT
     # TODO: echo is coming from context, clean out PATH before running checks
@@ -79,9 +82,13 @@ let
     (pkgs.lib.concatStringsSep "\n")
     (pkgs.writeText "testsuite")
     (test-suite: writeExecline name {} [
+      # clean the environment;
+      # this is the only way we can have a non-diverging
+      # environment between developer machine and CI
+      (runInEmptyEnv [])
       "${pkgs.bats}/bin/bats"
       test-suite ])
-  ];
+    ];
 
   testsuite = batsScript "run-testsuite" tests;
 
