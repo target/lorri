@@ -15,7 +15,7 @@ let
   # The root directory of this project
   LORRI_ROOT = toString ./.;
 
-  ci = import ./nix/ci.nix { inherit pkgs LORRI_ROOT; rust = rustChannels.stable.rust; };
+  ci = import ./nix/ci { inherit pkgs LORRI_ROOT; rust = rustChannels.stable.rust; };
 
 in
 pkgs.mkShell rec {
