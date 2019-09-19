@@ -5,6 +5,7 @@
 assert isDevelopmentShell -> pkgs ? latest;
 
 let
+  # import a static version of the mozilla overlay’s rust distribution
   rustChannels =
     pkgs.lib.mapAttrs
       (_: v: pkgs.rustChannelOf v)
@@ -12,7 +13,11 @@ let
         stableVersion = "1.35.0";
       });
 
-  ci = import ./nix/ci { inherit pkgs LORRI_ROOT; rust = rustChannels.stable.rust; };
+  # CI testsuite
+  ci = import ./nix/ci {
+    inherit pkgs LORRI_ROOT BUILD_REV_COUNT RUN_TIME_CLOSURE;
+    rust = rustChannels.stable.rust;
+  };
 
   # Lorri-specific
 
@@ -24,7 +29,6 @@ let
   # Needed by the lorri build.rs to access some tools used during
   # the build of lorri's environment derivations.
   RUN_TIME_CLOSURE = pkgs.callPackage ./nix/runtime.nix {};
-
 
   buildInputs = [
       # This rust comes from the Mozilla rust overlay so we can
