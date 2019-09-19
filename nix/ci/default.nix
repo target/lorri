@@ -1,33 +1,11 @@
 { pkgs, LORRI_ROOT, rust }:
 let
+
   inherit (import ./execline.nix { inherit pkgs; })
     writeExecline;
 
-  # Write commands to script which aborts immediately if a command is not successful.
-  # The status of the unsuccessful command is returned.
-  allCommandsSucceed = name: commands: pipe commands [
-    (pkgs.lib.concatMap (cmd: [ "if" [ cmd ] ]))
-    (cmds: cmds ++ [ "true" ])
-    (writeExecline name {})
-  ];
-
-  # Takes a `mode` string and produces a script,
-  # which modifies PATH given by $1 and execs into the rest of argv.
-  # `mode`s:
-  #   "set": overwrite PATH, set it to $1
-  #   "append": append the given $1 to PATH
-  #   "prepend": prepend the given $1 to PATH
-  pathAdd = mode:
-    let exec = [ "exec" "$@" ];
-        importPath = [ "importas" "PATH" "PATH" ];
-        set = [ "export" "PATH" "$1" ] ++ exec;
-        append = importPath ++ [ "export" "PATH" ''''${PATH}:''${1}'' ] ++ exec;
-        prepend = importPath ++ [ "export" "PATH" ''''${1}:''${PATH}'' ] ++ exec;
-    in writeExecline "PATH_${mode}" { readNArgs = 1; }
-        (if    mode == "set"     then set
-        else if mode == "append" then append
-        else if mode == "prepend" then prepend
-        else abort "don’t know mode ${mode}");
+  inherit (import ./lib.nix { inherit pkgs writeExecline; })
+    allCommandsSucceed pathAdd;
 
   # shellcheck file
   shellcheck = file: writeExecline "lint-shellcheck" {} [
@@ -76,7 +54,7 @@ let
   # Write a attrset which looks like
   # { "test description" = test-script-derviation }
   # to a script which can be read by `bats` (a simple testing framework).
-  batsScript = name: tests: pipe tests [
+  batsScript = name: tests: pkgs.lib.pipe tests [
     (pkgs.lib.mapAttrsToList
       # a bats test looks like:
       # @test "name of test" {
