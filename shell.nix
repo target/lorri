@@ -111,29 +111,11 @@ pkgs.mkShell rec {
       ${ci.testsuite}
       testsuite=$?
 
-      # check that the readme is up to date and works
-      lorri_travis_fold mdsh-readme \
-        lorri-mdsh-sandbox \
-          -i $(realpath README.md) \
-          --frozen
-      readmecheckexit=$?
-
-      # check that the tutorial is up to date and works
-      lorri_travis_fold mdsh-tutorial \
-        env \
-          SUBDIR="./example" \
-            lorri-mdsh-sandbox \
-              -i $(realpath example/README.md) \
-              --frozen
-      tutorialcheckexit=$?
-
       set +x
       echo "carnix update: $carnixupdates"
       echo "testsuite: $testsuite"
-      echo "mdsh on README.md: $readmecheckexit"
-      echo "mdsh on example/README.md: $tutorialcheckexit"
 
-      sum=$((carnixupdates + testsuite + readmecheckexit + tutorialcheckexit))
+      sum=$((carnixupdates + testsuite))
       if [ "$sum" -gt 0 ]; then
         return 1
       fi

@@ -7,13 +7,42 @@ let
   inherit (import ./lib.nix { inherit pkgs writeExecline; })
     pipe allCommandsSucceed pathAdd;
 
-  # shellcheck file
+  inherit (import ./sandbox.nix { inherit pkgs LORRI_ROOT; })
+    runInSourceSandboxed;
+
+  # shellcheck a file
   shellcheck = file: writeExecline "lint-shellcheck" {} [
     "cd" LORRI_ROOT
     # TODO: echo is coming from context, clean out PATH before running checks
     "foreground" [ "echo" "shellchecking ${file}" ]
     "${pkgs.shellcheck}/bin/shellcheck" "--shell" "bash" file
   ];
+
+  # Run mdsh on `file`.
+  # Because files we use (e.g. example/README.md) execute arbitrary commands
+  # and even install stuff statefully (with `nix-env`),
+  # we sandbox the execution.
+  # `subdir` is the subdir `file` is in (relative to `LORRI_ROOT`).
+  # `deps` are dependencies the script needs (PATH is cleaned in the sandbox).
+  mdsh = name: { subdir ? ".", deps ? [] }: file: pipe file [
+    (f: [
+      "export" "SUBDIR" subdir
+      "importas" "HOME" "HOME"
+      # required to run `nix-env` in the sandbox
+      "foreground" [ "${pkgs.coreutils}/bin/mkdir" "-p" "/work/sandbox-home/.nix-defexpr" ]
+      "export" "NIX_PROFILE" ''''${HOME}/nix-profile''
+      (pathAdd "set") (pkgs.lib.makeBinPath ([ pkgs.bash pkgs.coreutils ] ++ deps))
+      (pathAdd "prepend") ''''${HOME}/nix-profile/bin''
+      "foreground" [ "env" ]
+      "${pkgs.mdsh}/bin/mdsh" "-i" "${LORRI_ROOT}/${f}" "--frozen"
+    ])
+    (writeExecline "lint-mdsh-${name}" {})
+    (runInSourceSandboxed {})
+  ];
+
+  # TODO: this should really be passed from outside;
+  # the test should have a dependency on lorri
+  lorri = import LORRI_ROOT {};
 
   # the CI tests we want to run
   # Tests should not depend on each other (or block if they do),
@@ -47,6 +76,21 @@ let
         "export" "RUSTFLAGS" "-D warnings"
         "${rust}/bin/cargo" "clippy"
       ];
+    };
+
+    mdsh-readme = {
+      description = "mdsh README.md";
+      test = mdsh
+        "README.md"
+        { deps = [ lorri ]; }
+        "./README.md";
+    };
+
+    mdsh-example = {
+      description = "mdsh example/README.md";
+      test = mdsh "example-README.md"
+        { subdir = "./example"; deps = [ lorri pkgs.gnugrep pkgs.gnused pkgs.nix ]; }
+        "./example/README.md";
     };
 
   };
@@ -89,6 +133,4 @@ let
 
 in {
   inherit testsuite tests;
-  inherit (import ./sandbox.nix { inherit pkgs LORRI_ROOT; })
-    mdsh-sandbox;
 }

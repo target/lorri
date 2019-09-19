@@ -26,8 +26,8 @@ let
         append = importPath ++ [ "export" "PATH" ''''${PATH}:''${1}'' ] ++ exec;
         prepend = importPath ++ [ "export" "PATH" ''''${1}:''${PATH}'' ] ++ exec;
     in writeExecline "PATH_${mode}" { readNArgs = 1; }
-        (if    mode == "set"     then set
-        else if mode == "append" then append
+        (if     mode == "set"     then set
+        else if mode == "append"  then append
         else if mode == "prepend" then prepend
         else abort "don’t know mode ${mode}");
 
