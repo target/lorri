@@ -108,17 +108,8 @@ pkgs.mkShell rec {
       lorri_travis_fold carnix-update ./nix/update-carnix.sh
       carnixupdates=$?
 
-      lorri_travis_fold script-tests ${ci.tests.shellcheck.test}
-      scripttests=$?
-
-      lorri_travis_fold cargo-test ${ci.tests.cargo-test.test}
-      cargotestexit=$?
-
-      lorri_travis_fold cargo-fmt ${ci.tests.cargo-fmt.test}
-      cargofmtexit=$?
-
-      lorri_travis_fold cargo-clippy ${ci.tests.cargo-clippy.test}
-      cargoclippyexit=$?
+      ${ci.testsuite}
+      testsuite=$?
 
       # check that the readme is up to date and works
       lorri_travis_fold mdsh-readme \
@@ -137,15 +128,12 @@ pkgs.mkShell rec {
       tutorialcheckexit=$?
 
       set +x
-      echo "carnix update: $carnixupdate"
-      echo "script tests: $scripttests"
-      echo "cargo test: $cargotestexit"
-      echo "cargo fmt: $cargofmtexit"
-      echo "cargo clippy: $cargoclippyexit"
+      echo "carnix update: $carnixupdates"
+      echo "testsuite: $testsuite"
       echo "mdsh on README.md: $readmecheckexit"
       echo "mdsh on example/README.md: $tutorialcheckexit"
 
-      sum=$((carnixupdate + scripttests + cargotestexit + cargofmtexit + cargoclippyexit + readmecheckexit + tutorialcheckexit))
+      sum=$((carnixupdates + testsuite + readmecheckexit + tutorialcheckexit))
       if [ "$sum" -gt 0 ]; then
         return 1
       fi

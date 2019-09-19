@@ -77,7 +77,7 @@ let
         "src/ops/direnv/envrc.bash"
       ];
       in {
-        description = "shellcheck ${pkgs.lib.concatStringsSep " " files}";
+        description = "shellcheck ${pkgs.lib.concatStringsSep " and " files}";
         test = allCommandsSucceed "lint-shellcheck-all" (map shellcheck files);
       };
 
@@ -101,7 +101,25 @@ let
 
   };
 
+  # Write a attrset which looks like
+  # { "test description" = test-script-derviation }
+  # to a script which can be read by `bats` (a simple testing framework).
+  batsScript = name: tests: pipe tests [
+    (pkgs.lib.mapAttrsToList
+      # a bats test looks like:
+      # @test "name of test" {
+      #   … test code …
+      # }
+      # bats is very picky about the {} block (and the newlines).
+      (_: test: "@test ${pkgs.lib.escapeShellArg test.description} {\n${test.test}\n}"))
+    (pkgs.lib.concatStringsSep "\n")
+    (pkgs.writeText "test-suite")
+    (test-suite: writeExecline name {} [ "${pkgs.bats}/bin/bats" test-suite ])
+  ];
+
+  testsuite = batsScript "testsuite" tests;
+
 in {
   inherit
-    mdsh-sandbox tests;
+    mdsh-sandbox testsuite tests;
 }
