@@ -60,6 +60,24 @@ let
     (writeExecline name {})
   ];
 
+  # Takes a `mode` string and produces a script,
+  # which modifies PATH given by $1 and execs into the rest of argv.
+  # `mode`s:
+  #   "set": overwrite PATH, set it to $1
+  #   "append": append the given $1 to PATH
+  #   "prepend": prepend the given $1 to PATH
+  pathAdd = mode:
+    let exec = [ "exec" "$@" ];
+        importPath = [ "importas" "PATH" "PATH" ];
+        set = [ "export" "PATH" "$1" ] ++ exec;
+        append = importPath ++ [ "export" "PATH" ''''${PATH}:''${1}'' ] ++ exec;
+        prepend = importPath ++ [ "export" "PATH" ''''${1}:''${PATH}'' ] ++ exec;
+    in writeExecline "PATH_${mode}" { readNArgs = 1; }
+        (if    mode == "set"     then set
+        else if mode == "append" then append
+        else if mode == "prepend" then prepend
+        else abort "don’t know mode ${mode}");
+
   # shellcheck file
   shellcheck = file: writeExecline "lint-shellcheck" {} [
     "cd" LORRI_ROOT
@@ -69,6 +87,9 @@ let
   ];
 
   # the CI tests we want to run
+  # Tests should not depend on each other (or block if they do),
+  # so that they can run in parallel.
+  # If a test changes files in the repository, sandbox it.
   tests = {
 
     shellcheck =
@@ -104,20 +125,38 @@ let
   # Write a attrset which looks like
   # { "test description" = test-script-derviation }
   # to a script which can be read by `bats` (a simple testing framework).
-  batsScript = name: tests: pipe tests [
-    (pkgs.lib.mapAttrsToList
-      # a bats test looks like:
-      # @test "name of test" {
-      #   … test code …
-      # }
-      # bats is very picky about the {} block (and the newlines).
-      (_: test: "@test ${pkgs.lib.escapeShellArg test.description} {\n${test.test}\n}"))
-    (pkgs.lib.concatStringsSep "\n")
-    (pkgs.writeText "test-suite")
-    (test-suite: writeExecline name {} [ "${pkgs.bats}/bin/bats" test-suite ])
-  ];
+  batsScript =
+    let
+      # first version of bats that has support for GNU parallel
+      bats = pkgs.bats.overrideAttrs (_: { src = pkgs.fetchFromGitHub {
+        owner = "bats-core";
+        repo = "bats-core";
+        rev = "8789f910812afbf6b87dd371ee5ae30592f1423f";
+        sha256 = "1fkd3qqb1pi05szkzixl3n7qhwiji5xzbm2ghgbk3sb9wa1dyvf5";
+      }; });
+      # bats can only parallelize if it finds GNU parallel in its environment.
+      batsParallel = writeExecline "bats" {} [
+        (pathAdd "prepend") "${pkgs.parallel}/bin"
+        "${bats}/bin/bats" "$@"
+      ];
+    in name: tests: pipe tests [
+      (pkgs.lib.mapAttrsToList
+        # a bats test looks like:
+        # @test "name of test" {
+        #   … test code …
+        # }
+        # bats is very picky about the {} block (and the newlines).
+        (_: test: "@test ${pkgs.lib.escapeShellArg test.description} {\n${test.test}\n}"))
+      (pkgs.lib.concatStringsSep "\n")
+      (pkgs.writeText "testsuite")
+      (test-suite: writeExecline name {} [
+        batsParallel
+        # this executes 4 tasks in parrallel, which requires them to not depend on each other
+        "--jobs" "4"
+        test-suite ])
+    ];
 
-  testsuite = batsScript "testsuite" tests;
+  testsuite = batsScript "run-testsuite" tests;
 
 in {
   inherit
