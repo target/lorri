@@ -57,9 +57,9 @@
     "os": >-
       linux
     "script":
-    - >
+    - >-
       set -e
-
+    - >
       export LC_ALL=C.UTF-8
 
       export LC_CTYPE=C.UTF-8
@@ -67,20 +67,14 @@
       export LANG=C.UTF-8
 
       export LANGUAGE=C.UTF-8
+    - >-
+      cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
+    - >-
+      git diff -q ./.travis.yml
+    - >
+      testsuite=$(nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix)
 
-      source ./.travis_fold.sh
-
-
-      lorri_travis_fold travis-yml-gen \
-        cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
-      lorri_travis_fold travis-yml-idempotent \
-        git diff -q ./.travis.yml
-
-      testsuite=$(mktemp)
-
-      lorri_travis_fold ci_check \
-        (nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix > "$testsuite")
-      eval $(cat "$testsuite")
+      eval "$testsuite"
     - >-
       printf '%s' "$testsuite" >> $HOME/push-to-cachix
   - "before_cache":
@@ -124,9 +118,9 @@
     "os": >-
       osx
     "script":
-    - >
+    - >-
       set -e
-
+    - >
       export LC_ALL=C.UTF-8
 
       export LC_CTYPE=C.UTF-8
@@ -134,20 +128,14 @@
       export LANG=C.UTF-8
 
       export LANGUAGE=C.UTF-8
+    - >-
+      cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
+    - >-
+      git diff -q ./.travis.yml
+    - >
+      testsuite=$(nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix)
 
-      source ./.travis_fold.sh
-
-
-      lorri_travis_fold travis-yml-gen \
-        cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
-      lorri_travis_fold travis-yml-idempotent \
-        git diff -q ./.travis.yml
-
-      testsuite=$(mktemp)
-
-      lorri_travis_fold ci_check \
-        (nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix > "$testsuite")
-      eval $(cat "$testsuite")
+      eval "$testsuite"
     - >-
       printf '%s' "$testsuite" >> $HOME/push-to-cachix
   - "before_cache":
@@ -171,17 +159,14 @@
     "os": >-
       linux
     "script":
-    - >
+    - >-
       set -e
-
-      source ./.travis_fold.sh
-
-      lorri_travis_fold lorri-nix-build \
-        nix-build
-      lorri_travis_fold lorri-install \
-        nix-env -i ./result
-      lorri_travis_fold lorri-self-upgrade \
-        lorri self-upgrade local $(pwd)
+    - >-
+      nix-build
+    - >-
+      nix-env -i ./result
+    - >-
+      lorri self-upgrade local $(pwd)
     - >-
       readlink ./result >> $HOME/push-to-cachix
   - "language": >-
@@ -193,16 +178,13 @@
     "os": >-
       osx
     "script":
-    - >
+    - >-
       set -e
-
-      source ./.travis_fold.sh
-
-      lorri_travis_fold lorri-nix-build \
-        nix-build
-      lorri_travis_fold lorri-install \
-        nix-env -i ./result
-      lorri_travis_fold lorri-self-upgrade \
-        lorri self-upgrade local $(pwd)
+    - >-
+      nix-build
+    - >-
+      nix-env -i ./result
+    - >-
+      lorri self-upgrade local $(pwd)
     - >-
       readlink ./result >> $HOME/push-to-cachix

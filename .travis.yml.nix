@@ -23,16 +23,10 @@ let
     builds = {
       name = "nix-build";
       script = [
-        ''
-          set -e
-          source ./.travis_fold.sh
-          lorri_travis_fold lorri-nix-build \
-            nix-build
-          lorri_travis_fold lorri-install \
-            nix-env -i ./result
-          lorri_travis_fold lorri-self-upgrade \
-            lorri self-upgrade local $(pwd)
-        ''
+        ''set -e''
+        ''nix-build''
+        ''nix-env -i ./result''
+        ''lorri self-upgrade local $(pwd)''
         # push build closure to cachix
         ''readlink ./result >> ${cachix-queue-file}''
       ];
@@ -41,23 +35,19 @@ let
     lints = {
       name = "cargo build & linters";
       script = [
+        ''set -e''
         ''
-          set -e
           export LC_ALL=C.UTF-8
           export LC_CTYPE=C.UTF-8
           export LANG=C.UTF-8
           export LANGUAGE=C.UTF-8
-          source ./.travis_fold.sh
+        ''
+        ''cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml''
+        ''git diff -q ./.travis.yml''
 
-          lorri_travis_fold travis-yml-gen \
-            cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
-          lorri_travis_fold travis-yml-idempotent \
-            git diff -q ./.travis.yml
-
-          testsuite=$(mktemp)
-          lorri_travis_fold ci_check \
-            (nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix > "$testsuite")
-          eval $(cat "$testsuite")
+        ''
+          testsuite=$(nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix)
+          eval "$testsuite"
         ''
         # push test suite closure to cachix
         ''printf '%s' "$testsuite" >> ${cachix-queue-file}''
