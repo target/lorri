@@ -28,7 +28,6 @@ pkgs.mkShell rec {
     pkgs.bashInteractive
     pkgs.git
     pkgs.direnv
-    pkgs.shellcheck
     pkgs.carnix
     pkgs.nix-prefetch-git
 
@@ -44,6 +43,8 @@ pkgs.mkShell rec {
   pkgs.stdenv.lib.optionals isDevelopmentShell [
     (pkgs.callPackage ./nix/racer.nix { rustNightly = rustChannels.nightly; })
   ];
+
+  passthru = { inherit ci; };
 
   # Keep project-specific shell commands local
   HISTFILE = "${toString ./.}/.bash_history";
@@ -102,7 +103,7 @@ pkgs.mkShell rec {
       lorri_travis_fold carnix-update ./nix/update-carnix.sh
       carnixupdates=$?
 
-      lorri_travis_fold script-tests ./script-tests/run-all.sh
+      lorri_travis_fold script-tests ${ci.tests.shellcheck.test}
       scripttests=$?
 
       lorri_travis_fold cargo-test ${ci.tests.cargo-test.test}
