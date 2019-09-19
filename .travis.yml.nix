@@ -43,31 +43,33 @@ let
       script = [
         ''
           set -e
+          export LC_ALL=C.UTF-8
+          export LC_CTYPE=C.UTF-8
+          export LANG=C.UTF-8
+          export LANGUAGE=C.UTF-8
           source ./.travis_fold.sh
 
-          lorri_travis_fold ci_check \
-            nix-shell --quiet --arg isDevelopmentShell false --run ci_check
           lorri_travis_fold travis-yml-gen \
             cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
           lorri_travis_fold travis-yml-idempotent \
             git diff -q ./.travis.yml
-          lorri_travis_fold carnix-idempotent \
-            git diff -q ./Cargo.nix
+
+          testsuite=$(mktemp)
+          lorri_travis_fold ci_check \
+            (nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix > "$testsuite")
+          eval $(cat "$testsuite")
         ''
         # push test suite closure to cachix
-        ''
-          nix-build -E '(import ./shell.nix { isDevelopmentShell = false; }).buildInputs' \
-            >> ${cachix-queue-file}
-        ''
+        ''printf '%s' "$testsuite" >> ${cachix-queue-file}''
       ];
-      # delete all our own artifacts from the cache dir
-      # based on https://gist.github.com/jkcclemens/000456ca646bd502cac0dbddcb8fa307
     };
 
     # cache rust dependency building
     cache = name: {
       before_cache =
         let rmTarget = path: ''rm -rvf "$TRAVIS_BUILD_DIR/target/debug/${path}"'';
+        # delete all our own artifacts from the cache dir
+        # based on https://gist.github.com/jkcclemens/000456ca646bd502cac0dbddcb8fa307
         in (map rmTarget [
           "lib${projectname}.rlib"
           # our own binaries/libraries (keep all other deps)
@@ -105,6 +107,8 @@ let
         before_cache = [
           # read every store path written by previous phases
           # from the cachix-queue-file file and push to cachix
+          ''echo "pushing these paths to cachix:"''
+          ''cat ${cachix-queue-file}''
           ''cachix push ${cachix-repo} < ${cachix-queue-file}''
         ];
       };

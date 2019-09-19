@@ -18,7 +18,6 @@ let
 
   ci = import ./nix/ci { inherit pkgs LORRI_ROOT; rust = rustChannels.stable.rust; };
 
-
 in
 pkgs.mkShell rec {
   name = "lorri";
@@ -35,9 +34,6 @@ pkgs.mkShell rec {
     # To ensure we always have a compatible nix in our shells.
     # Travis doesn’t know `nix-env` otherwise.
     pkgs.nix
-
-    # for auto-checking the README.md and tutorial
-    ci.mdsh-sandbox
   ] ++
   pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
     pkgs.darwin.Security
@@ -90,38 +86,13 @@ pkgs.mkShell rec {
     export SHELL="${pkgs.bashInteractive}/bin/bash";
 
     alias newlorri="(cd $LORRI_ROOT; cargo run -- shell)"
-    alias ci="ci_check"
+    alias ci="${ci.testsuite}"
 
     # this is mirrored from .envrc to make available from nix-shell
     # pick up cargo plugins
     export PATH="$LORRI_ROOT/.cargo/bin:$PATH"
     # watch the output to add lorri once it's built
     export PATH="$LORRI_ROOT/target/debug:$PATH"
-
-    function ci_check() (
-      set -u
-      cd "$LORRI_ROOT";
-      source ./.travis_fold.sh
-
-      set -x
-
-      lorri_travis_fold carnix-update ./nix/update-carnix.sh
-      carnixupdates=$?
-
-      ${ci.testsuite}
-      testsuite=$?
-
-      set +x
-      echo "carnix update: $carnixupdates"
-      echo "testsuite: $testsuite"
-
-      sum=$((carnixupdates + testsuite))
-      if [ "$sum" -gt 0 ]; then
-        return 1
-      fi
-
-     set +u
-    )
 
     ${pkgs.lib.optionalString isDevelopmentShell ''
       echo "lorri" | ${pkgs.figlet}/bin/figlet | ${pkgs.lolcat}/bin/lolcat

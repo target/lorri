@@ -1,5 +1,7 @@
-{ pkgs, LORRI_ROOT, rust }:
+{ pkgs, LORRI_ROOT, rust}:
 let
+
+  lorriBinDir = "${LORRI_ROOT}/target/debug";
 
   inherit (import ./execline.nix { inherit pkgs; })
     writeExecline writeExeclineBin;
@@ -24,14 +26,15 @@ let
   # we sandbox the execution.
   # `subdir` is the subdir `file` is in (relative to `LORRI_ROOT`).
   # `deps` are dependencies the script needs (PATH is cleaned in the sandbox).
-  mdsh = name: { subdir ? ".", deps ? [] }: file: pipe file [
+  mdsh = name: { subdir ? ".", binDeps ? [], deps ? [] }: file: pipe file [
     (f: [
       "export" "SUBDIR" subdir
       "importas" "HOME" "HOME"
       # required to run `nix-env` in the sandbox
       "foreground" [ "${pkgs.coreutils}/bin/mkdir" "-p" "/work/sandbox-home/.nix-defexpr" ]
       "export" "NIX_PROFILE" ''''${HOME}/nix-profile''
-      (pathAdd "set") (pkgs.lib.makeBinPath ([ pkgs.bash pkgs.coreutils ] ++ deps))
+      (pathAdd "set") (pkgs.lib.makeBinPath ([ pkgs.bash pkgs.coreutils ] ++ binDeps))
+      (pathAdd "prepend") (pkgs.lib.makeSearchPath "" deps)
       (pathAdd "prepend") ''''${HOME}/nix-profile/bin''
       "foreground" [ "env" ]
       "${pkgs.mdsh}/bin/mdsh" "-i" "${LORRI_ROOT}/${f}" "--frozen"
@@ -39,10 +42,6 @@ let
     (writeExecline "lint-mdsh-${name}" {})
     (runInSourceSandboxed {})
   ];
-
-  # TODO: this should really be passed from outside;
-  # the test should have a dependency on lorri
-  lorri = import LORRI_ROOT {};
 
   # the CI tests we want to run
   # Tests should not depend on each other (or block if they do),
@@ -82,15 +81,26 @@ let
       description = "mdsh README.md";
       test = mdsh
         "README.md"
-        { deps = [ lorri ]; }
+        { deps = [ lorriBinDir ]; }
         "./README.md";
     };
 
     mdsh-example = {
       description = "mdsh example/README.md";
       test = mdsh "example-README.md"
-        { subdir = "./example"; deps = [ lorri pkgs.gnugrep pkgs.gnused pkgs.nix ]; }
+        { subdir = "./example"; deps = [ lorriBinDir ]; binDeps = [ pkgs.gnugrep pkgs.gnused pkgs.nix ]; }
         "./example/README.md";
+    };
+
+    # TODO: it would be good to sandbox this (it changes files in the tree)
+    # but somehow carnix needs to compile the whole friggin binary in order
+    # to generate a few measly nix files …
+    carnix = {
+      description = "check carnix up-to-date";
+      test = writeExecline "lint-carnix" {} [
+        "if" [ pkgs.runtimeShell "${LORRI_ROOT}/nix/update-carnix.sh" ]
+        "${pkgs.git}/bin/git" "diff" "--exit-code"
+      ];
     };
 
   };
@@ -110,6 +120,10 @@ let
       # bats can only parallelize if it finds GNU parallel in its environment.
       batsParallel = writeExecline "bats" {} [
         (pathAdd "prepend") "${pkgs.parallel}/bin"
+        "importas" "HOME" "HOME"
+        # silence the stupid citation output of parallel
+        "foreground" [ "${pkgs.coreutils}/bin/mkdir" "-p" ''''${HOME}/.parallel'' ]
+        "foreground" [ "${pkgs.coreutils}/bin/touch" ''''${HOME}/.parallel/will-cite'' ]
         "${bats}/bin/bats" "$@"
       ];
     in name: tests: pipe tests [
@@ -124,7 +138,7 @@ let
       (pkgs.writeText "testsuite")
       (test-suite: writeExecline name {} [
         batsParallel
-        # this executes 4 tasks in parrallel, which requires them to not depend on each other
+        # this executes 4 tasks in parallel, which requires them to not depend on each other
         "--jobs" "4"
         test-suite ])
     ];

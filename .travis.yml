@@ -7,6 +7,10 @@
   "include":
   - "before_cache":
     - >-
+      echo "pushing these paths to cachix:"
+    - >-
+      cat $HOME/push-to-cachix
+    - >-
       cachix push lorri-test < $HOME/push-to-cachix
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
@@ -56,21 +60,29 @@
     - >
       set -e
 
+      export LC_ALL=C.UTF-8
+
+      export LC_CTYPE=C.UTF-8
+
+      export LANG=C.UTF-8
+
+      export LANGUAGE=C.UTF-8
+
       source ./.travis_fold.sh
 
 
-      lorri_travis_fold ci_check \
-        nix-shell --quiet --arg isDevelopmentShell false --run ci_check
       lorri_travis_fold travis-yml-gen \
         cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
       lorri_travis_fold travis-yml-idempotent \
         git diff -q ./.travis.yml
-      lorri_travis_fold carnix-idempotent \
-        git diff -q ./Cargo.nix
-    - >
-      nix-build -E '(import ./shell.nix { isDevelopmentShell = false; }).buildInputs'
-      \
-        >> $HOME/push-to-cachix
+
+      testsuite=$(mktemp)
+
+      lorri_travis_fold ci_check \
+        (nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix > "$testsuite")
+      eval $(cat "$testsuite")
+    - >-
+      printf '%s' "$testsuite" >> $HOME/push-to-cachix
   - "before_cache":
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
@@ -115,22 +127,34 @@
     - >
       set -e
 
+      export LC_ALL=C.UTF-8
+
+      export LC_CTYPE=C.UTF-8
+
+      export LANG=C.UTF-8
+
+      export LANGUAGE=C.UTF-8
+
       source ./.travis_fold.sh
 
 
-      lorri_travis_fold ci_check \
-        nix-shell --quiet --arg isDevelopmentShell false --run ci_check
       lorri_travis_fold travis-yml-gen \
         cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
       lorri_travis_fold travis-yml-idempotent \
         git diff -q ./.travis.yml
-      lorri_travis_fold carnix-idempotent \
-        git diff -q ./Cargo.nix
-    - >
-      nix-build -E '(import ./shell.nix { isDevelopmentShell = false; }).buildInputs'
-      \
-        >> $HOME/push-to-cachix
+
+      testsuite=$(mktemp)
+
+      lorri_travis_fold ci_check \
+        (nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix > "$testsuite")
+      eval $(cat "$testsuite")
+    - >-
+      printf '%s' "$testsuite" >> $HOME/push-to-cachix
   - "before_cache":
+    - >-
+      echo "pushing these paths to cachix:"
+    - >-
+      cat $HOME/push-to-cachix
     - >-
       cachix push lorri-test < $HOME/push-to-cachix
     "install":
