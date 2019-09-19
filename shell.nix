@@ -16,7 +16,7 @@ let
       });
 
 
-  ci = import ./nix/ci.nix { inherit pkgs LORRI_ROOT; rust = rustChannels.stable.rust; };
+  ci = import ./nix/ci { inherit pkgs LORRI_ROOT; rust = rustChannels.stable.rust; };
 
 
 in
