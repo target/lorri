@@ -3,6 +3,8 @@ let
 
   projectname = "lorri";
 
+  cachix-queue-file = "$HOME/push-to-cachix";
+
   hosts = {
     linux = {
       os = "linux";
@@ -20,34 +22,44 @@ let
   scripts = {
     builds = {
       name = "nix-build";
-      script = ''
-        set -e
-        source ./.travis_fold.sh
-        lorri_travis_fold lorri-nix-build \
-          nix-build
-        lorri_travis_fold lorri-install \
-          nix-env -i ./result
-        lorri_travis_fold lorri-self-upgrade \
-          lorri self-upgrade local $(pwd)
-      '';
+      script = [
+        ''
+          set -e
+          source ./.travis_fold.sh
+          lorri_travis_fold lorri-nix-build \
+            nix-build
+          lorri_travis_fold lorri-install \
+            nix-env -i ./result
+          lorri_travis_fold lorri-self-upgrade \
+            lorri self-upgrade local $(pwd)
+        ''
+        # push build closure to cachix
+        ''readlink ./result >> ${cachix-queue-file}''
+      ];
     };
 
     lints = {
       name = "cargo build & linters";
-      script = ''
-        set -e
-        source ./.travis_fold.sh
+      script = [
+        ''
+          set -e
+          source ./.travis_fold.sh
 
-        lorri_travis_fold ci_check \
-          nix-shell --quiet --arg isDevelopmentShell false --run ci_check
-        lorri_travis_fold travis-yml-gen \
-          cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
-        lorri_travis_fold travis-yml-idempotent \
-          git diff -q ./.travis.yml
-        lorri_travis_fold carnix-idempotent \
-          git diff -q ./Cargo.nix
-
-      '';
+          lorri_travis_fold ci_check \
+            nix-shell --quiet --arg isDevelopmentShell false --run ci_check
+          lorri_travis_fold travis-yml-gen \
+            cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
+          lorri_travis_fold travis-yml-idempotent \
+            git diff -q ./.travis.yml
+          lorri_travis_fold carnix-idempotent \
+            git diff -q ./Cargo.nix
+        ''
+        # push test suite closure to cachix
+        ''
+          buildInputs=$(nix-build -E '(import ./shell.nix { isDevelopmentShell = false; }).buildInputs')
+          printf '%s' "$buildInputs" >> ${cachix-queue-file}
+        ''
+      ];
       # delete all our own artifacts from the cache dir
       # based on https://gist.github.com/jkcclemens/000456ca646bd502cac0dbddcb8fa307
     };
@@ -88,7 +100,21 @@ let
           # setup cachix
           ''cachix use ${cachix-repo}''
           # set cachix into watch-mode (listen for new paths and push in the background)
-          ''cachix push ${cachix-repo} --watch-store &''
+        ];
+
+        before_cache = [
+          # read every store path written by previous phases
+          # from the cachix-queue-file file and push to cachix
+          ''cachix push ${cachix-repo} < ${cachix-queue-file}''
+        ];
+      };
+
+      macos-cachix-fix = {
+        # fix on MacOS with cachix v3 (2019-09-20)
+        # see https://github.com/cachix/cachix/issues/228#issuecomment-531165065
+        install = [
+          ''echo "trusted-users = root $USER" | sudo tee -a /etc/nix/nix.conf''
+          ''sudo launchctl kickstart -k system/org.nixos.nix-daemon || true''
         ];
       };
   };
@@ -108,18 +134,21 @@ let
     in
     {
       git.depth = false;
-      languge = "nix";
+      language = "nix";
       matrix.include = map mergeShallowConcatLists [
         # Verifying lints on macOS and Linux ensures nix-shell works
         # on both platforms.
         [ hosts.linux scripts.setup-cachix scripts.lints (scripts.cache "linux") ]
-        [ hosts.macos scripts.setup-cachix scripts.lints (scripts.cache "macos") ]
+        [ hosts.macos scripts.macos-cachix-fix scripts.setup-cachix scripts.lints (scripts.cache "macos") ]
 
         [ hosts.linux scripts.setup-cachix scripts.builds ]
-        [ hosts.macos scripts.setup-cachix scripts.builds ]
+        [ hosts.macos scripts.macos-cachix-fix scripts.setup-cachix scripts.builds ]
       ];
     };
 in pkgs.runCommand "travis.yml" {
+  # TODO: move to yj (in newer nixpkgs)
+  # is a statically compiled golang package,
+  # so doesn’t incur a dependency on python
   buildInputs = [ pkgs.remarshal ];
   passAsFile = [ "jobs" ];
   jobs = builtins.toJSON jobs;

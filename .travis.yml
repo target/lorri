@@ -1,11 +1,13 @@
 "git":
   "depth": !!bool >-
     false
-"languge": >-
+"language": >-
   nix
 "matrix":
   "include":
   - "before_cache":
+    - >-
+      cachix push lorri-test < $HOME/push-to-cachix
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
     - >-
@@ -42,8 +44,6 @@
       nix-env -iA cachix -f https://cachix.org/api/v1/install
     - >-
       cachix use lorri-test
-    - >-
-      cachix push lorri-test --watch-store &
     "language": >-
       nix
     "name": >-
@@ -52,7 +52,8 @@
       2.2.1
     "os": >-
       linux
-    "script": >+
+    "script":
+    - >
       set -e
 
       source ./.travis_fold.sh
@@ -66,8 +67,14 @@
         git diff -q ./.travis.yml
       lorri_travis_fold carnix-idempotent \
         git diff -q ./Cargo.nix
+    - >
+      buildInputs=$(nix-build -E '(import ./shell.nix { isDevelopmentShell = false;
+      }).buildInputs')
 
+      printf '%s' "$buildInputs" >> $HOME/push-to-cachix
   - "before_cache":
+    - >-
+      cachix push lorri-test < $HOME/push-to-cachix
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
     - >-
@@ -101,11 +108,13 @@
       CACHE_NAME=macos
     "install":
     - >-
+      echo "trusted-users = root $USER" | sudo tee -a /etc/nix/nix.conf
+    - >-
+      sudo launchctl kickstart -k system/org.nixos.nix-daemon || true
+    - >-
       nix-env -iA cachix -f https://cachix.org/api/v1/install
     - >-
       cachix use lorri-test
-    - >-
-      cachix push lorri-test --watch-store &
     "language": >-
       nix
     "name": >-
@@ -114,7 +123,8 @@
       2.0
     "os": >-
       osx
-    "script": >+
+    "script":
+    - >
       set -e
 
       source ./.travis_fold.sh
@@ -128,14 +138,19 @@
         git diff -q ./.travis.yml
       lorri_travis_fold carnix-idempotent \
         git diff -q ./Cargo.nix
+    - >
+      buildInputs=$(nix-build -E '(import ./shell.nix { isDevelopmentShell = false;
+      }).buildInputs')
 
-  - "install":
+      printf '%s' "$buildInputs" >> $HOME/push-to-cachix
+  - "before_cache":
+    - >-
+      cachix push lorri-test < $HOME/push-to-cachix
+    "install":
     - >-
       nix-env -iA cachix -f https://cachix.org/api/v1/install
     - >-
       cachix use lorri-test
-    - >-
-      cachix push lorri-test --watch-store &
     "language": >-
       nix
     "name": >-
@@ -144,7 +159,8 @@
       2.2.1
     "os": >-
       linux
-    "script": >
+    "script":
+    - >
       set -e
 
       source ./.travis_fold.sh
@@ -155,13 +171,20 @@
         nix-env -i ./result
       lorri_travis_fold lorri-self-upgrade \
         lorri self-upgrade local $(pwd)
-  - "install":
+    - >-
+      readlink ./result >> $HOME/push-to-cachix
+  - "before_cache":
+    - >-
+      cachix push lorri-test < $HOME/push-to-cachix
+    "install":
+    - >-
+      echo "trusted-users = root $USER" | sudo tee -a /etc/nix/nix.conf
+    - >-
+      sudo launchctl kickstart -k system/org.nixos.nix-daemon || true
     - >-
       nix-env -iA cachix -f https://cachix.org/api/v1/install
     - >-
       cachix use lorri-test
-    - >-
-      cachix push lorri-test --watch-store &
     "language": >-
       nix
     "name": >-
@@ -170,7 +193,8 @@
       2.0
     "os": >-
       osx
-    "script": >
+    "script":
+    - >
       set -e
 
       source ./.travis_fold.sh
@@ -181,3 +205,5 @@
         nix-env -i ./result
       lorri_travis_fold lorri-self-upgrade \
         lorri self-upgrade local $(pwd)
+    - >-
+      readlink ./result >> $HOME/push-to-cachix
