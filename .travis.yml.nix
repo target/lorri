@@ -93,19 +93,32 @@ let
       };
   };
 
-  jobs = {
-    git.depth = false;
-    languge = "nix";
-    matrix.include = [
-      # Verifying lints on macOS and Linux ensures nix-shell works
-      # on both platforms.
-      (hosts.linux // scripts.setup-cachix // scripts.lints // (scripts.cache "linux"))
-      (hosts.macos // scripts.setup-cachix // scripts.lints // (scripts.cache "macos"))
+  jobs =
+    let
+      # merge the given attributesets;
+      # lists are concatenated, everything else is an error.
+      # This is // but with merging of lists (left to right).
+      mergeShallowConcatLists = pkgs.lib.zipAttrsWith
+        (_: values:
+          let first = builtins.head values; in
+          if builtins.length values == 1 then first else
+          if builtins.isList first
+          then builtins.concatLists values
+          else abort "can only merge lists for now");
+    in
+    {
+      git.depth = false;
+      languge = "nix";
+      matrix.include = map mergeShallowConcatLists [
+        # Verifying lints on macOS and Linux ensures nix-shell works
+        # on both platforms.
+        [ hosts.linux scripts.setup-cachix scripts.lints (scripts.cache "linux") ]
+        [ hosts.macos scripts.setup-cachix scripts.lints (scripts.cache "macos") ]
 
-      (hosts.linux // scripts.setup-cachix // scripts.builds)
-      (hosts.macos // scripts.setup-cachix // scripts.builds)
-    ];
-  };
+        [ hosts.linux scripts.setup-cachix scripts.builds ]
+        [ hosts.macos scripts.setup-cachix scripts.builds ]
+      ];
+    };
 in pkgs.runCommand "travis.yml" {
   buildInputs = [ pkgs.remarshal ];
   passAsFile = [ "jobs" ];
