@@ -122,21 +122,11 @@ let
   # to a script which can be read by `bats` (a simple testing framework).
   batsScript =
     let
-      # first version of bats that has support for GNU parallel
-      bats = pkgs.bats.overrideAttrs (_: { src = pkgs.fetchFromGitHub {
-        owner = "bats-core";
-        repo = "bats-core";
-        rev = "8789f910812afbf6b87dd371ee5ae30592f1423f";
-        sha256 = "1fkd3qqb1pi05szkzixl3n7qhwiji5xzbm2ghgbk3sb9wa1dyvf5";
-      }; });
-      # bats can only parallelize if it finds GNU parallel in its environment.
-      batsParallel = writeExecline "bats" {} [
-        (pathAdd "prepend") (pkgs.lib.makeBinPath [ pkgs.coreutils pkgs.gnugrep pkgs.parallel ])
-        "importas" "HOME" "HOME"
-        # silence the stupid citation output of parallel
-        "foreground" [ "${pkgs.coreutils}/bin/mkdir" "-p" ''''${HOME}/.parallel'' ]
-        "foreground" [ "${pkgs.coreutils}/bin/touch" ''''${HOME}/.parallel/will-cite'' ]
-        "${bats}/bin/bats" "$@"
+      # add a few things to bats’ path that should really be patched upstream instead
+      # TODO: upstream
+      bats = writeExecline "bats" {} [
+        (pathAdd "prepend") (pkgs.lib.makeBinPath [ pkgs.coreutils pkgs.gnugrep ])
+        "${pkgs.bats}/bin/bats" "$@"
       ];
       # see https://github.com/bats-core/bats-core/blob/f3a08d5d004d34afb2df4d79f923d241b8c9c462/README.md#file-descriptor-3-read-this-if-bats-hangs
       closeFD3 = "3>&-";
@@ -155,10 +145,8 @@ let
         # this is the only way we can have a non-diverging
         # environment between developer machine and CI
         (runInEmptyEnv [])
-        batsParallel
-        # this executes 4 tasks in parallel, which requires them to not depend on each other
-        "--jobs" "4"
-        test-suite ])
+        bats test-suite
+      ])
     ];
 
   testsuite = batsScript "run-testsuite" tests;
