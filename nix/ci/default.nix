@@ -138,6 +138,8 @@ let
         "foreground" [ "${pkgs.coreutils}/bin/touch" ''''${HOME}/.parallel/will-cite'' ]
         "${bats}/bin/bats" "$@"
       ];
+      # see https://github.com/bats-core/bats-core/blob/f3a08d5d004d34afb2df4d79f923d241b8c9c462/README.md#file-descriptor-3-read-this-if-bats-hangs
+      closeFD3 = "3>&-";
     in name: tests: pipe tests [
       (pkgs.lib.mapAttrsToList
         # a bats test looks like:
@@ -145,7 +147,7 @@ let
         #   … test code …
         # }
         # bats is very picky about the {} block (and the newlines).
-        (_: test: "@test ${pkgs.lib.escapeShellArg test.description} {\n${test.test}\n}"))
+        (_: test: "@test ${pkgs.lib.escapeShellArg test.description} {\n${test.test} ${closeFD3}\n}"))
       (pkgs.lib.concatStringsSep "\n")
       (pkgs.writeText "testsuite")
       (test-suite: writeExecline name {} [
