@@ -113,7 +113,7 @@ pkgs.mkShell rec {
       echo "cargo fmt: $cargofmtexit"
       echo "cargo clippy: $cargoclippyexit"
 
-      sum=$((cargotestexit + cargofmtexit + cargoclippyexit))
+      sum=$((carnixupdate + scripttest + cargotestexit + cargofmtexit + cargoclippyexit))
       if [ "$sum" -gt 0 ]; then
         return 1
       fi
