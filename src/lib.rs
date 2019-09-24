@@ -44,6 +44,7 @@ pub mod osstrlines;
 pub mod pathreduction;
 pub mod project;
 pub mod socket;
+pub mod thread;
 pub mod watch;
 
 use std::path::PathBuf;
