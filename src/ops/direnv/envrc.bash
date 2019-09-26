@@ -144,6 +144,12 @@ function declare() {
         # vars from: https://github.com/NixOS/nix/blob/92d08c02c84be34ec0df56ed718526c382845d1a/src/nix-build/nix-build.cc#L421
         "NIX_ENFORCE_PURITY="*) punt;;
 
+        # vars from: https://www.gnu.org/software/bash/manual/html_node/Bash-Variables.html (last checked: 2019-09-26)
+        # reported in https://github.com/target/lorri/issues/153
+        "OLDPWD="*) punt;;
+        "PWD="*) punt;;
+        "SHELL="*) punt;;
+
         # https://github.com/target/lorri/issues/97
         "preHook="*) punt;;
         "origPreHook="*) move "origPreHook" "preHook" "$@";;
