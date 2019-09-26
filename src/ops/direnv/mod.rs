@@ -17,25 +17,45 @@ pub fn main(project: Project) -> OpResult {
 
     let socket_path = ::ops::get_paths()?.daemon_socket_file().to_owned();
 
-    // TODO: don’t start build/evaluation automatically, let the user decide
-    if let Ok(client) =
-        client::ping(DEFAULT_READ_TIMEOUT).connect(&::socket::path::SocketPath::from(&socket_path))
-    {
+    let root_paths = Roots::from_project(&project).paths();
+    let paths_are_cached: bool = root_paths.all_exist();
+
+    let ping_sent: bool = if let Ok(client) = client::ping(DEFAULT_READ_TIMEOUT).connect(
+        &::socket::path::SocketPath::from(::ops::get_paths()?.daemon_socket_file()),
+    ) {
         client
             .write(&Ping {
                 nix_file: project.nix_file.clone(),
             })
             .unwrap();
+        true
     } else {
-        eprintln!("Uh oh, your lorri daemon is not running.");
-    }
+        false
+    };
 
-    let root_paths = Roots::from_project(&project).paths();
+    match (ping_sent, paths_are_cached) {
+        (true, true) => {}
 
-    if !root_paths.all_exist() {
-        return Err(ExitError::errmsg(
-            "Please start `lorri daemon` or run `lorri watch` before using direnv integration.",
-        ));
+        // Ping sent & paths aren't cached: once the environment is created
+        // the direnv environment will be updated automatically.
+        (true, false) => {
+            eprintln!("Notice: lorri has not completed an evaluation for this project yet.");
+            eprintln!("        lorri should be evaluating the environment now.");
+        }
+
+        // Ping not sent and paths are cached: we can load a stale environment
+        // When the daemon is started, we'll send a fresh ping.
+        (false, true) => {
+            eprintln!("Info: the lorri daemon is not running. Loading a cached environment.");
+        }
+
+        // Ping not sent and paths are not cached: we can't load anything,
+        // but when the daemon in started we'll send a ping and eventually
+        // load a fresh environment.
+        (false, false) => {
+            eprintln!("Error: the lorri daemon is not running and this project has not yet been evaluated.");
+            eprintln!("       Please run `lorri daemon`.");
+        }
     }
 
     if std::env::var("DIRENV_IN_ENVRC") != Ok(String::from("1")) {
