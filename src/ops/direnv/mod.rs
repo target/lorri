@@ -15,10 +15,12 @@ use std::process::Command;
 pub fn main(project: Project) -> OpResult {
     check_direnv_version()?;
 
+    let socket_path = ::ops::get_paths()?.daemon_socket_file().to_owned();
+
     // TODO: don’t start build/evaluation automatically, let the user decide
-    if let Ok(client) = client::ping(DEFAULT_READ_TIMEOUT).connect(
-        &::socket::path::SocketPath::from(::ops::get_paths()?.daemon_socket_file()),
-    ) {
+    if let Ok(client) =
+        client::ping(DEFAULT_READ_TIMEOUT).connect(&::socket::path::SocketPath::from(&socket_path))
+    {
         client
             .write(&Ping {
                 nix_file: project.nix_file.clone(),
@@ -46,11 +48,16 @@ pub fn main(project: Project) -> OpResult {
         r#"
 EVALUATION_ROOT="{}"
 
+watch_file "{}"
 watch_file "$EVALUATION_ROOT"
 
 {}
 "#,
         root_paths.shell_gc_root,
+        socket_path
+            .into_os_string()
+            .into_string()
+            .expect("Socket path is not UTF-8 clean!"),
         include_str!("envrc.bash")
     ))
 }
