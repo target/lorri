@@ -157,7 +157,7 @@ export IN_NIX_SHELL=1
 if [ -f "$EVALUATION_ROOT/bash-export" ]; then
     # shellcheck disable=SC1090
     . "$EVALUATION_ROOT/bash-export"
-else
+elif [ -f "$EVALUATION_ROOT" ]; then
     # shellcheck disable=SC1090
     . "$EVALUATION_ROOT"
 fi
