@@ -176,6 +176,7 @@ pub fn run(
                     paths: s.paths,
                     // TODO: we are passing the instantiation stderr here,
                     // but we really want to get the CallOpts stderr
+                    // TODO: fix utf-8 test once that is fixed
                     log_lines: s.log_lines,
                 })),
                 Err(::nix::OnePathError::Build(::nix::BuildError::ExecutionFailed(output))) => {
@@ -328,7 +329,6 @@ mod tests {
     use super::*;
     use cas::ContentAddressable;
     use std::ffi::OsString;
-    use std::os::unix::ffi::OsStrExt;
     use std::path::PathBuf;
 
     /// Parsing of `LogDatum`.
@@ -389,23 +389,25 @@ derivation {{
         let tmp = tempfile::tempdir()?;
         let cas = ContentAddressable::new(tmp.path().to_owned())?;
 
-        let nix_drv = format!(
+        let inner_drv = drv(
+            "dep",
             r##"
-let dep = {};
-in {}
-"##,
-            drv(
-                "dep",
-                r##"
-  args = [
+args = [
     "-c"
     ''
     # non-utf8 sequence to stdout (which is nix stderr)
     printf '"\xab\xbc\xcd\xde\xde\xef"'
     echo > $out
     ''
-  ];"##
-            ),
+];"##,
+        );
+
+        let nix_drv = format!(
+            r##"
+let dep = {};
+in {}
+"##,
+            inner_drv,
             drv("shell", "inherit dep;")
         );
 
@@ -414,13 +416,35 @@ in {}
         // build, because instantiate doesn’t return the build output (obviously …)
         let info = run(&::NixFile::from(cas.file_from_string(&nix_drv)?), &cas).unwrap();
         match info {
-            Info::Success(i) => {
-                let expect: OsString =
-                    OsStr::from_bytes(b"\"\xAB\xBC\xCD\xDE\xDE\xEF\"").to_owned();
-                assert!(i.log_lines.contains(&expect))
-            }
-            _ => panic!(),
+            Info::Success(_) => {}
+            _ => panic!("could not run() the drv:\n{:?}", info),
         }
+
+        // next, check the build log for the bytes;
+        // we have to query nix log because we don’t store the
+        // output of nix realisation anywhere (only instantiation);
+        // fixing that is a TODO
+        let expect: &[u8] = b"\"\xAB\xBC\xCD\xDE\xDE\xEF\"";
+        // get the store path of our inner derivation, so that we
+        // can actually get the log output for that
+        let (store_path, gc_root) = ::nix::CallOpts::file(&cas.file_from_string(&inner_drv)?)
+            .path()
+            .unwrap();
+        let mut cmd = std::process::Command::new("nix-store");
+        let cmd = cmd.arg("--read-log").arg(&store_path.as_path());
+        print!("{:?}", cmd);
+        let log_lines = cmd.output()?;
+        assert!(log_lines.status.success(), "{:?}", log_lines);
+        // The stdout of nix-store --read-log should contain our bytes
+        assert!(
+            log_lines
+                .stdout
+                .windows(expect.len())
+                .any(|bytes| bytes == expect),
+            "{:?}",
+            String::from_utf8_lossy(&log_lines.stderr)
+        );
+        drop(gc_root);
         Ok(())
     }
 
