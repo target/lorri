@@ -74,8 +74,6 @@
       printf '%s' "$buildInputs" >> $HOME/push-to-cachix
   - "before_cache":
     - >-
-      cachix push lorri-test < $HOME/push-to-cachix
-    - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/lorri*"
@@ -106,15 +104,6 @@
     "env":
     - >-
       CACHE_NAME=macos
-    "install":
-    - >-
-      echo "trusted-users = root $USER" | sudo tee -a /etc/nix/nix.conf
-    - >-
-      sudo launchctl kickstart -k system/org.nixos.nix-daemon || true
-    - >-
-      nix-env -iA cachix -f https://cachix.org/api/v1/install
-    - >-
-      cachix use lorri-test
     "language": >-
       nix
     "name": >-
@@ -173,19 +162,7 @@
         lorri self-upgrade local $(pwd)
     - >-
       readlink ./result >> $HOME/push-to-cachix
-  - "before_cache":
-    - >-
-      cachix push lorri-test < $HOME/push-to-cachix
-    "install":
-    - >-
-      echo "trusted-users = root $USER" | sudo tee -a /etc/nix/nix.conf
-    - >-
-      sudo launchctl kickstart -k system/org.nixos.nix-daemon || true
-    - >-
-      nix-env -iA cachix -f https://cachix.org/api/v1/install
-    - >-
-      cachix use lorri-test
-    "language": >-
+  - "language": >-
       nix
     "name": >-
       nix-build

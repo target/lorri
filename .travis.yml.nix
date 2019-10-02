@@ -139,10 +139,14 @@ let
         # Verifying lints on macOS and Linux ensures nix-shell works
         # on both platforms.
         [ hosts.linux scripts.setup-cachix scripts.lints (scripts.cache "linux") ]
-        [ hosts.macos scripts.macos-cachix-fix scripts.setup-cachix scripts.lints (scripts.cache "macos") ]
+        # cachix 3 on macOS is broken on travis, see
+        # https://github.com/cachix/cachix/issues/228#issuecomment-533634704
+        [ hosts.macos /*scripts.macos-cachix-fix scripts.setup-cachix*/ scripts.lints (scripts.cache "macos") ]
 
         [ hosts.linux scripts.setup-cachix scripts.builds ]
-        [ hosts.macos scripts.macos-cachix-fix scripts.setup-cachix scripts.builds ]
+        # cachix 3 on macOS is broken on travis, see
+        # https://github.com/cachix/cachix/issues/228#issuecomment-533634704
+        [ hosts.macos /*scripts.macos-cachix-fix scripts.setup-cachix*/ scripts.builds ]
       ];
     };
 in pkgs.runCommand "travis.yml" {
