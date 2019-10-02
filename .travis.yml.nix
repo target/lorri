@@ -78,6 +78,19 @@ let
       cache.directories = [ "$HOME/.cargo" "$TRAVIS_BUILD_DIR/target" ];
       env = [ "CACHE_NAME=${name}" ];
     };
+
+    setup-cachix =
+      let cachix-repo = "lorri-test";
+      in {
+        install = [
+          # install cachix
+          ''nix-env -iA cachix -f https://cachix.org/api/v1/install''
+          # setup cachix
+          ''cachix use ${cachix-repo}''
+          # set cachix into watch-mode (listen for new paths and push in the background)
+          ''cachix push ${cachix-repo} --watch-store &''
+        ];
+      };
   };
 
   jobs = {
@@ -86,11 +99,11 @@ let
     matrix.include = [
       # Verifying lints on macOS and Linux ensures nix-shell works
       # on both platforms.
-      (hosts.linux // scripts.lints // (scripts.cache "linux"))
-      (hosts.macos // scripts.lints // (scripts.cache "macos"))
+      (hosts.linux // scripts.setup-cachix // scripts.lints // (scripts.cache "linux"))
+      (hosts.macos // scripts.setup-cachix // scripts.lints // (scripts.cache "macos"))
 
-      (hosts.linux // scripts.builds)
-      (hosts.macos // scripts.builds)
+      (hosts.linux // scripts.setup-cachix // scripts.builds)
+      (hosts.macos // scripts.setup-cachix // scripts.builds)
     ];
   };
 in pkgs.runCommand "travis.yml" {

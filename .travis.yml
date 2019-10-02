@@ -37,6 +37,13 @@
     "env":
     - >-
       CACHE_NAME=linux
+    "install":
+    - >-
+      nix-env -iA cachix -f https://cachix.org/api/v1/install
+    - >-
+      cachix use lorri-test
+    - >-
+      cachix push lorri-test --watch-store &
     "language": >-
       nix
     "name": >-
@@ -92,6 +99,13 @@
     "env":
     - >-
       CACHE_NAME=macos
+    "install":
+    - >-
+      nix-env -iA cachix -f https://cachix.org/api/v1/install
+    - >-
+      cachix use lorri-test
+    - >-
+      cachix push lorri-test --watch-store &
     "language": >-
       nix
     "name": >-
@@ -115,7 +129,14 @@
       lorri_travis_fold carnix-idempotent \
         git diff -q ./Cargo.nix
 
-  - "language": >-
+  - "install":
+    - >-
+      nix-env -iA cachix -f https://cachix.org/api/v1/install
+    - >-
+      cachix use lorri-test
+    - >-
+      cachix push lorri-test --watch-store &
+    "language": >-
       nix
     "name": >-
       nix-build
@@ -134,7 +155,14 @@
         nix-env -i ./result
       lorri_travis_fold lorri-self-upgrade \
         lorri self-upgrade local $(pwd)
-  - "language": >-
+  - "install":
+    - >-
+      nix-env -iA cachix -f https://cachix.org/api/v1/install
+    - >-
+      cachix use lorri-test
+    - >-
+      cachix push lorri-test --watch-store &
+    "language": >-
       nix
     "name": >-
       nix-build
