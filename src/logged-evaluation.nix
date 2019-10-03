@@ -118,7 +118,7 @@ let
       # Export IN_NIX_SHELL to trick various Nix tooling to export
       # shell-friendly variables
 
-      export IN_NIX_SHELL=1
+      export IN_NIX_SHELL=impure
 
       # https://github.com/NixOS/nix/blob/92d08c02c84be34ec0df56ed718526c382845d1a/src/nix-build/nix-build.cc#
       [ -e $stdenv/setup ] && . $stdenv/setup
