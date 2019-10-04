@@ -45,6 +45,10 @@
       CACHE_NAME=linux
     "install":
     - >-
+      sudo mkdir -p /etc/nix
+    - >-
+      echo "build-users-group =" | sudo tee -a /etc/nix/nix.conf
+    - >-
       nix-env -iA cachix -f https://cachix.org/api/v1/install
     - >-
       cachix use lorri-test
@@ -109,6 +113,11 @@
     "env":
     - >-
       CACHE_NAME=macos
+    "install":
+    - >-
+      sudo mkdir -p /etc/nix
+    - >-
+      echo "build-users-group =" | sudo tee -a /etc/nix/nix.conf
     "language": >-
       nix
     "name": >-
@@ -147,6 +156,10 @@
       cachix push lorri-test < $HOME/push-to-cachix
     "install":
     - >-
+      sudo mkdir -p /etc/nix
+    - >-
+      echo "build-users-group =" | sudo tee -a /etc/nix/nix.conf
+    - >-
       nix-env -iA cachix -f https://cachix.org/api/v1/install
     - >-
       cachix use lorri-test
@@ -169,7 +182,12 @@
       lorri self-upgrade local $(pwd)
     - >-
       readlink ./result >> $HOME/push-to-cachix
-  - "language": >-
+  - "install":
+    - >-
+      sudo mkdir -p /etc/nix
+    - >-
+      echo "build-users-group =" | sudo tee -a /etc/nix/nix.conf
+    "language": >-
       nix
     "name": >-
       nix-build

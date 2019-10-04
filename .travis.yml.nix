@@ -83,6 +83,16 @@ let
       env = [ "CACHE_NAME=${name}" ];
     };
 
+    setup-nix = {
+      install = [
+        # If nix is run as root, it will assume it has build users,
+        # but the nix setup on travis is single-user.
+        # We really don’t want it to think it has build users.
+        ''sudo mkdir -p /etc/nix''
+        ''echo "build-users-group =" | sudo tee -a /etc/nix/nix.conf''
+      ];
+    };
+
     setup-cachix =
       let cachix-repo = "lorri-test";
       in {
@@ -132,15 +142,25 @@ let
       matrix.include = map mergeShallowConcatLists [
         # Verifying lints on macOS and Linux ensures nix-shell works
         # on both platforms.
-        [ hosts.linux scripts.setup-cachix scripts.lints (scripts.cache "linux") ]
-        # cachix 3 on macOS is broken on travis, see
-        # https://github.com/cachix/cachix/issues/228#issuecomment-533634704
-        [ hosts.macos /*scripts.macos-cachix-fix scripts.setup-cachix*/ scripts.lints (scripts.cache "macos") ]
+        [ hosts.linux
+          scripts.setup-nix scripts.setup-cachix
+          scripts.lints
+          (scripts.cache "linux") ]
+        [ hosts.macos
+          # cachix 3 on macOS is broken on travis, see
+          # https://github.com/cachix/cachix/issues/228#issuecomment-533634704
+          scripts.setup-nix /*scripts.macos-cachix-fix scripts.setup-cachix*/
+          scripts.lints
+          (scripts.cache "macos") ]
 
-        [ hosts.linux scripts.setup-cachix scripts.builds ]
-        # cachix 3 on macOS is broken on travis, see
-        # https://github.com/cachix/cachix/issues/228#issuecomment-533634704
-        [ hosts.macos /*scripts.macos-cachix-fix scripts.setup-cachix*/ scripts.builds ]
+        [ hosts.linux
+          scripts.setup-nix scripts.setup-cachix
+          scripts.builds ]
+        [ hosts.macos
+          # cachix 3 on macOS is broken on travis, see
+          # https://github.com/cachix/cachix/issues/228#issuecomment-533634704
+          scripts.setup-nix /*scripts.macos-cachix-fix scripts.setup-cachix*/
+          scripts.builds ]
       ];
     };
 in pkgs.runCommand "travis.yml" {
