@@ -102,7 +102,8 @@ fn instrumented_build(
                     LogDatum::Source(src) => {
                         paths.push(src);
                     }
-                    LogDatum::Text(line) => log_lines.push(line),
+                    LogDatum::Text(line) => log_lines.push(OsString::from(line)),
+                    LogDatum::NonUtf(line) => log_lines.push(line),
                 };
 
                 (paths, log_lines)
@@ -124,10 +125,15 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info<Sto
     instrumented_build(root_nix_file, cas)
 }
 
+/// Classifies the output of nix-instantiate -vv.
 #[derive(Debug, PartialEq)]
 enum LogDatum {
+    /// Nix source file (which should be tracked)
     Source(PathBuf),
-    Text(OsString),
+    /// Arbitrary text (which we couldn’t otherwise classify)
+    Text(String),
+    /// Text which we coudn’t decode from UTF-8
+    NonUtf(OsString),
 }
 
 /// Examine a line of output and extract interesting log items in to
@@ -148,7 +154,7 @@ where
     match line.as_ref().to_str() {
         // If we can’t decode the output line to an UTF-8 string,
         // we cannot match against regexes, so just pass it through.
-        None => LogDatum::Text(line.as_ref().to_owned()),
+        None => LogDatum::NonUtf(line.as_ref().to_owned()),
         Some(linestr) => {
             // Lines about evaluating a file are much more common, so looking
             // for them first will reduce comparisons.
@@ -159,7 +165,7 @@ where
             } else if let Some(matches) = LORRI_READ.captures(&linestr) {
                 LogDatum::Source(PathBuf::from(&matches["source"]))
             } else {
-                LogDatum::Text(line.as_ref().to_owned())
+                LogDatum::Text(linestr.to_owned())
             }
         }
     }
@@ -245,7 +251,7 @@ mod tests {
             parse_evaluation_line(
                 "downloading 'https://static.rust-lang.org/dist/channel-rust-stable.toml'..."
             ),
-            LogDatum::Text(OsString::from(
+            LogDatum::Text(String::from(
                 "downloading 'https://static.rust-lang.org/dist/channel-rust-stable.toml'..."
             ))
         );
