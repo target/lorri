@@ -158,7 +158,7 @@ function declare() {
     esac
 }
 
-export IN_NIX_SHELL=1
+export IN_NIX_SHELL=impure
 
 if [ -f "$EVALUATION_ROOT/bash-export" ]; then
     # shellcheck disable=SC1090
