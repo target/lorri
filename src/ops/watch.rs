@@ -44,6 +44,7 @@ pub fn main(project: Project, opts: WatchOptions) -> OpResult {
 
         for msg in rx {
             print_build_message(msg);
+            let _ = std::io::stdout().flush();
         }
 
         build_thread.join().unwrap();
