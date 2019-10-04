@@ -6,14 +6,6 @@ let
     sha256 = srcDef.sha256;
   };
 
-  # provides buildSandbox
-  vuizvui = import (builtins.fetchTarball {
-    # 2019-09-12, buildSandbox patches
-    url = "https://github.com/openlab-aux/vuizvui/archive/6f0954ba13c93ec8fb34cce104a81d291f41555f.tar.gz";
-
-    sha256 = "13ad3ccspj7gpgx0qvkppbnpp7sl2bqa8i86bsi2ysrdjc36km9n";
-  }) {};
-
   # The Mozilla overlay exposes dynamic, constantly updating
   # rust binaries for development tooling. Not recommended
   # for production or CI builds, but is right now the best way
@@ -48,8 +40,6 @@ let
 
       cargoSha256 = "11kzl0ns84xhdacn0k7nilgzgpwazmaaqdjf2kcarxf2h01b0rjv";
     };
-
-    buildSandbox = vuizvui.pkgs.buildSandbox;
 
   };
 
