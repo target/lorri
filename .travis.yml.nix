@@ -56,8 +56,8 @@ let
         ''
         # push test suite closure to cachix
         ''
-          buildInputs=$(nix-build -E '(import ./shell.nix { isDevelopmentShell = false; }).buildInputs')
-          printf '%s' "$buildInputs" >> ${cachix-queue-file}
+          nix-build -E '(import ./shell.nix { isDevelopmentShell = false; }).buildInputs' \
+            >> ${cachix-queue-file}
         ''
       ];
       # delete all our own artifacts from the cache dir

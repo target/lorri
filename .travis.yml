@@ -68,10 +68,9 @@
       lorri_travis_fold carnix-idempotent \
         git diff -q ./Cargo.nix
     - >
-      buildInputs=$(nix-build -E '(import ./shell.nix { isDevelopmentShell = false;
-      }).buildInputs')
-
-      printf '%s' "$buildInputs" >> $HOME/push-to-cachix
+      nix-build -E '(import ./shell.nix { isDevelopmentShell = false; }).buildInputs'
+      \
+        >> $HOME/push-to-cachix
   - "before_cache":
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
@@ -128,10 +127,9 @@
       lorri_travis_fold carnix-idempotent \
         git diff -q ./Cargo.nix
     - >
-      buildInputs=$(nix-build -E '(import ./shell.nix { isDevelopmentShell = false;
-      }).buildInputs')
-
-      printf '%s' "$buildInputs" >> $HOME/push-to-cachix
+      nix-build -E '(import ./shell.nix { isDevelopmentShell = false; }).buildInputs'
+      \
+        >> $HOME/push-to-cachix
   - "before_cache":
     - >-
       cachix push lorri-test < $HOME/push-to-cachix
