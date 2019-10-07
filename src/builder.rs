@@ -149,6 +149,38 @@ fn instrumented_instantiation(
     }))
 }
 
+/// Builds the Nix expression in `root_nix_file`.
+///
+/// Instruments the nix file to gain extra information,
+/// which is valuable even if the build fails.
+fn build(
+    s: Success<DrvFile, GcRootTempDir>
+) -> Result<Info<StorePath, ::nix::GcRootTempDir>, Error> {
+    let drvs = s.output_paths.clone();
+    match ::nix::CallOpts::file(drvs.shell_gc_root.as_path()).path() {
+        Ok(realized) => Ok(Info::Success(Success {
+            output_paths: OutputPaths {
+                shell_gc_root: realized.0,
+            },
+            gc_root_temp_dir: realized.1,
+            paths: s.paths,
+            // TODO: we are passing the instantiation stderr here,
+            // but we really want to get the CallOpts stderr
+            // TODO: fix utf-8 test once that is fixed
+            log_lines: s.log_lines,
+        })),
+        Err(::nix::OnePathError::Build(::nix::BuildError::ExecutionFailed(output))) => {
+            Ok(Info::Failure(Failure {
+                exec_result: output.status,
+                // TODO: make nix.rs stream this output
+                log_lines: ::osstrlines::Lines::from(std::io::Cursor::new(output.stderr))
+                    .collect::<Result<Vec<_>, _>>()?,
+            }))
+        }
+        Err(err) => Err(Error::Build(err)),
+    }
+}
+
 /// Opaque type to keep a temporary GC root directory alive.
 /// Once it is dropped, the GC root is removed.
 /// Copied from `nix`, because the type should stay opaque.
@@ -166,29 +198,7 @@ pub fn run(
     let inst_info = instrumented_instantiation(root_nix_file, cas)?;
     match inst_info {
         Info::Success(s) => {
-            let drvs = s.output_paths.clone();
-            match ::nix::CallOpts::file(drvs.shell_gc_root.as_path()).path() {
-                Ok(realized) => Ok(Info::Success(Success {
-                    output_paths: OutputPaths {
-                        shell_gc_root: realized.0,
-                    },
-                    gc_root_temp_dir: realized.1,
-                    paths: s.paths,
-                    // TODO: we are passing the instantiation stderr here,
-                    // but we really want to get the CallOpts stderr
-                    // TODO: fix utf-8 test once that is fixed
-                    log_lines: s.log_lines,
-                })),
-                Err(::nix::OnePathError::Build(::nix::BuildError::ExecutionFailed(output))) => {
-                    Ok(Info::Failure(Failure {
-                        exec_result: output.status,
-                        // TODO: make nix.rs stream this output
-                        log_lines: ::osstrlines::Lines::from(std::io::Cursor::new(output.stderr))
-                            .collect::<Result<Vec<_>, _>>()?,
-                    }))
-                }
-                Err(err) => Err(Error::Build(err)),
-            }
+            build(s)
         }
         Info::Failure(f) => Ok(Info::Failure(f)),
     }
