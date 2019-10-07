@@ -65,17 +65,16 @@ fn create_project(paths: &constants::Paths, shell_nix: NixFile) -> Result<Projec
 fn run_command(opts: Arguments) -> OpResult {
     let paths = lorri::ops::get_paths()?;
     match opts.command {
-        Command::Info(p) => {
-            get_shell_nix(&p.nix_file).and_then(|sn| info::main(create_project(&paths, sn)?))
+        Command::Info(opts) => {
+            get_shell_nix(&opts.nix_file).and_then(|sn| info::main(create_project(&paths, sn)?))
         }
 
-        Command::Direnv(p) => {
-            get_shell_nix(&p.nix_file).and_then(|sn| direnv::main(create_project(&paths, sn)?))
+        Command::Direnv(opts) => {
+            get_shell_nix(&opts.nix_file).and_then(|sn| direnv::main(create_project(&paths, sn)?))
         }
 
-        Command::Watch(p) => {
-            get_shell_nix(&p.nix_file).and_then(|sn| watch::main(create_project(&paths, sn)?))
-        }
+        Command::Watch(opts) => get_shell_nix(&opts.nix_file)
+            .and_then(|sn| watch::main(create_project(&paths, sn)?, opts)),
 
         Command::Daemon => daemon::main(),
 
