@@ -44,7 +44,6 @@ fn main_run_forever(project: Project) -> OpResult {
 
     for msg in rx {
         print_build_message(msg);
-        let _ = std::io::stdout().flush();
     }
 
     build_thread.join().unwrap();
@@ -52,10 +51,11 @@ fn main_run_forever(project: Project) -> OpResult {
     ok()
 }
 
-// TODO: this should probably be something more structured
+/// Print a build message to stdout and flush.
 fn print_build_message<A>(msg: A)
 where
     A: Debug,
 {
     println!("{:#?}", msg);
+    let _ = std::io::stdout().flush();
 }
