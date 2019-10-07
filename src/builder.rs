@@ -99,10 +99,25 @@ fn instrumented_build(
             .into_iter()
             .fold((vec![], vec![]), |(mut paths, mut log_lines), result| {
                 match result {
-                    LogDatum::Source(src) => {
+                    LogDatum::CopiedSource(src) | LogDatum::ReadFileOrDir(src) => {
                         paths.push(src);
                     }
-                    LogDatum::Text(line) => log_lines.push(line),
+                    LogDatum::NixSourceFile(mut src) => {
+                        // We need to emulate nix’s `default.nix` mechanism here.
+                        // That is, if the user uses something like
+                        // `import ./foo`
+                        // and `foo` is a directory, nix will actually import
+                        // `./foo/default.nix`
+                        // but still print `./foo`.
+                        // Since this is the only time directories are printed,
+                        // we can just manually re-implement that behavior.
+                        if src.is_dir() {
+                            src.push("default.nix");
+                        }
+                        paths.push(src);
+                    }
+                    LogDatum::Text(line) => log_lines.push(OsString::from(line)),
+                    LogDatum::NonUtf(line) => log_lines.push(line),
                 };
 
                 (paths, log_lines)
@@ -124,10 +139,19 @@ pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<Info<Sto
     instrumented_build(root_nix_file, cas)
 }
 
+/// Classifies the output of nix-instantiate -vv.
 #[derive(Debug, PartialEq)]
 enum LogDatum {
-    Source(PathBuf),
-    Text(OsString),
+    /// Nix source file (which should be tracked)
+    NixSourceFile(PathBuf),
+    /// A file/directory copied verbatim to the nix store
+    CopiedSource(PathBuf),
+    /// A `builtins.readFile` or `builtins.readDir` invocation (at eval time)
+    ReadFileOrDir(PathBuf),
+    /// Arbitrary text (which we couldn’t otherwise classify)
+    Text(String),
+    /// Text which we coudn’t decode from UTF-8
+    NonUtf(OsString),
 }
 
 /// Examine a line of output and extract interesting log items in to
@@ -137,29 +161,37 @@ where
     T: AsRef<OsStr>,
 {
     lazy_static! {
+        // These are the .nix files that are opened for evaluation.
         static ref EVAL_FILE: Regex =
             Regex::new("^evaluating file '(?P<source>.*)'$").expect("invalid regex!");
+        // When you reference a source file, nix copies it to the store and prints this.
+        // This the same is true for directories (e.g. `foo = ./abc` in a derivation).
         static ref COPIED_SOURCE: Regex =
             Regex::new("^copied source '(?P<source>.*)' -> '(?:.*)'$").expect("invalid regex!");
+        // These are printed for `builtins.readFile` and `builtins.readDir`,
+        // by our instrumentation in `./logged-evaluation.nix`.
         static ref LORRI_READ: Regex =
             Regex::new("^trace: lorri read: '(?P<source>.*)'$").expect("invalid regex!");
     }
 
+    // see the regexes above for explanations of the nix outputs
     match line.as_ref().to_str() {
         // If we can’t decode the output line to an UTF-8 string,
         // we cannot match against regexes, so just pass it through.
-        None => LogDatum::Text(line.as_ref().to_owned()),
+        None => LogDatum::NonUtf(line.as_ref().to_owned()),
         Some(linestr) => {
             // Lines about evaluating a file are much more common, so looking
             // for them first will reduce comparisons.
             if let Some(matches) = EVAL_FILE.captures(&linestr) {
-                LogDatum::Source(PathBuf::from(&matches["source"]))
+                LogDatum::NixSourceFile(PathBuf::from(&matches["source"]))
             } else if let Some(matches) = COPIED_SOURCE.captures(&linestr) {
-                LogDatum::Source(PathBuf::from(&matches["source"]))
+                LogDatum::CopiedSource(PathBuf::from(&matches["source"]))
+            // TODO: parse files and dirs into different LogInfo cases
+            // to make sure we only watch directories if they were builtins.readDir’ed
             } else if let Some(matches) = LORRI_READ.captures(&linestr) {
-                LogDatum::Source(PathBuf::from(&matches["source"]))
+                LogDatum::ReadFileOrDir(PathBuf::from(&matches["source"]))
             } else {
-                LogDatum::Text(line.as_ref().to_owned())
+                LogDatum::Text(linestr.to_owned())
             }
         }
     }
@@ -220,23 +252,24 @@ mod tests {
     use std::os::unix::ffi::OsStrExt;
     use std::path::PathBuf;
 
+    /// Parsing of `LogDatum`.
     #[test]
-    fn test_evaluation_line_to_path_evaluation() {
+    fn evaluation_line_to_log_datum() {
         assert_eq!(
             parse_evaluation_line("evaluating file '/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/lib/systems/for-meta.nix'"),
-            LogDatum::Source(PathBuf::from("/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/lib/systems/for-meta.nix"))
+            LogDatum::NixSourceFile(PathBuf::from("/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/lib/systems/for-meta.nix"))
         );
 
         assert_eq!(
             parse_evaluation_line("copied source '/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/pkgs/stdenv/generic/default-builder.sh' -> '/nix/store/9krlzvny65gdc8s7kpb6lkx8cd02c25b-default-builder.sh'"),
-            LogDatum::Source(PathBuf::from("/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/pkgs/stdenv/generic/default-builder.sh"))
+            LogDatum::CopiedSource(PathBuf::from("/nix/store/zqxha3ax0w771jf25qdblakka83660gr-source/pkgs/stdenv/generic/default-builder.sh"))
         );
 
         assert_eq!(
             parse_evaluation_line(
                 "trace: lorri read: '/home/grahamc/projects/grahamc/lorri/nix/nixpkgs.json'"
             ),
-            LogDatum::Source(PathBuf::from(
+            LogDatum::ReadFileOrDir(PathBuf::from(
                 "/home/grahamc/projects/grahamc/lorri/nix/nixpkgs.json"
             ))
         );
@@ -245,7 +278,7 @@ mod tests {
             parse_evaluation_line(
                 "downloading 'https://static.rust-lang.org/dist/channel-rust-stable.toml'..."
             ),
-            LogDatum::Text(OsString::from(
+            LogDatum::Text(String::from(
                 "downloading 'https://static.rust-lang.org/dist/channel-rust-stable.toml'..."
             ))
         );
