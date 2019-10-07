@@ -24,6 +24,8 @@ move() {
     eval "$destvarname=\"${!srcvarname}\""
 
     # mark the destvarname as exported so direnv picks it up
+    # (shellcheck: we do want to export the content of destvarname!)
+    # shellcheck disable=SC2163
     export "$destvarname"
 
     # remove the export from above, ie: export origPATH...
