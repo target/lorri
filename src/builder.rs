@@ -19,10 +19,33 @@ use std::process::{Command, Stdio};
 use std::thread;
 use {DrvFile, NixFile};
 
+struct RootedDrv {
+    _gc_handle: GcRootTempDir,
+    path: DrvFile,
+}
+
+
+/// Represents a path which is temporarily rooted in a temporary directory.
+/// Users are required to keep the gc_handle value alive for as long as
+/// StorePath is alive, _or_ re-root the StorePath using project::Roots
+/// before dropping gc_handle.
+#[derive(Debug)]
+pub struct RootedPath {
+    /// The handle to a temporary directory keeping `.path` alive.
+    pub gc_handle: ::nix::GcRootTempDir,
+    /// The realized store path
+    pub path: StorePath,
+}
+
+struct InstantiateOutput {
+    referenced_paths: Vec<PathBuf>,
+    output: Option<RootedDrv>,
+}
+
 fn instrumented_instantiation(
     root_nix_file: &NixFile,
     cas: &ContentAddressable,
-) -> Result<Info<DrvFile, GcRootTempDir>, Error> {
+) -> Result<InstantiateOutput, std::io::Error> {
     // We're looking for log lines matching:
     //
     //     copied source '...' -> '/nix/store/...'
@@ -90,15 +113,19 @@ fn instrumented_instantiation(
 
     let (exec_result, mut build_products, results) = (
         child.wait()?,
-        build_products.join()??,
-        stderr_results.join()??,
+        build_products
+            .join()
+            .expect("Failed to join stdout processing thread")?,
+        stderr_results
+            .join()
+            .expect("Failed to join stderr processing thread")?,
     );
 
     // TODO: this can move entirely into the stderr thread,
     // meaning we don’t have to keep the outputs in memory (fold directly)
 
     // iterate over all lines, parsing out the ones we are interested in
-    let (paths, log_lines): (Vec<PathBuf>, Vec<OsString>) =
+    let (paths, _log_lines): (Vec<PathBuf>, Vec<OsString>) =
         results
             .into_iter()
             .fold((vec![], vec![]), |(mut paths, mut log_lines), result| {
@@ -128,10 +155,10 @@ fn instrumented_instantiation(
             });
 
     if !exec_result.success() {
-        return Ok(Info::Failure(Failure {
-            exec_result,
-            log_lines,
-        }));
+        return Ok(InstantiateOutput {
+            referenced_paths: paths,
+            output: None,
+        });
     }
 
     assert!(
@@ -141,43 +168,44 @@ fn instrumented_instantiation(
     );
     let shell_gc_root = build_products.pop().unwrap();
 
-    Ok(Info::Success(Success {
-        gc_root_temp_dir: GcRootTempDir(gc_root_dir),
-        output_paths: OutputPaths { shell_gc_root },
-        paths,
-        log_lines,
-    }))
+    Ok(InstantiateOutput {
+        referenced_paths: paths,
+        output: Some(RootedDrv {
+            _gc_handle: GcRootTempDir(gc_root_dir),
+            path: shell_gc_root,
+        }),
+    })
+}
+
+struct BuildOutput {
+    output: Option<RootedPath>,
 }
 
 /// Builds the Nix expression in `root_nix_file`.
 ///
 /// Instruments the nix file to gain extra information,
 /// which is valuable even if the build fails.
-fn build(
-    s: Success<DrvFile, GcRootTempDir>
-) -> Result<Info<StorePath, ::nix::GcRootTempDir>, Error> {
-    let drvs = s.output_paths.clone();
-    match ::nix::CallOpts::file(drvs.shell_gc_root.as_path()).path() {
-        Ok(realized) => Ok(Info::Success(Success {
-            output_paths: OutputPaths {
-                shell_gc_root: realized.0,
-            },
-            gc_root_temp_dir: realized.1,
-            paths: s.paths,
-            // TODO: we are passing the instantiation stderr here,
-            // but we really want to get the CallOpts stderr
-            // TODO: fix utf-8 test once that is fixed
-            log_lines: s.log_lines,
-        })),
-        Err(::nix::OnePathError::Build(::nix::BuildError::ExecutionFailed(output))) => {
-            Ok(Info::Failure(Failure {
-                exec_result: output.status,
-                // TODO: make nix.rs stream this output
-                log_lines: ::osstrlines::Lines::from(std::io::Cursor::new(output.stderr))
-                    .collect::<Result<Vec<_>, _>>()?,
-            }))
+fn build(drv_path: DrvFile) -> Result<BuildOutput, std::io::Error> {
+    //let drv_path = s.path.clone();
+    match ::nix::CallOpts::file(drv_path.as_path()).path() {
+        Ok(realized) => Ok(BuildOutput {
+            output: Some(RootedPath {
+                gc_handle: realized.1,
+                path: realized.0,
+            }),
+        }),
+        Err(::nix::OnePathError::TooManyResults) => {
+            panic!(
+                "Too many results from building the instrumented, instantiated, shell environment."
+            );
         }
-        Err(err) => Err(Error::Build(err)),
+        Err(::nix::OnePathError::Build(::nix::BuildError::NoResult)) => {
+            panic!("No results from building the instrumented, instantiated, shell environment.");
+        }
+        Err(::nix::OnePathError::Build(::nix::BuildError::Io(e))) => Err(e),
+        Err(::nix::OnePathError::Build(::nix::BuildError::ExecutionFailed(_))) => {
+            Ok(BuildOutput { output: None })
+        }
     }
 }
 
@@ -187,20 +215,51 @@ fn build(
 #[derive(Debug)]
 struct GcRootTempDir(tempfile::TempDir);
 
+/// The result of a single instantiation and build.
+#[derive(Debug)]
+pub struct RunResult {
+    /// All the paths identified during the instantiation
+    pub referenced_paths: Vec<PathBuf>,
+    /// The status of the build attempt
+    pub status: RunStatus,
+}
+
+/// How far along we got in the instantiate then realize.
+#[derive(Debug)]
+pub enum RunStatus {
+    /// The instantiation was attempted, but failed.
+    FailedAtInstantiation,
+    /// The instantiation succeded. The realize was attempted, but failed.
+    FailedAtRealize,
+    /// The instantiation and realize succeeded and yielded a result path.
+    Complete(RootedPath),
+}
+
 /// Builds the Nix expression in `root_nix_file`.
 ///
 /// Instruments the nix file to gain extra information,
 /// which is valuable even if the build fails.
-pub fn run(
-    root_nix_file: &NixFile,
-    cas: &ContentAddressable,
-) -> Result<Info<StorePath, ::nix::GcRootTempDir>, Error> {
+pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<RunResult, Error> {
     let inst_info = instrumented_instantiation(root_nix_file, cas)?;
-    match inst_info {
-        Info::Success(s) => {
-            build(s)
+    if let Some(inst_output) = inst_info.output {
+        let buildoutput = build(inst_output.path)?;
+
+        if let Some(build_output) = buildoutput.output {
+            Ok(RunResult {
+                referenced_paths: inst_info.referenced_paths,
+                status: RunStatus::Complete(build_output),
+            })
+        } else {
+            Ok(RunResult {
+                referenced_paths: inst_info.referenced_paths,
+                status: RunStatus::FailedAtRealize,
+            })
         }
-        Info::Failure(f) => Ok(Info::Failure(f)),
+    } else {
+        Ok(RunResult {
+            referenced_paths: inst_info.referenced_paths,
+            status: RunStatus::FailedAtInstantiation,
+        })
     }
 }
 
@@ -425,8 +484,8 @@ in {}
 
         // build, because instantiate doesn’t return the build output (obviously …)
         let info = run(&::NixFile::from(cas.file_from_string(&nix_drv)?), &cas).unwrap();
-        match info {
-            Info::Success(_) => {}
+        match info.status {
+            RunStatus::Complete(_) => {}
             _ => panic!("could not run() the drv:\n{:?}", info),
         }
 

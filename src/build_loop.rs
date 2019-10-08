@@ -2,13 +2,14 @@
 //! evaluate and build a given Nix file.
 
 use crate::builder;
-use crate::nix::{GcRootTempDir, StorePath};
+use crate::builder::RunStatus;
 use crate::notify;
 use crate::pathreduction::reduce_paths;
 use crate::project::roots;
 use crate::project::roots::Roots;
 use crate::project::Project;
 use crate::watch::Watch;
+use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 
 /// Builder events sent back over `BuildLoop.tx`.
@@ -92,40 +93,39 @@ impl<'a> BuildLoop<'a> {
     /// This will create GC roots and expand the file watch list for
     /// the evaluation.
     pub fn once(&mut self) -> Result<BuildResults, BuildError> {
-        let build = builder::run(&self.project.nix_file, &self.project.cas)?;
+        let run_result = builder::run(&self.project.nix_file, &self.project.cas)?;
 
-        match build {
-            builder::Info::Failure(f) => Err(BuildError::Recoverable(BuildExitFailure {
-                log_lines: f.log_lines,
+        self.register_paths(&run_result.referenced_paths)?;
+
+        match run_result.status {
+            RunStatus::FailedAtInstantiation => Err(BuildError::Recoverable(BuildExitFailure {
+                log_lines: vec![],
             })),
-            builder::Info::Success(s) => self.once_(s),
+            RunStatus::FailedAtRealize => Err(BuildError::Recoverable(BuildExitFailure {
+                log_lines: vec![],
+            })),
+            RunStatus::Complete(path) => self.root_result(path),
         }
     }
 
-    fn once_(
-        &mut self,
-        build: builder::Success<StorePath, GcRootTempDir>,
-    ) -> Result<BuildResults, BuildError> {
-        let roots = Roots::from_project(&self.project);
-
-        let paths = build.paths;
+    fn register_paths(&mut self, paths: &[PathBuf]) -> Result<(), notify::Error> {
         debug!("original paths: {:?}", paths.len());
 
         let paths = reduce_paths(&paths);
         debug!("  -> reduced to: {:?}", paths.len());
 
-        debug!("named drvs: {:#?}", build.output_paths);
-
-        let event = BuildResults {
-            output_paths: roots.create_roots(build.output_paths)?,
-        };
-        // now we can drop the temporary gc_root in build because we added static roots
-        drop(build.gc_root_temp_dir);
-
         // add all new (reduced) nix sources to the input source watchlist
         self.watch.extend(&paths.into_iter().collect::<Vec<_>>())?;
 
-        Ok(event)
+        Ok(())
+    }
+
+    fn root_result(&mut self, build: builder::RootedPath) -> Result<BuildResults, BuildError> {
+        let roots = Roots::from_project(&self.project);
+
+        Ok(BuildResults {
+            output_paths: roots.create_roots(build)?,
+        })
     }
 }
 
