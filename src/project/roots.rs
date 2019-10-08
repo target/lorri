@@ -2,7 +2,7 @@
 //!
 //! TODO: inline this module into `::project`
 use crate::project::Project;
-use builder::OutputPaths;
+use builder::{OutputPaths, RootedPath};
 use nix::StorePath;
 use std::env;
 use std::path::{Path, PathBuf};
@@ -75,11 +75,11 @@ impl Roots {
         // Important: this intentionally only allows creating
         // roots to `StorePath`, not to `DrvFile`, because we have
         // no use case for creating GC roots for drv files.
-        paths: OutputPaths<StorePath>,
+        path: RootedPath,
     ) -> Result<OutputPaths<RootPath>, AddRootError>
 where {
         Ok(OutputPaths {
-            shell_gc_root: self.add("shell_gc_root", &paths.shell_gc_root)?,
+            shell_gc_root: self.add("shell_gc_root", &path.path)?,
         })
     }
 
