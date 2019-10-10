@@ -5,8 +5,6 @@ let
   # using scopedImport, replace readDir and readFile with
   # implementations which will log files and paths they see.
   overrides = {
-    import = scopedImport overrides;
-    scopedImport = x: builtins.scopedImport (overrides // x);
     builtins = builtins // {
       readFile = file: builtins.trace "lorri read: '${toString file}'" (builtins.readFile file);
       readDir = path: builtins.trace "lorri read: '${toString path}'" (builtins.readDir path);
@@ -15,7 +13,7 @@ let
 
   imported =
     let
-      raw = overrides.scopedImport overrides src;
+      raw = builtins.scopedImport overrides src;
     in if (builtins.isFunction raw)
     then raw {}
     else raw;
