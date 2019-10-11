@@ -42,11 +42,24 @@ struct InstantiateOutput {
     output: Option<RootedDrv>,
 }
 
+/// Wraps io::Error with a special case for the nix executable
+enum NixNotFoundError {
+    /// one of the nix executables not found
+    NixNotFound,
+    Io(std::io::Error),
+}
+
+impl From<std::io::Error> for NixNotFoundError {
+    fn from(e: std::io::Error) -> NixNotFoundError {
+        NixNotFoundError::Io(e)
+    }
+}
+
 fn instrumented_instantiation(
     tx: Sender<OsString>,
     root_nix_file: &NixFile,
     cas: &ContentAddressable,
-) -> Result<InstantiateOutput, std::io::Error> {
+) -> Result<InstantiateOutput, NixNotFoundError> {
     // We're looking for log lines matching:
     //
     //     copied source '...' -> '/nix/store/...'
@@ -87,7 +100,10 @@ fn instrumented_instantiation(
 
     debug!("$ {:?}", cmd);
 
-    let mut child = cmd.spawn()?;
+    let mut child = cmd.spawn().map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => NixNotFoundError::NixNotFound,
+        _ => NixNotFoundError::from(e),
+    })?;
 
     let stdout = child
         .stdout
@@ -191,7 +207,7 @@ struct BuildOutput {
 ///
 /// Instruments the nix file to gain extra information,
 /// which is valuable even if the build fails.
-fn build(tx: Sender<OsString>, drv_path: DrvFile) -> Result<BuildOutput, std::io::Error> {
+fn build(tx: Sender<OsString>, drv_path: DrvFile) -> Result<BuildOutput, NixNotFoundError> {
     //let drv_path = s.path.clone();
     match ::nix::CallOpts::file(drv_path.as_path())
         .set_stderr_sender(tx)
@@ -211,9 +227,12 @@ fn build(tx: Sender<OsString>, drv_path: DrvFile) -> Result<BuildOutput, std::io
         Err(::nix::OnePathError::Build(::nix::BuildError::NoResult)) => {
             panic!("No results from building the instrumented, instantiated, shell environment.");
         }
-        Err(::nix::OnePathError::Build(::nix::BuildError::Io(e))) => Err(e),
+        Err(::nix::OnePathError::Build(::nix::BuildError::Io(e))) => Err(NixNotFoundError::from(e)),
         Err(::nix::OnePathError::Build(::nix::BuildError::ExecutionFailed(_))) => {
             Ok(BuildOutput { output: None })
+        }
+        Err(::nix::OnePathError::Build(::nix::BuildError::NixNotFound)) => {
+            Err(NixNotFoundError::NixNotFound)
         }
     }
 }
@@ -347,12 +366,24 @@ pub enum Error {
     /// Executing nix-instantiate failed
     Instantiate(std::io::Error),
 
+    /// Nix commands not on PATH
+    NixNotFound,
+
     /// Failed to spawn a log processing thread
     ThreadFailure(std::boxed::Box<(dyn std::any::Any + std::marker::Send + 'static)>),
 }
 impl From<std::io::Error> for Error {
     fn from(e: std::io::Error) -> Error {
         Error::Instantiate(e)
+    }
+}
+
+impl From<NixNotFoundError> for Error {
+    fn from(e: NixNotFoundError) -> Error {
+        match e {
+            NixNotFoundError::Io(e) => Error::Instantiate(e),
+            NixNotFoundError::NixNotFound => Error::NixNotFound,
+        }
     }
 }
 

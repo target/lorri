@@ -374,7 +374,7 @@ impl<'a> CallOpts<'a> {
         &self,
         mut cmd: Command,
         stdout_fn: S,
-    ) -> Result<(T, ExitStatus), std::io::Error>
+    ) -> Result<(T, ExitStatus), ExecuteError>
     where
         S: Send + Fn(std::io::BufReader<ChildStdout>) -> T,
         T: Send,
@@ -383,7 +383,10 @@ impl<'a> CallOpts<'a> {
         cmd.stdout(Stdio::piped());
 
         // 0. spawn the process
-        let mut nix_proc = cmd.spawn()?;
+        let mut nix_proc = cmd.spawn().map_err(|e| match e.kind() {
+            std::io::ErrorKind::NotFound => ExecuteError::NixNotFound,
+            _ => ExecuteError::Io(e),
+        })?;
 
         // 1. spawn a stderr handling thread
         let stderr_handle: ChildStderr = nix_proc.stderr.take().expect("failed to take stderr");
@@ -450,11 +453,21 @@ impl<'a> CallOpts<'a> {
     }
 }
 
+/// Errors returned by the `execute()` helper
+enum ExecuteError {
+    /// one of the nix executables not found
+    NixNotFound,
+    Io(std::io::Error),
+}
+
 /// Possible error conditions encountered when executing Nix evaluation commands.
 #[derive(Debug)]
 pub enum EvaluationError {
     /// A system-level IO error occured while executing Nix.
     Io(std::io::Error),
+
+    /// Nix commands not on PATH
+    NixNotFound,
 
     /// Nix execution failed.
     ExecutionFailed(ExitStatus),
@@ -467,6 +480,15 @@ pub enum EvaluationError {
 impl From<std::io::Error> for EvaluationError {
     fn from(e: std::io::Error) -> EvaluationError {
         EvaluationError::Io(e)
+    }
+}
+
+impl From<ExecuteError> for EvaluationError {
+    fn from(e: ExecuteError) -> EvaluationError {
+        match e {
+            ExecuteError::NixNotFound => EvaluationError::NixNotFound,
+            ExecuteError::Io(e) => EvaluationError::from(e),
+        }
     }
 }
 
@@ -495,6 +517,9 @@ pub enum BuildError {
     /// A system-level IO error occured while executing Nix.
     Io(std::io::Error),
 
+    /// Nix commands not on PATH
+    NixNotFound,
+
     /// Nix execution failed.
     ExecutionFailed(ExitStatus),
 
@@ -505,6 +530,15 @@ pub enum BuildError {
 impl From<std::io::Error> for BuildError {
     fn from(e: std::io::Error) -> BuildError {
         BuildError::Io(e)
+    }
+}
+
+impl From<ExecuteError> for BuildError {
+    fn from(e: ExecuteError) -> BuildError {
+        match e {
+            ExecuteError::NixNotFound => BuildError::NixNotFound,
+            ExecuteError::Io(e) => BuildError::from(e),
+        }
     }
 }
 
