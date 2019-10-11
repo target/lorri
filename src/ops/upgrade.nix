@@ -20,7 +20,7 @@ assert type == "branch" -> path == null && branch != null;
 assert type == "local" -> branch == null && path != null;
 
 let
-  inherit (builtins) fetchGit hasAttr getAttr trace;
+  inherit (builtins) fetchGit isFunction;
 
   fetchBranch = branch: fetchGit {
     url = "https://github.com/target/lorri.git";
@@ -32,5 +32,12 @@ let
     else if type == "local" then path
     else abort "impossibru";
 
-# TODO: we should use the ${fetchedSource}/default.nix as source in release.nix
-in (import "${fetchedSource}/release.nix" { src = fetchedSource; } )
+  releaseNix = import "${fetchedSource}/release.nix";
+
+in
+  # backwards-compatibility for older lorri repositories
+  # where releaseNix still takes a src attribute.
+  # Remove after a while.
+if isFunction releaseNix
+then releaseNix { src = fetchedSource; }
+else releaseNix

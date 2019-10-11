@@ -1,6 +1,5 @@
-{ src }:
 {
-  package = import ./default.nix { inherit src; };
+  package = import ./default.nix {};
 
   changelog = {
     # Find the current version number with `git log --pretty=%h | wc -l`
