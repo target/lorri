@@ -32,7 +32,7 @@ let
     else if type == "local" then path
     else abort "impossibru";
 
-  releaseNix = import "${fetchedSource}/release.nix";
+  releaseNix = import "${toString fetchedSource}/release.nix";
 
 in
   # backwards-compatibility for older lorri repositories
