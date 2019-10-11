@@ -201,7 +201,10 @@ impl CallOpts {
 
         cmd.args(self.command_arguments());
 
-        let output = cmd.output()?;
+        let output = cmd.output().map_err(|e| match e.kind() {
+            std::io::ErrorKind::NotFound => EvaluationError::NixNotFound,
+            _ => EvaluationError::from(e),
+        })?;
 
         if output.status.success() {
             Ok(serde_json::from_slice(&output.stdout.clone())?)
@@ -314,7 +317,10 @@ impl CallOpts {
         cmd.args(self.command_arguments());
 
         cmd.stderr(Stdio::inherit());
-        let output = cmd.output()?;
+        let output = cmd.output().map_err(|e| match e.kind() {
+            std::io::ErrorKind::NotFound => BuildError::NixNotFound,
+            _ => BuildError::from(e),
+        })?;
 
         if output.status.success() {
             let stdout: &[u8] = &output.stdout;
@@ -369,6 +375,9 @@ pub enum EvaluationError {
     /// A system-level IO error occured while executing Nix.
     Io(std::io::Error),
 
+    /// Nix commands not on PATH
+    NixNotFound,
+
     /// Nix execution failed.
     ExecutionFailed(std::process::Output),
 
@@ -407,6 +416,9 @@ impl From<std::process::Output> for EvaluationError {
 pub enum BuildError {
     /// A system-level IO error occured while executing Nix.
     Io(std::io::Error),
+
+    /// Nix commands not on PATH
+    NixNotFound,
 
     /// Nix execution failed.
     ExecutionFailed(std::process::Output),

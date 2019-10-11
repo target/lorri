@@ -55,7 +55,10 @@ fn instrumented_build(
 
     debug!("$ {:?}", cmd);
 
-    let mut child = cmd.spawn()?;
+    let mut child = cmd.spawn().map_err(|e| match e.kind() {
+        std::io::ErrorKind::NotFound => Error::NixNotFound,
+        _ => Error::from(e),
+    })?;
 
     let stdout = child
         .stdout
@@ -229,6 +232,9 @@ pub struct OutputPaths<T> {
 pub enum Error {
     /// IO error executing nix-instantiate
     Io(std::io::Error),
+
+    /// Nix commands not on PATH
+    NixNotFound,
 
     /// Failed to spawn a log processing thread
     ThreadFailure(std::boxed::Box<(dyn std::any::Any + std::marker::Send + 'static)>),
