@@ -36,7 +36,6 @@ use crossbeam_channel as chan;
 use slog_scope::debug;
 use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
-use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::process::{ChildStderr, ChildStdout, Command, ExitStatus, Stdio};
 use std::thread;
@@ -50,7 +49,7 @@ pub mod options;
 pub struct CallOpts<'a> {
     input: Input<'a>,
     attribute: Option<String>,
-    argstrs: HashMap<String, String>,
+    argstrs: HashMap<OsString, OsString>,
     extra_options: options::NixOptions,
 }
 
@@ -171,8 +170,13 @@ impl<'a> CallOpts<'a> {
     ///   output.unwrap(), "Hello, Jill!"
     /// );
     /// ```
-    pub fn argstr(&mut self, name: &str, value: &str) -> &mut Self {
-        self.argstrs.insert(name.to_string(), value.to_string());
+    pub fn argstr<P, Q>(&mut self, name: P, value: Q) -> &mut Self
+    where
+        P: AsRef<OsStr>,
+        Q: AsRef<OsStr>,
+    {
+        self.argstrs
+            .insert(name.as_ref().to_owned(), value.as_ref().to_owned());
         self
     }
 
@@ -371,7 +375,7 @@ impl<'a> CallOpts<'a> {
         let (stderr_tx, stderr_rx) = chan::unbounded();
         let stderr_handle: ChildStderr = nix_proc.stderr.take().expect("failed to take stderr");
         let stderr_thread = thread::spawn(move || {
-            let reader = osstrlines::Lines::from(BufReader::new(stderr_handle));
+            let reader = osstrlines::Lines::from(std::io::BufReader::new(stderr_handle));
             for line in reader {
                 stderr_tx
                     .send(line.unwrap())
@@ -381,7 +385,8 @@ impl<'a> CallOpts<'a> {
 
         // 2. spawn a stdout handling thread (?)
         let stdout_handle: ChildStdout = nix_proc.stdout.take().expect("failed to take stdout");
-        let stdout_thread = thread::spawn(move || stdout_fn(BufReader::new(stdout_handle)));
+        let stdout_thread =
+            thread::spawn(move || stdout_fn(std::io::BufReader::new(stdout_handle)));
 
         // 3. wait on the process
         let nix_proc_result = nix_proc.wait()?;
@@ -429,8 +434,8 @@ impl<'a> CallOpts<'a> {
 
         for (name, value) in self.argstrs.iter() {
             ret.push(OsString::from("--argstr"));
-            ret.push(OsString::from(name));
-            ret.push(OsString::from(value));
+            ret.push(name.clone());
+            ret.push(value.clone());
         }
 
         match self.input {
