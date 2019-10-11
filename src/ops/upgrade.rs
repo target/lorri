@@ -43,6 +43,7 @@ impl UpgradeSource {
                 UpgradeSource::Branch(String::from("rolling-release"))
             }
             cli::UpgradeSource::Master => UpgradeSource::Branch(String::from("master")),
+            cli::UpgradeSource::Branch(b) => UpgradeSource::Branch(b.branch),
             cli::UpgradeSource::Local(dest) => {
                 // make it absolute to not confuse ./upgrade.nix
                 (match std::fs::canonicalize(dest.path.clone()) {
