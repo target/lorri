@@ -4,7 +4,6 @@ let
   # The status of the unsuccessful command is returned.
   allCommandsSucceed = name: commands: pkgs.lib.pipe commands [
     (pkgs.lib.concatMap (cmd: [ "if" [ cmd ] ]))
-    (cmds: cmds ++ [ "true" ])
     (writeExecline name {})
   ];
 

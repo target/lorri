@@ -55,7 +55,7 @@ let
       description = "run cargo test";
       test = cargo "cargo-test"
         # the tests need bash and nix and direnv
-        [ (pathAdd "prepend") (pkgs.lib.makeBinPath [ pkgs.bash pkgs.nix pkgs.direnv ])]
+        [ (pathAdd "prepend") (pkgs.lib.makeBinPath [ pkgs.coreutils pkgs.bash pkgs.nix pkgs.direnv ]) ]
         [ "test" ];
     };
 
@@ -78,6 +78,16 @@ let
 
   };
 
+  # clean the environment;
+  # this is the only way we can have a non-diverging
+  # environment between developer machine and CI
+  emptyTestEnv = test:
+    writeExecline "${test.name}-empty-env" {}
+      [ (runInEmptyEnv []) test ];
+
+  testsWithEmptyEnv = pkgs.lib.mapAttrs
+    (_: test: test // { test = emptyTestEnv test.test; }) tests;
+
   # Write a attrset which looks like
   # { "test description" = test-script-derviation }
   # to a script which can be read by `bats` (a simple testing framework).
@@ -91,7 +101,7 @@ let
       ];
       # see https://github.com/bats-core/bats-core/blob/f3a08d5d004d34afb2df4d79f923d241b8c9c462/README.md#file-descriptor-3-read-this-if-bats-hangs
       closeFD3 = "3>&-";
-    in name: tests: pkgs.lib.pipe tests [
+    in name: tests: pkgs.lib.pipe testsWithEmptyEnv [
       (pkgs.lib.mapAttrsToList
         # a bats test looks like:
         # @test "name of test" {
@@ -102,10 +112,6 @@ let
       (pkgs.lib.concatStringsSep "\n")
       (pkgs.writeText "testsuite")
       (test-suite: writeExecline name {} [
-        # clean the environment;
-        # this is the only way we can have a non-diverging
-        # environment between developer machine and CI
-        (runInEmptyEnv [])
         bats test-suite
       ])
     ];
@@ -113,6 +119,7 @@ let
   testsuite = batsScript "run-testsuite" tests;
 
 in {
-  inherit
-    testsuite tests;
+  inherit testsuite;
+  # we want the single test attributes to have their environment emptied as well.
+  tests = testsWithEmptyEnv;
 }
