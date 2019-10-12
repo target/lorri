@@ -30,6 +30,12 @@ let
         else if mode == "prepend" then prepend
         else abort "don’t know mode ${mode}");
 
+  # Specialized pathAdd execline that prepends the `/bin` directories
+  # of a list of (store) paths to PATH.
+  pathPrependBins = paths: [ (pathAdd "prepend") (pkgs.lib.makeBinPath paths) ];
+
 in {
-  inherit pipe allCommandsSucceed pathAdd;
+  inherit
+    pipe allCommandsSucceed
+    pathAdd pathPrependBins;
 }
