@@ -67,7 +67,7 @@ let
         ${specificSetup}
 
         # copy the lorri repo to the temporary sandbox work directory
-        cp -r "${LORRI_ROOT}" "$WORK_DIR"
+        ${pkgs.coreutils}/bin/cp -r "${LORRI_ROOT}" "$WORK_DIR"
 
         cd "$WORK_DIR"
 
