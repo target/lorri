@@ -19,16 +19,15 @@ let
     "${pkgs.shellcheck}/bin/shellcheck" "--shell" "bash" file
   ];
 
-  cargoEnvironment = name: cmds: writeExecline name {} (
+  cargoEnvironment =
     # we have to add the bin to PATH,
     # otherwise cargo doesn’t find its subcommands
     [ (pathAdd "prepend") (pkgs.lib.makeBinPath [ rust pkgs.gcc ])
       "export" "BUILD_REV_COUNT" (toString BUILD_REV_COUNT)
-      "export" "RUN_TIME_CLOSURE" RUN_TIME_CLOSURE ]
-    ++ cmds);
+      "export" "RUN_TIME_CLOSURE" RUN_TIME_CLOSURE ];
 
   cargo = name: setup: args:
-    cargoEnvironment name (setup ++ [ "cargo" ] ++ args);
+    writeExecline name {} (cargoEnvironment ++ setup ++ [ "cargo" ] ++ args);
 
   # the CI tests we want to run
   # Tests should not depend on each other (or block if they do),
@@ -69,11 +68,13 @@ let
     # to generate a few measly nix files …
     carnix = {
       description = "check carnix up-to-date";
-      test = cargoEnvironment "lint-carnix" [
-        (pathAdd "prepend") (pkgs.lib.makeBinPath [ pkgs.carnix ])
-        "if" [ pkgs.runtimeShell "${LORRI_ROOT}/nix/update-carnix.sh" ]
-        "${pkgs.gitMinimal}/bin/git" "diff" "--exit-code"
-      ];
+      test = writeExecline "lint-carnix" {}
+        (cargoEnvironment
+        ++ [
+          (pathAdd "prepend") (pkgs.lib.makeBinPath [ pkgs.carnix ])
+          "if" [ pkgs.runtimeShell "${LORRI_ROOT}/nix/update-carnix.sh" ]
+          "${pkgs.gitMinimal}/bin/git" "diff" "--exit-code"
+        ]);
     };
 
   };
