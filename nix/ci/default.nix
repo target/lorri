@@ -49,6 +49,7 @@ let
     # otherwise cargo doesn’t find its subcommands
     pathPrependBins [ rust pkgs.gcc ]
     ++ [
+      "export" "RUST_BACKTRACE" "1"
       "export" "BUILD_REV_COUNT" (toString BUILD_REV_COUNT)
       "export" "RUN_TIME_CLOSURE" RUN_TIME_CLOSURE
     ];
@@ -112,7 +113,7 @@ let
       description = "check carnix up-to-date";
       test = writeExecline "lint-carnix" {}
         (cargoEnvironment
-        ++ pathPrependBins [ pkgs.carnix ]
+        ++ pathPrependBins [ (pkgs.carnix.override { release = false; }) ]
         ++ [
           "if" [ pkgs.runtimeShell "${LORRI_ROOT}/nix/update-carnix.sh" ]
           "${pkgs.gitMinimal}/bin/git" "diff" "--exit-code"
