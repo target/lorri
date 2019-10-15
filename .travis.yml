@@ -6,8 +6,12 @@
 "matrix":
   "include":
   - "before_cache":
-    - >-
-      [ -n "$CACHIX_SIGNING_KEY" ] && cachix push lorri-test < $HOME/push-to-cachix
+    - >
+      if [ -n "$CACHIX_SIGNING_KEY" ]; then
+        cachix push lorri-test < $HOME/push-to-cachix
+      else
+        true
+      fi
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
     - >-
@@ -131,8 +135,12 @@
       \
         >> $HOME/push-to-cachix
   - "before_cache":
-    - >-
-      [ -n "$CACHIX_SIGNING_KEY" ] && cachix push lorri-test < $HOME/push-to-cachix
+    - >
+      if [ -n "$CACHIX_SIGNING_KEY" ]; then
+        cachix push lorri-test < $HOME/push-to-cachix
+      else
+        true
+      fi
     "install":
     - >-
       nix-env -iA cachix -f https://cachix.org/api/v1/install
