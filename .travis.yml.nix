@@ -105,7 +105,7 @@ let
         before_cache = [
           # read every store path written by previous phases
           # from the cachix-queue-file file and push to cachix
-          ''cachix push ${cachix-repo} < ${cachix-queue-file}''
+          ''[ -n $CACHIX_SIGNING_KEY ] && cachix push lorri-test < $HOME/push-to-cachix''
         ];
       };
 
