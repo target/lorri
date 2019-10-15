@@ -20,12 +20,15 @@ use crate::NixFile;
 pub const DEFAULT_READ_TIMEOUT: Timeout = Timeout::from_millis(1000);
 
 /// Enum of all communication modes the lorri daemon supports.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize,Debug)]
 pub enum CommunicationType {
     /// Ping the daemon from a project to tell it to watch & evaluate
     // TODO: rename to IndicateActivity (along with all other `ping` things)
     // issue: https://github.com/target/lorri/issues/101
     Ping,
+    /// Begin streaming build events, starting with a replay of the last
+    /// event for each current project.
+    StreamEvents,
 }
 
 /// Message sent by the client to ask the server to start
@@ -38,6 +41,12 @@ pub struct Ping {
 
 /// No message can be sent through this socket end (empty type).
 pub enum NoMessage {}
+
+/// Message sent by the server to describe build-related events.
+#[derive(Serialize, Deserialize)]
+pub struct BuildEvent {
+
+}
 
 /// `Listener` and possible errors.
 pub mod listener {
@@ -220,6 +229,12 @@ pub mod client {
     /// Client for the `Ping` communication type.
     /// Reading and writing messages is bounded by `timeout`.
     pub fn ping(timeout: Timeout) -> Client<NoMessage, Ping> {
+        Client::bake(timeout, CommunicationType::Ping)
+    }
+
+    /// Client for the `Ping` communication type.
+    /// Reading and writing messages is bounded by `timeout`.
+    pub fn stream_events(timeout: Timeout) -> Client<NoMessage, NoMessage> {
         Client::bake(timeout, CommunicationType::Ping)
     }
 }

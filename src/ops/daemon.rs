@@ -1,5 +1,7 @@
 //! Run a BuildLoop for `shell.nix`, watching for input file changes.
 //! Can be used together with `direnv`.
+use NixFile;
+use crate::build_loop::Event;
 use crate::daemon::Daemon;
 use crate::ops::{ok, ExitError, OpResult};
 use crate::socket::communicate::listener;
@@ -7,6 +9,7 @@ use crate::socket::communicate::CommunicationType;
 use crate::socket::ReadWriter;
 use crate::thread::Pool;
 use std::sync::mpsc;
+use std::collections::HashMap;
 
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
@@ -30,6 +33,7 @@ pub fn main() -> OpResult {
     let (accept_messages_tx, accept_messages_rx) = mpsc::channel();
 
     let handlers = daemon.handlers();
+    let build_events_tx = daemon.build_events_tx();
 
     let mut pool = Pool::new();
     pool.spawn("accept-loop", move || loop {
@@ -37,11 +41,20 @@ pub fn main() -> OpResult {
         // has to clone handlers once per accept loop,
         // because accept spawns a thread each time.
         let handlers = handlers.clone();
+        let build_events_tx = build_events_tx.clone();
         let _handle = listener
             .accept(move |unix_stream, comm_type| match comm_type {
                 CommunicationType::Ping => {
                     handlers.ping(ReadWriter::new(&unix_stream), accept_messages_tx)
-                }
+                },
+                CommunicationType::StreamEvents => {
+                    let (tx, rx) = mpsc::channel();
+
+                    build_events_tx.send(Event::NewListener(tx))
+                        .expect("daemon seems to have died");
+
+                    handlers.stream_events(ReadWriter::new(&unix_stream), rx)
+                },
             })
             // TODO
             .unwrap();
@@ -49,8 +62,28 @@ pub fn main() -> OpResult {
     .expect("Failed to spawn accept-loop");
 
     pool.spawn("build-loop", || {
+        let mut project_states: HashMap<NixFile, Event> = HashMap::new();
+        let mut event_listeners: Vec<mpsc::Sender<Event>> = Vec::new();
+
         for msg in build_messages_rx {
             println!("{:#?}", msg);
+            match msg {
+                Event::Build(nix_file, m) => {
+                    let msg = Event::Build(nix_file.clone(), m);
+                    project_states.insert(nix_file.clone(), msg.clone());
+                    for listener in &event_listeners {
+                        listener.send(msg.clone())
+                            .expect("Couldn't send to event_listener")
+                    }
+                },
+                Event::NewListener(tx) => {
+                    for (_, event) in &project_states {
+                        tx.send(event.clone())
+                            .expect("XXX");
+                    }
+                    event_listeners.push(tx);
+                },
+            }
         }
     })
     .expect("Failed to spawn build-loop");

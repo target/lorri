@@ -1,8 +1,8 @@
 //! The lorri daemon, watches multiple projects in the background.
 
-use crate::build_loop::BuildLoop;
+use crate::build_loop::{Event,BuildLoop};
 use crate::project::Project;
-use crate::socket::communicate::{NoMessage, Ping, DEFAULT_READ_TIMEOUT};
+use crate::socket::communicate::{NoMessage, Ping, BuildEvent, DEFAULT_READ_TIMEOUT};
 use crate::socket::{ReadError, ReadWriter, Timeout};
 use crate::NixFile;
 use std::collections::HashMap;
@@ -61,6 +61,11 @@ impl Daemon {
         self.handler_fns.clone()
     }
 
+    /// The deamon's transmission channel for build events
+    pub fn build_events_tx(&self) -> mpsc::Sender<::build_loop::Event> {
+        self.build_events_tx.clone()
+    }
+
     /// Add nix file to the set of files this daemon watches
     /// & build if they change.
     pub fn add(&mut self, project: Project) {
@@ -114,6 +119,23 @@ impl HandlerFns {
                         nix_file: p.nix_file,
                     })
                     .expect("StartBuild channel closed")
+            }
+        }
+    }
+
+    /// Accept handler for socket::communicate::StreamEvents messages.
+    /// Once connected, it streams BuildEvent messages to the client.
+    pub fn stream_events(
+        &self,
+        mut rw: ReadWriter<NoMessage, BuildEvent>,
+        build_chan: mpsc::Receiver<Event>,
+    ) {
+        for event in build_chan {
+            // XXX must construct the BuildEvent from the event
+            match rw.write(&self.read_timeout, &BuildEvent{}) {
+                // XXX Mustn't leak here - return if the socket is closed.
+                Err(e) => debug!("Couldn't write build event: {:?}", e),
+                Ok(_) => debug!("Sent a build event"),
             }
         }
     }

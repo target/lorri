@@ -1,6 +1,7 @@
 //! Uses `builder` and filesystem watch code to repeatedly
 //! evaluate and build a given Nix file.
 
+use NixFile;
 use crate::builder;
 use crate::builder::RunStatus;
 use crate::notify;
@@ -12,15 +13,24 @@ use crate::watch::{DebugMessage, RawEventError, Reason, Watch};
 use std::path::PathBuf;
 use std::sync::mpsc::{channel, Sender};
 
-/// Builder events sent back over `BuildLoop.tx`.
+/// Builder messages sent back over `BuildLoop.tx` in an Event.
 #[derive(Clone, Debug)]
-pub enum Event {
+pub enum EventMsg {
     /// The build has started
     Started(Reason),
     /// The build completed successfully
     Completed(BuildResults),
     /// The build command returned a failing exit status
     Failure(BuildExitFailure),
+}
+
+/// Builder events sent back over `BuildLoop.tx`.
+#[derive(Clone, Debug)]
+pub enum Event {
+    /// A Build event
+    Build(NixFile, EventMsg),
+    /// A new listener is joining the stream
+    NewListener(Sender<Event>),
 }
 
 /// Results of a single, successful build.

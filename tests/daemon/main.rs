@@ -48,6 +48,10 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
                 CommunicationType::Ping => {
                     handlers.ping(ReadWriter::new(&unix_stream), accept_messages_tx)
                 }
+                ev => Err(Error::new(
+                        ErrorKind::Other,
+                        format!("didn’t expect event {:?}", ev),
+                        )).unwrap(),
             })
             .unwrap()
     });
@@ -75,7 +79,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
         .recv_timeout(Duration::from_millis(100))
         .unwrap()
     {
-        build_loop::Event::Started(_) => Ok(()),
+        build_loop::Event::Build(_, build_loop::EventMsg::Started(_)) => Ok(()),
         ev => Err(Error::new(
             ErrorKind::Other,
             format!("didn’t expect event {:?}", ev),
