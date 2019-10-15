@@ -114,7 +114,6 @@ pub mod listener {
             Ok(std::thread::spawn(move || handler(unix_stream, comm_type)))
         }
     }
-
 }
 
 /// Clients that can talk to a `Listener`.
@@ -223,5 +222,4 @@ pub mod client {
     pub fn ping(timeout: Timeout) -> Client<NoMessage, Ping> {
         Client::bake(timeout, CommunicationType::Ping)
     }
-
 }

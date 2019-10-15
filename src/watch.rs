@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, RecvError};
 use std::time::Duration;
+use NixFile;
 
 /// A dynamic list of paths to watch for changes, and
 /// react to changes when they occur.
@@ -14,6 +15,22 @@ pub struct Watch {
     notify: RecommendedWatcher,
     rx: std::sync::mpsc::Receiver<notify::RawEvent>,
     watches: HashSet<PathBuf>,
+}
+
+/// Count of extra events batched with this change.
+#[derive(Clone, Debug)]
+pub struct NumberOfBatchedEvents(u16);
+
+/// Description of the project change that triggered a build.
+#[derive(Clone, Debug)]
+pub enum Reason {
+    /// When a project is presented to Lorri to track, it's built for this reason.
+    ProjectAdded(NixFile),
+    /// When there is a filesystem change, the first changed file is recorded,
+    /// along with a count of other filesystem events.
+    FilesChanged(PathBuf, NumberOfBatchedEvents),
+    /// When the underlying notifier reports something strange.
+    UnknownEvent(String),
 }
 
 impl Watch {
@@ -43,24 +60,29 @@ impl Watch {
     }
 
     /// Wait for a batch of changes to arrive, returning when they do.
-    pub fn wait_for_change(&mut self) -> Result<(), ()> {
+    pub fn wait_for_change(&mut self) -> Result<Reason, String> {
         self.block()
     }
 
     /// Block until we have at least one event
-    pub fn block(&mut self) -> Result<(), ()> {
-        if self.blocking_iter().next().is_none() {
-            debug!("No event received!");
-            return Err(());
+    pub fn block(&mut self) -> Result<Reason, String> {
+        match self.blocking_iter().next() {
+            Some(event) => {
+                let count_of_changes = self.process_ready();
+                event.path.map(|p| Reason::FilesChanged(p, count_of_changes))
+                    .ok_or_else(|| String::from("No path for event"))
+            }
+            None => {
+                debug!("No event received!");
+                Err(String::from("No event received!"))
+            }
         }
-
-        self.process_ready()
     }
 
     /// Block until we have at least one event
-    pub fn block_timeout(&self, timeout: Duration) -> Result<(), ()> {
+    pub fn block_timeout(&self, timeout: Duration) -> Result<NumberOfBatchedEvents, ()> {
         if let Some(Ok(_)) = self.timeout_iter(timeout).next() {
-            self.process_ready()
+            Ok(self.process_ready())
         } else {
             Err(())
         }
@@ -96,7 +118,7 @@ impl Watch {
 
     /// Non-blocking, read all the events already received -- draining
     /// the event queue.
-    fn process_ready(&self) -> Result<(), ()> {
+    fn process_ready(&self) -> NumberOfBatchedEvents {
         let mut events = 0;
         let mut iter = self.try_iter();
 
@@ -108,7 +130,7 @@ impl Watch {
                 }
                 None => {
                     info!("Found {} events", events);
-                    return Ok(());
+                    return NumberOfBatchedEvents(events);
                 }
             }
         }
