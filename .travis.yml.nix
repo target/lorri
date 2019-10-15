@@ -108,8 +108,6 @@ let
           ''
           if [ -n "$CACHIX_SIGNING_KEY" ]; then
             cachix push lorri-test < $HOME/push-to-cachix
-          else
-            true
           fi
           ''
         ];

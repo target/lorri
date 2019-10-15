@@ -9,8 +9,6 @@
     - >
       if [ -n "$CACHIX_SIGNING_KEY" ]; then
         cachix push lorri-test < $HOME/push-to-cachix
-      else
-        true
       fi
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
@@ -138,8 +136,6 @@
     - >
       if [ -n "$CACHIX_SIGNING_KEY" ]; then
         cachix push lorri-test < $HOME/push-to-cachix
-      else
-        true
       fi
     "install":
     - >-
