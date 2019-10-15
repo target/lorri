@@ -75,7 +75,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
         .recv_timeout(Duration::from_millis(100))
         .unwrap()
     {
-        build_loop::Event::Started => Ok(()),
+        build_loop::Event::Started(_) => Ok(()),
         ev => Err(Error::new(
             ErrorKind::Other,
             format!("didn’t expect event {:?}", ev),
