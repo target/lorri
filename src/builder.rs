@@ -16,6 +16,7 @@ use std::ffi::{OsStr, OsString};
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::mpsc::Sender;
 use std::thread;
 use {DrvFile, NixFile};
 
@@ -42,6 +43,7 @@ struct InstantiateOutput {
 }
 
 fn instrumented_instantiation(
+    tx: Sender<OsString>,
     root_nix_file: &NixFile,
     cas: &ContentAddressable,
 ) -> Result<InstantiateOutput, std::io::Error> {
@@ -99,7 +101,12 @@ fn instrumented_instantiation(
     let stderr_results: thread::JoinHandle<std::io::Result<Vec<LogDatum>>> =
         thread::spawn(move || {
             osstrlines::Lines::from(BufReader::new(stderr))
-                .map(|line| line.map(parse_evaluation_line))
+                .map(|line| {
+                    line.map(|l| {
+                        tx.send(l.clone()).expect("Receiver hung up!");
+                        parse_evaluation_line(l)
+                    })
+                })
                 .collect::<Result<Vec<LogDatum>, _>>()
         });
 
@@ -184,9 +191,12 @@ struct BuildOutput {
 ///
 /// Instruments the nix file to gain extra information,
 /// which is valuable even if the build fails.
-fn build(drv_path: DrvFile) -> Result<BuildOutput, std::io::Error> {
+fn build(tx: Sender<OsString>, drv_path: DrvFile) -> Result<BuildOutput, std::io::Error> {
     //let drv_path = s.path.clone();
-    match ::nix::CallOpts::file(drv_path.as_path()).path() {
+    match ::nix::CallOpts::file(drv_path.as_path())
+        .set_stderr_sender(tx)
+        .path()
+    {
         Ok(realized) => Ok(BuildOutput {
             output: Some(RootedPath {
                 gc_handle: realized.1,
@@ -238,10 +248,14 @@ pub enum RunStatus {
 ///
 /// Instruments the nix file to gain extra information,
 /// which is valuable even if the build fails.
-pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<RunResult, Error> {
-    let inst_info = instrumented_instantiation(root_nix_file, cas)?;
+pub fn run(
+    tx: Sender<OsString>,
+    root_nix_file: &NixFile,
+    cas: &ContentAddressable,
+) -> Result<RunResult, Error> {
+    let inst_info = instrumented_instantiation(tx.clone(), root_nix_file, cas)?;
     if let Some(inst_output) = inst_info.output {
-        let buildoutput = build(inst_output.path)?;
+        let buildoutput = build(tx, inst_output.path)?;
 
         if let Some(build_output) = buildoutput.output {
             Ok(RunResult {
@@ -353,6 +367,7 @@ mod tests {
     use super::*;
     use cas::ContentAddressable;
     use std::ffi::OsString;
+    use std::os::unix::ffi::OsStrExt;
     use std::path::PathBuf;
 
     /// Parsing of `LogDatum`.
@@ -438,37 +453,19 @@ in {}
         print!("{}", nix_drv);
 
         // build, because instantiate doesn’t return the build output (obviously …)
-        let info = run(&::NixFile::from(cas.file_from_string(&nix_drv)?), &cas).unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let info = run(tx, &::NixFile::from(cas.file_from_string(&nix_drv)?), &cas).unwrap();
         match info.status {
             RunStatus::Complete(_) => {}
             _ => panic!("could not run() the drv:\n{:?}", info),
         }
 
-        // next, check the build log for the bytes;
-        // we have to query nix log because we don’t store the
-        // output of nix realisation anywhere (only instantiation);
-        // fixing that is a TODO
         let expect: &[u8] = b"\"\xAB\xBC\xCD\xDE\xDE\xEF\"";
-        // get the store path of our inner derivation, so that we
-        // can actually get the log output for that
-        let (store_path, gc_root) = ::nix::CallOpts::file(&cas.file_from_string(&inner_drv)?)
-            .path()
-            .unwrap();
-        let mut cmd = std::process::Command::new("nix-store");
-        let cmd = cmd.arg("--read-log").arg(&store_path.as_path());
-        print!("{:?}", cmd);
-        let log_lines = cmd.output()?;
-        assert!(log_lines.status.success(), "{:?}", log_lines);
-        // The stdout of nix-store --read-log should contain our bytes
-        assert!(
-            log_lines
-                .stdout
+        assert!(rx.iter().any(|line| {
+            line.as_bytes()
                 .windows(expect.len())
-                .any(|bytes| bytes == expect),
-            "{:?}",
-            String::from_utf8_lossy(&log_lines.stderr)
-        );
-        drop(gc_root);
+                .any(|bytes| bytes == expect)
+        }));
         Ok(())
     }
 
@@ -483,7 +480,8 @@ in {}
             &format!("dep = {};", drv("dep", r##"args = [ "-c" "exit 1" ];"##)),
         ))?);
 
-        run(&d, &cas).expect("build can fail, but must not panic");
+        let (tx, _rx) = std::sync::mpsc::channel();
+        run(tx, &d, &cas).expect("build can fail, but must not panic");
         Ok(())
     }
 
