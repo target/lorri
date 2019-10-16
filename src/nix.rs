@@ -138,38 +138,6 @@ impl CallOpts {
     /// assert_eq!(output.unwrap(), 5);
     /// assert_eq!(rx.recv().unwrap(), "trace: Hello!");
     /// ```
-    ///
-    /// or for build steps:
-    ///
-    /// ```rust
-    /// extern crate lorri;
-    /// use lorri::nix;
-    /// use std::path::{Path, PathBuf};
-    /// use std::sync::mpsc::channel;
-    ///
-    /// # use std::env;
-    /// # env::set_var("NIX_PATH", "nixpkgs=./nix/bogus-nixpkgs/");
-    ///
-    /// println!("Building hello in the stderr sender test =)");
-    /// let (tx, rx) = channel();
-    /// let (location, gc_root) = nix::CallOpts::expression(r#"
-    ///             import <nixpkgs> {}
-    /// "#)
-    ///         .attribute("hello-unstable")
-    ///         .set_stderr_sender(tx)
-    ///         .path()
-    ///         .unwrap()
-    ///         ;
-    ///
-    /// let messages: Vec<String> = rx.iter()
-    ///     .map(|osstr| osstr.to_string_lossy().into())
-    ///     .collect();
-    /// println!("messages: {:#?}", messages);
-    /// assert!(messages.contains(&String::from("these derivations will be built:")), "looking for 'these derivations will be built:'");
-    /// assert!(messages.iter().any(|m| m.contains("hello-unstable-1.0.0.drv")), "looking for a line like '  /nix/store/...-hello-unstable-1.0.0.drv'");
-    /// assert!(messages.iter().any(|m| m.contains("building '/nix/store")), "looking for a line like 'building \'/nix/store...'");
-    /// drop(gc_root);
-    /// ```
     pub fn set_stderr_sender(&mut self, sender: mpsc::Sender<OsString>) -> &mut Self {
         self.stderr_line_tx = Some(sender);
         self
@@ -573,6 +541,8 @@ mod tests {
     use super::CallOpts;
     use std::ffi::OsStr;
     use std::path::PathBuf;
+    use std::sync::mpsc::channel;
+    use std::env;
 
     #[test]
     fn cmd_arguments_expression() {
@@ -614,4 +584,29 @@ mod tests {
         .collect();
         assert_eq!(exp2, nix2.command_arguments());
     }
+
+    #[test]
+    fn build_with_stderr_sender() {
+        env::set_var("NIX_PATH", "nixpkgs=./nix/bogus-nixpkgs/");
+
+        let (tx, rx) = channel();
+        let _result = CallOpts::expression(r#"
+                  import <nixpkgs> {}
+        "#)
+              .attribute("hello-unstable")
+            .set_stderr_sender(tx)
+            .path()
+            .unwrap()
+            ;
+
+        let messages: Vec<String> = rx.iter()
+            .map(|osstr| osstr.to_string_lossy().into())
+            .collect();
+
+        println!("messages: {:#?}", messages);
+        assert!(messages.contains(&String::from("these derivations will be built:")), "looking for 'these derivations will be built:'");
+        assert!(messages.iter().any(|m| m.contains("hello-unstable-1.0.0.drv")), "looking for a line like '  /nix/store/...-hello-unstable-1.0.0.drv'");
+        assert!(messages.iter().any(|m| m.contains("building '/nix/store")), "looking for a line like 'building \'/nix/store...'");
+    }
+
 }
