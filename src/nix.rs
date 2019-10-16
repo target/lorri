@@ -364,6 +364,9 @@ impl CallOpts {
         }
     }
 
+    /// Execute a command (presumably a Nix command :)). stderr output
+    /// is passed line-based to the CallOpts' stderr_line_tx receiver.
+    /// Stdout is passed as a BufReader to `stdout_fn`.
     fn execute<T: 'static, S: 'static>(
         &self,
         mut cmd: Command,
