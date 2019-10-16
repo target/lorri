@@ -21,6 +21,16 @@ pub struct Watch {
 #[derive(Clone, Debug)]
 pub struct NumberOfBatchedEvents(u16);
 
+/// A debug message string that can only be displayed via `Debug`.
+#[derive(Clone, Debug)]
+pub struct DebugMessage(String);
+
+impl From<String> for DebugMessage {
+    fn from(s: String) -> Self {
+        DebugMessage(s)
+    }
+}
+
 /// Description of the project change that triggered a build.
 #[derive(Clone, Debug)]
 pub enum Reason {
@@ -30,7 +40,15 @@ pub enum Reason {
     /// along with a count of other filesystem events.
     FilesChanged(PathBuf, NumberOfBatchedEvents),
     /// When the underlying notifier reports something strange.
-    UnknownEvent(String),
+    UnknownEvent(DebugMessage),
+}
+
+/// We weren’t able to understand a `notify::RawEvent`.
+pub enum RawEventError {
+    /// No message was received from the raw event channel
+    RxNoEventReceived,
+    /// The changed file event had no file path
+    EventHasNoFilePath(notify::RawEvent),
 }
 
 impl Watch {
@@ -60,21 +78,22 @@ impl Watch {
     }
 
     /// Wait for a batch of changes to arrive, returning when they do.
-    pub fn wait_for_change(&mut self) -> Result<Reason, String> {
+    pub fn wait_for_change(&mut self) -> Result<Reason, RawEventError> {
         self.block()
     }
 
     /// Block until we have at least one event
-    pub fn block(&mut self) -> Result<Reason, String> {
+    pub fn block(&mut self) -> Result<Reason, RawEventError> {
         match self.blocking_iter().next() {
             Some(event) => {
                 let count_of_changes = self.process_ready();
-                event.path.map(|p| Reason::FilesChanged(p, count_of_changes))
-                    .ok_or_else(|| String::from("No path for event"))
+                let path = event.path.clone();
+                path.map(|p| Reason::FilesChanged(p, count_of_changes))
+                    .ok_or_else(|| RawEventError::EventHasNoFilePath(event))
             }
             None => {
                 debug!("No event received!");
-                Err(String::from("No event received!"))
+                Err(RawEventError::RxNoEventReceived)
             }
         }
     }

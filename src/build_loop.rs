@@ -8,7 +8,7 @@ use crate::pathreduction::reduce_paths;
 use crate::project::roots;
 use crate::project::roots::Roots;
 use crate::project::Project;
-use crate::watch::{Reason, Watch};
+use crate::watch::{DebugMessage, RawEventError, Reason, Watch};
 use std::path::PathBuf;
 use std::sync::mpsc::{channel, Sender};
 
@@ -64,32 +64,42 @@ impl<'a> BuildLoop<'a> {
     /// When new filesystem changes are detected while a build is
     /// still running, it is finished first before starting a new build.
     pub fn forever(&mut self, tx: Sender<Event>) {
-        let mut reason = Reason::ProjectAdded(self.project.nix_file.clone());
+        let send = |msg| tx.send(msg).expect("Failed to send an event");
+
+        send(Event::Started(Reason::ProjectAdded(
+            self.project.nix_file.clone(),
+        )));
+
         loop {
+            match self.once() {
+                Ok(result) => send(Event::Completed(result)),
+                Err(BuildError::Recoverable(failure)) => send(Event::Failure(failure)),
+                Err(BuildError::Unrecoverable(err)) => {
+                    panic!("Unrecoverable error:\n{:#?}", err);
+                }
+            }
+
+            let reason = match self.watch.wait_for_change() {
+                Ok(r) => r,
+                // we should continue and just cite an unknown reason
+                Err(RawEventError::EventHasNoFilePath(msg)) => {
+                    warn!(
+                        "Event has no file path; possible issue with the watcher?: {:#?}",
+                        msg
+                    );
+                    // can’t Clone RawEvents, so we return the Debug output here
+                    Reason::UnknownEvent(DebugMessage::from(format!("{:#?}", msg)))
+                }
+                Err(RawEventError::RxNoEventReceived) => {
+                    panic!("The file watcher died!");
+                }
+            };
+
             // TODO: Make err use Display instead of Debug.
             // Otherwise user errors (especially for IO errors)
             // are pretty hard to debug. Might need to review
             // whether we can handle some errors earlier than here.
-            tx.send(Event::Started(reason))
-                .expect("Failed to notify a started evaluation");
-
-            match self.once() {
-                Ok(result) => {
-                    tx.send(Event::Completed(result))
-                        .expect("Failed to notify the results of a completed evaluation");
-                }
-                Err(BuildError::Recoverable(failure)) => {
-                    tx.send(Event::Failure(failure))
-                        .expect("Failed to notify the results of a failed evaluation");
-                }
-                Err(BuildError::Unrecoverable(err)) => panic!("Unrecoverable error!\n{:#?}", err),
-            }
-
-            reason = match self.watch.wait_for_change() {
-                Ok(r) => r,
-                Err(msg) => Reason::UnknownEvent(msg)
-            }
-
+            send(Event::Started(reason));
         }
     }
 
