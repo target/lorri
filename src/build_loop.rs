@@ -13,24 +13,33 @@ use crate::watch::{DebugMessage, RawEventError, Reason, Watch};
 use std::path::PathBuf;
 use std::sync::mpsc::{channel, Sender};
 
-/// Builder messages sent back over `BuildLoop.tx` in an Event.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum EventMsg {
-    /// The build has started
-    Started(Reason),
-    /// The build completed successfully
-    Completed(BuildResults),
-    /// The build command returned a failing exit status
-    Failure(BuildExitFailure),
-}
-
 /// Builder events sent back over `BuildLoop.tx`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all="snake_case")]
 pub enum Event {
-    /// A Build event
-    Build(NixFile, EventMsg),
-    /// A new listener is joining the stream
-    NewListener(Sender<Event>),
+    /// A heartbeat to send over sockets to keep them alive
+    Heartbeat,
+    /// A build has started
+    Started{
+        /// The shell.nix file for the building project
+        nix_file: NixFile,
+        /// The reason the build started
+        reason: Reason
+    },
+    /// A build completed successfully
+    Completed{
+        /// The shell.nix file for the building project
+        nix_file: NixFile,
+        /// The result of the build
+        result: BuildResults
+    },
+    /// A build command returned a failing exit status
+    Failure{
+        /// The shell.nix file for the building project
+        nix_file: NixFile,
+        /// The error that exited the build
+        failure: BuildExitFailure
+    },
 }
 
 /// Results of a single, successful build.

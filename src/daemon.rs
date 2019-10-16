@@ -2,7 +2,7 @@
 
 use crate::build_loop::{Event,BuildLoop};
 use crate::project::Project;
-use crate::socket::communicate::{NoMessage, Ping, BuildEvent, DEFAULT_READ_TIMEOUT};
+use crate::socket::communicate::{NoMessage, Ping, DEFAULT_READ_TIMEOUT};
 use crate::socket::{ReadError, ReadWriter, Timeout};
 use crate::NixFile;
 use std::collections::HashMap;
@@ -31,7 +31,7 @@ pub struct Daemon {
     handler_threads: HashMap<NixFile, std::thread::JoinHandle<()>>,
     /// Sending end that we pass to every `BuildLoop` the daemon controls.
     // TODO: this needs to transmit information to identify the builder with
-    build_events_tx: mpsc::Sender<crate::build_loop::Event>,
+    build_events_tx: mpsc::Sender<::ops::daemon::LoopHanderEvent>,
     /// The handlers functions for incoming requests
     handler_fns: HandlerFns,
 }
@@ -42,7 +42,7 @@ impl Daemon {
     /// Create a new daemon. Also return an `mpsc::Receiver` that
     /// receives `build_loop::Event`s for all builders this daemon
     /// supervises.
-    pub fn new() -> (Daemon, mpsc::Receiver<crate::build_loop::Event>) {
+    pub fn new() -> (Daemon, mpsc::Receiver<::ops::daemon::LoopHanderEvent>) {
         let (tx, rx) = mpsc::channel();
         (
             Daemon {
@@ -62,7 +62,7 @@ impl Daemon {
     }
 
     /// The deamon's transmission channel for build events
-    pub fn build_events_tx(&self) -> mpsc::Sender<::build_loop::Event> {
+    pub fn build_events_tx(&self) -> mpsc::Sender<::ops::daemon::LoopHanderEvent> {
         self.build_events_tx.clone()
     }
 
@@ -127,22 +127,16 @@ impl HandlerFns {
     /// Once connected, it streams BuildEvent messages to the client.
     pub fn stream_events(
         &self,
-        mut rw: ReadWriter<NoMessage, BuildEvent>,
+        mut rw: ReadWriter<NoMessage, Event>,
         build_chan: mpsc::Receiver<Event>,
     ) {
         for event in build_chan {
-            match event {
-                Event::Build(nix_file, msg) => {
-                    match rw.write(&self.read_timeout, &BuildEvent{ nix_file: nix_file, event: msg}) {
-                        // XXX More robust error handling?
-                        Err(e) => {
-                            debug!("Couldn't write build event: {:?}", e);
-                            break // XXX Need to close socket?
-                        },
-                        Ok(_) => debug!("Sent a build event"),
-                    }
+            match rw.write(&self.read_timeout, &event) {
+                Err(e) => {
+                    debug!("Couldn't write event: {:?}", e);
+                    break
                 },
-                _ => ()
+                Ok(_) => debug!("Sent an event"),
             }
         }
     }

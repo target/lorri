@@ -42,6 +42,10 @@ pub enum Command {
     #[structopt(name = "ping_")]
     Ping_(Ping_),
 
+    /// (plumbing) Ask the lorri daemon to report build events as they occur
+    #[structopt(name = "stream_events_")]
+    StreamEvents_,
+
     /// Upgrade Lorri
     #[structopt(name = "self-upgrade", alias = "self-update")]
     Upgrade(UpgradeTo),

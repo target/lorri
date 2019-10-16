@@ -4,12 +4,28 @@ use NixFile;
 use crate::build_loop::Event;
 use crate::daemon::Daemon;
 use crate::ops::{ok, ExitError, OpResult};
-use crate::socket::communicate::listener;
-use crate::socket::communicate::CommunicationType;
-use crate::socket::ReadWriter;
+use crate::socket::communicate::{listener,CommunicationType,DEFAULT_READ_TIMEOUT};
+use crate::socket::{Timeout,ReadWriter};
 use crate::thread::Pool;
-use std::sync::mpsc;
+use std::thread::sleep;
+use std::time::Duration;
+use std::sync::mpsc::{channel,Sender};
 use std::collections::HashMap;
+
+#[derive(Debug,Clone)]
+/// Union of build_loop::Event and NewListener for internal use.
+pub enum LoopHanderEvent {
+    /// A new listener has joined for event streaming
+    NewListener(Sender<Event>),
+    /// Events from a BuildLoop
+    BuildEvent(Event),
+}
+
+impl From<Event> for LoopHanderEvent {
+    fn from(item: Event) -> Self {
+        LoopHanderEvent::BuildEvent(item)
+    }
+}
 
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
@@ -30,7 +46,7 @@ pub fn main() -> OpResult {
     let (mut daemon, build_messages_rx) = Daemon::new();
 
     // messages sent from accept handlers
-    let (accept_messages_tx, accept_messages_rx) = mpsc::channel();
+    let (accept_messages_tx, accept_messages_rx) = channel();
 
     let handlers = daemon.handlers();
     let build_events_tx = daemon.build_events_tx();
@@ -38,8 +54,6 @@ pub fn main() -> OpResult {
     let mut pool = Pool::new();
     pool.spawn("accept-loop", move || loop {
         let accept_messages_tx = accept_messages_tx.clone();
-        // has to clone handlers once per accept loop,
-        // because accept spawns a thread each time.
         let handlers = handlers.clone();
         let build_events_tx = build_events_tx.clone();
         let _handle = listener
@@ -48,9 +62,9 @@ pub fn main() -> OpResult {
                     handlers.ping(ReadWriter::new(&unix_stream), accept_messages_tx)
                 },
                 CommunicationType::StreamEvents => {
-                    let (tx, rx) = mpsc::channel();
+                    let (tx, rx) = channel();
 
-                    build_events_tx.send(Event::NewListener(tx))
+                    build_events_tx.send(LoopHanderEvent::NewListener(tx))
                         .expect("daemon seems to have died");
 
                     handlers.stream_events(ReadWriter::new(&unix_stream), rx)
@@ -61,26 +75,52 @@ pub fn main() -> OpResult {
     })
     .expect("Failed to spawn accept-loop");
 
+    match DEFAULT_READ_TIMEOUT {
+        Timeout::D(millis) => {
+            let tx = daemon.build_events_tx();
+
+            pool.spawn("heartbeat", move || {
+                loop {
+                    tx.send(Event::Heartbeat.into()).expect("couldn't send heartbeat");
+
+                    sleep(Duration::from(millis) / 2);
+                }
+            }).expect("Failed to spawn heartbeat loop");
+        },
+        _ => ()
+    }
+
     pool.spawn("build-loop", || {
         let mut project_states: HashMap<NixFile, Event> = HashMap::new();
-        let mut event_listeners: Vec<mpsc::Sender<Event>> = Vec::new();
+        let mut event_listeners: Vec<Sender<Event>> = Vec::new();
 
         for msg in build_messages_rx {
-            println!("{:#?}", msg);
-            match msg {
-                Event::Build(nix_file, m) => {
-                    let msg = Event::Build(nix_file.clone(), m);
-                    project_states.insert(nix_file.clone(), msg.clone());
-                    event_listeners.retain(|tx| {
-                        tx.send(msg.clone()).is_ok()
-                    })
+            match &msg {
+                LoopHanderEvent::BuildEvent(Event::Heartbeat) => (),
+                m => println!("{:#?}", m)
+            }
+            match &msg {
+                LoopHanderEvent::BuildEvent(ev) => match ev {
+                    Event::Heartbeat => {
+                        event_listeners.retain(|tx| {
+                            tx.send(ev.clone()).is_ok()
+                        })
+                    },
+                    Event::Started{nix_file, ..} |
+                        Event::Completed{nix_file, ..} |
+                        Event::Failure{nix_file, ..} => {
+                            project_states.insert(nix_file.clone(), ev.clone());
+                            event_listeners.retain(|tx| {
+                                tx.send(ev.clone()).is_ok()
+                            })
+                        },
                 },
-                Event::NewListener(tx) => {
+                LoopHanderEvent::NewListener(tx) => {
                     let keep = project_states.values().all(|event| {
                         tx.send(event.clone()).is_ok()
                     });
                     if keep {
-                        event_listeners.push(tx);
+                        event_listeners.push(tx.clone());
                     }
                 },
             }

@@ -12,7 +12,6 @@ let
         stableVersion = "1.35.0";
       });
 in
-
 pkgs.mkShell rec {
   name = "lorri";
   buildInputs = [

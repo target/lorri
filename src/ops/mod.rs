@@ -5,6 +5,7 @@ pub mod direnv;
 pub mod info;
 pub mod init;
 pub mod ping;
+pub mod stream_events;
 pub mod upgrade;
 pub mod watch;
 
@@ -41,6 +42,15 @@ where
 /// a silent exit 0
 pub fn ok() -> OpResult {
     Ok(None)
+}
+
+
+/// Exit 1 with an exit message
+pub fn err_msg<T>(message: T) -> OpResult
+    where
+        T: Into<String>,
+{
+    Err(ExitError::errmsg(message))
 }
 
 impl ExitError {

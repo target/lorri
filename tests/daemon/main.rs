@@ -1,6 +1,7 @@
 extern crate lorri;
 extern crate tempfile;
 
+
 use lorri::build_loop;
 use lorri::cas::ContentAddressable;
 use lorri::project::Project;
@@ -9,6 +10,7 @@ use lorri::socket::communicate::{CommunicationType, Ping};
 use lorri::socket::path::SocketPath;
 use lorri::socket::{ReadWriter, Timeout};
 use lorri::NixFile;
+use lorri::ops::daemon::LoopHanderEvent;
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -79,7 +81,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
         .recv_timeout(Duration::from_millis(100))
         .unwrap()
     {
-        build_loop::Event::Build(_, build_loop::EventMsg::Started(_)) => Ok(()),
+        LoopHanderEvent::BuildEvent(build_loop::Event::Started{..}) => Ok(()),
         ev => Err(Error::new(
             ErrorKind::Other,
             format!("didn’t expect event {:?}", ev),

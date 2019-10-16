@@ -33,6 +33,7 @@ impl From<String> for DebugMessage {
 
 /// Description of the project change that triggered a build.
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all="snake_case")]
 pub enum Reason {
     /// When a project is presented to Lorri to track, it's built for this reason.
     ProjectAdded(NixFile),

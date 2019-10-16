@@ -10,7 +10,7 @@ use lorri::locate_file;
 use lorri::NixFile;
 
 use lorri::cli::{Arguments, Command};
-use lorri::ops::{daemon, direnv, info, init, ping, upgrade, watch, ExitError, OpResult};
+use lorri::ops::{daemon, direnv, info, init, ping, stream_events, upgrade, watch, ExitError, OpResult};
 use lorri::project::Project;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -86,6 +86,8 @@ fn run_command(opts: Arguments) -> OpResult {
 
         // TODO: remove
         Command::Ping_(opts) => get_shell_nix(&opts.nix_file).and_then(ping::main),
+
+        Command::StreamEvents_ => stream_events::main(),
 
         Command::Init => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
     }

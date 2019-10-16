@@ -13,6 +13,7 @@ use std::os::unix::net::UnixStream;
 
 use crate::socket::path::{BindError, BindLock, SocketPath};
 use crate::socket::{ReadWriteError, ReadWriter, Timeout};
+use crate::build_loop::Event;
 use crate::NixFile;
 
 /// We declare 1s as the time readers should wait
@@ -41,13 +42,6 @@ pub struct Ping {
 
 /// No message can be sent through this socket end (empty type).
 pub enum NoMessage {}
-
-/// Message sent by the server to describe build-related events.
-#[derive(Serialize, Deserialize)]
-pub struct BuildEvent {
-    pub nix_file: NixFile,
-    pub event: ::build_loop::EventMsg,
-}
 
 /// `Listener` and possible errors.
 pub mod listener {
@@ -205,14 +199,18 @@ pub mod client {
         }
 
         /// Read a message returned by the connected `Listener`.
-        pub fn read(self) -> Result<R, Error>
+        pub fn read(&self) -> Result<R, Error>
         where
             R: serde::de::DeserializeOwned,
         {
-            let sock = &self.socket.ok_or(Error::NotConnected)?;
-            let rw: ReadWriter<R, W> = ReadWriter::new(sock);
-            rw.read(&self.timeout)
-                .map_err(|e| Error::Message(ReadWriteError::R(e)))
+            match self.socket {
+                Some(ref sock) => {
+                    let rw: ReadWriter<R, W> = ReadWriter::new(sock);
+                    rw.read(&self.timeout)
+                        .map_err(|e| Error::Message(ReadWriteError::R(e)))
+                },
+                None => Err(Error::NotConnected),
+            }
         }
 
         /// Write a message to the connected `Listener`.
@@ -235,9 +233,7 @@ pub mod client {
 
     /// Client for the `StreamEvents` communication type.
     /// Reading and writing messages is bounded by `timeout`.
-    // XXX a timeout may be incompatible with use case
-    // A heartbeat message?
-    pub fn stream_events(timeout: Timeout) -> Client<BuildEvent, NoMessage> {
+    pub fn stream_events(timeout: Timeout) -> Client<Event, NoMessage> {
         Client::bake(timeout, CommunicationType::StreamEvents)
     }
 }
