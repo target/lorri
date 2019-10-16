@@ -542,10 +542,10 @@ impl From<BuildError> for OnePathError {
 #[cfg(test)]
 mod tests {
     use super::CallOpts;
+    use std::env;
     use std::ffi::OsStr;
     use std::path::PathBuf;
     use std::sync::mpsc::channel;
-    use std::env;
 
     #[test]
     fn cmd_arguments_expression() {
@@ -593,23 +593,36 @@ mod tests {
         env::set_var("NIX_PATH", "nixpkgs=./nix/bogus-nixpkgs/");
 
         let (tx, rx) = channel();
-        let _result = CallOpts::expression(r#"
+        let _result = CallOpts::expression(
+            r#"
                   import <nixpkgs> {}
-        "#)
-              .attribute("hello-unstable")
-            .set_stderr_sender(tx)
-            .path()
-            .unwrap()
-            ;
+        "#,
+        )
+        .attribute("hello-unstable")
+        .set_stderr_sender(tx)
+        .path()
+        .unwrap();
 
-        let messages: Vec<String> = rx.iter()
+        let messages: Vec<String> = rx
+            .iter()
             .map(|osstr| osstr.to_string_lossy().into())
             .collect();
 
         println!("messages: {:#?}", messages);
-        assert!(messages.contains(&String::from("these derivations will be built:")), "looking for 'these derivations will be built:'");
-        assert!(messages.iter().any(|m| m.contains("hello-unstable-1.0.0.drv")), "looking for a line like '  /nix/store/...-hello-unstable-1.0.0.drv'");
-        assert!(messages.iter().any(|m| m.contains("building '/nix/store")), "looking for a line like 'building \'/nix/store...'");
+        assert!(
+            messages.contains(&String::from("these derivations will be built:")),
+            "looking for 'these derivations will be built:'"
+        );
+        assert!(
+            messages
+                .iter()
+                .any(|m| m.contains("hello-unstable-1.0.0.drv")),
+            "looking for a line like '  /nix/store/...-hello-unstable-1.0.0.drv'"
+        );
+        assert!(
+            messages.iter().any(|m| m.contains("building '/nix/store")),
+            "looking for a line like 'building \'/nix/store...'"
+        );
     }
 
 }
