@@ -10,7 +10,7 @@ use crate::project::roots::Roots;
 use crate::project::Project;
 use crate::watch::Watch;
 use std::path::PathBuf;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{channel, Sender};
 
 /// Builder events sent back over `BuildLoop.tx`.
 #[derive(Clone, Debug)]
@@ -93,16 +93,19 @@ impl<'a> BuildLoop<'a> {
     /// This will create GC roots and expand the file watch list for
     /// the evaluation.
     pub fn once(&mut self) -> Result<BuildResults, BuildError> {
-        let run_result = builder::run(&self.project.nix_file, &self.project.cas)?;
+        let (tx, rx) = channel();
+        let run_result = builder::run(tx, &self.project.nix_file, &self.project.cas)?;
 
         self.register_paths(&run_result.referenced_paths)?;
 
+        let lines = rx.iter().collect();
+
         match run_result.status {
             RunStatus::FailedAtInstantiation => Err(BuildError::Recoverable(BuildExitFailure {
-                log_lines: vec![],
+                log_lines: lines,
             })),
             RunStatus::FailedAtRealize => Err(BuildError::Recoverable(BuildExitFailure {
-                log_lines: vec![],
+                log_lines: lines,
             })),
             RunStatus::Complete(path) => self.root_result(path),
         }
