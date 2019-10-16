@@ -380,14 +380,9 @@ impl CallOpts {
         cmd.stdout(Stdio::piped());
 
         // 0. spawn the process
-        // 1. spawn a stderr handling thread
-        // 2. spawn a stdout handling thread (?)
-        // 3. wait on the process
-        // 4. join the stderr handler
-        // 5. join the stdout handler
-
         let mut nix_proc = cmd.spawn()?;
 
+        // 1. spawn a stderr handling thread
         let stderr_handle: ChildStderr = nix_proc.stderr.take().expect("failed to take stderr");
         let stderr_tx = self.stderr_line_tx.clone();
         let stderr_thread = thread::spawn(move || {
@@ -401,14 +396,19 @@ impl CallOpts {
             }
         });
 
+        // 2. spawn a stdout handling thread (?)
         let stdout_handle: ChildStdout = nix_proc.stdout.take().expect("failed to take stdout");
         let stdout_thread = thread::spawn(move || stdout_fn(BufReader::new(stdout_handle)));
 
+        // 3. wait on the process
         let nix_proc_result = nix_proc.wait().expect("nix wasn't running");
 
+        // 4. join the stderr handler
         stderr_thread
             .join()
             .expect("stderr handling thread panicked");
+
+        // 5. join the stdout handler
         let data_result = stdout_thread
             .join()
             .expect("stderr handling thread panicked");
