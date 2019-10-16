@@ -45,7 +45,8 @@ pub enum NoMessage {}
 /// Message sent by the server to describe build-related events.
 #[derive(Serialize, Deserialize)]
 pub struct BuildEvent {
-
+    pub nix_file: NixFile,
+    pub event: ::build_loop::EventMsg,
 }
 
 /// `Listener` and possible errors.
@@ -232,9 +233,11 @@ pub mod client {
         Client::bake(timeout, CommunicationType::Ping)
     }
 
-    /// Client for the `Ping` communication type.
+    /// Client for the `StreamEvents` communication type.
     /// Reading and writing messages is bounded by `timeout`.
-    pub fn stream_events(timeout: Timeout) -> Client<NoMessage, NoMessage> {
-        Client::bake(timeout, CommunicationType::Ping)
+    // XXX a timeout may be incompatible with use case
+    // A heartbeat message?
+    pub fn stream_events(timeout: Timeout) -> Client<BuildEvent, NoMessage> {
+        Client::bake(timeout, CommunicationType::StreamEvents)
     }
 }

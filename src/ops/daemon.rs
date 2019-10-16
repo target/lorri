@@ -71,17 +71,17 @@ pub fn main() -> OpResult {
                 Event::Build(nix_file, m) => {
                     let msg = Event::Build(nix_file.clone(), m);
                     project_states.insert(nix_file.clone(), msg.clone());
-                    for listener in &event_listeners {
-                        listener.send(msg.clone())
-                            .expect("Couldn't send to event_listener")
-                    }
+                    event_listeners.retain(|tx| {
+                        tx.send(msg.clone()).is_ok()
+                    })
                 },
                 Event::NewListener(tx) => {
-                    for (_, event) in &project_states {
-                        tx.send(event.clone())
-                            .expect("XXX");
+                    let keep = project_states.values().all(|event| {
+                        tx.send(event.clone()).is_ok()
+                    });
+                    if keep {
+                        event_listeners.push(tx);
                     }
-                    event_listeners.push(tx);
                 },
             }
         }

@@ -131,11 +131,18 @@ impl HandlerFns {
         build_chan: mpsc::Receiver<Event>,
     ) {
         for event in build_chan {
-            // XXX must construct the BuildEvent from the event
-            match rw.write(&self.read_timeout, &BuildEvent{}) {
-                // XXX Mustn't leak here - return if the socket is closed.
-                Err(e) => debug!("Couldn't write build event: {:?}", e),
-                Ok(_) => debug!("Sent a build event"),
+            match event {
+                Event::Build(nix_file, msg) => {
+                    match rw.write(&self.read_timeout, &BuildEvent{ nix_file: nix_file, event: msg}) {
+                        // XXX More robust error handling?
+                        Err(e) => {
+                            debug!("Couldn't write build event: {:?}", e);
+                            break // XXX Need to close socket?
+                        },
+                        Ok(_) => debug!("Sent a build event"),
+                    }
+                },
+                _ => ()
             }
         }
     }

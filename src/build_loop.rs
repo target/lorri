@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::{channel, Sender};
 
 /// Builder messages sent back over `BuildLoop.tx` in an Event.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum EventMsg {
     /// The build has started
     Started(Reason),
@@ -34,14 +34,14 @@ pub enum Event {
 }
 
 /// Results of a single, successful build.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BuildResults {
     /// See `build::Info.outputPaths
     pub output_paths: builder::OutputPaths<roots::RootPath>,
 }
 
 /// Results of a single, failing build.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildExitFailure {
     /// stderr log output
     pub log_lines: Vec<std::ffi::OsString>,
