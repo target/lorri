@@ -455,21 +455,28 @@ in {}
         // build, because instantiate doesn’t return the build output (obviously …)
         let (tx, rx) = std::sync::mpsc::channel();
         let info = run(tx, &::NixFile::from(cas.file_from_string(&nix_drv)?), &cas).unwrap();
+        let stderr = rx.iter().collect::<Vec<OsString>>();
+        println!("stderr:");
+        for line in &stderr {
+            println!("{:?}", line)
+        }
+
         match info.status {
-            // Probably fine to have failed during the realize. As
-            // long as it printed the log, we don't care... and that
-            // is actually what we're testing.
-            RunStatus::FailedAtRealize => {}
             RunStatus::Complete(_) => {}
-            _ => panic!("could not run() the drv:\n{:?}", info),
+            _ => {
+                panic!("could not run() the drv:\n{:?}", info,);
+            }
         }
 
         let expect: &[u8] = b"\"\xAB\xBC\xCD\xDE\xDE\xEF\"";
-        assert!(rx.iter().any(|line| {
-            line.as_bytes()
-                .windows(expect.len())
-                .any(|bytes| bytes == expect)
-        }));
+        assert!(
+            stderr.iter().any(|line| {
+                line.as_bytes()
+                    .windows(expect.len())
+                    .any(|bytes| bytes == expect)
+            }),
+            "Couldn’t find the byte output in the realize stderr",
+        );
         Ok(())
     }
 
