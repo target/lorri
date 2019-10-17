@@ -456,6 +456,10 @@ in {}
         let (tx, rx) = std::sync::mpsc::channel();
         let info = run(tx, &::NixFile::from(cas.file_from_string(&nix_drv)?), &cas).unwrap();
         match info.status {
+            // Probably fine to have failed during the realize. As
+            // long as it printed the log, we don't care... and that
+            // is actually what we're testing.
+            RunStatus::FailedAtRealize => {}
             RunStatus::Complete(_) => {}
             _ => panic!("could not run() the drv:\n{:?}", info),
         }
