@@ -73,7 +73,13 @@ let
       description = "check carnix up-to-date";
       test = writeExecline "lint-carnix" {}
         (cargoEnvironment
-        ++ pathPrependBins [ pkgs.carnix ]
+        ++ pathPrependBins [
+             pkgs.carnix
+             # TODO: nix-prefetch-* should be patched into carnix
+             pkgs.nix-prefetch-scripts
+             # nix-prefetch-url, which itself requires tar and gzip
+             pkgs.nix pkgs.gnutar pkgs.gzip
+           ]
         ++ [
           "if" [ pkgs.runtimeShell "${LORRI_ROOT}/nix/update-carnix.sh" ]
           "${pkgs.gitMinimal}/bin/git" "diff" "--exit-code"
