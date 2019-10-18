@@ -27,7 +27,7 @@ let
   # CI testsuite
   ci = import ./nix/ci {
     inherit pkgs LORRI_ROOT BUILD_REV_COUNT RUN_TIME_CLOSURE;
-    rust = rustChannels.stable.rust;
+    inherit (rustChannels.stable) rust cargo;
   };
 
 in
