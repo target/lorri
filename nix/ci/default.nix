@@ -1,4 +1,4 @@
-{ pkgs, LORRI_ROOT, BUILD_REV_COUNT, RUN_TIME_CLOSURE, rust}:
+{ pkgs, LORRI_ROOT, BUILD_REV_COUNT, RUN_TIME_CLOSURE, rust }:
 let
 
   lorriBinDir = "${LORRI_ROOT}/target/debug";
@@ -20,16 +20,68 @@ let
     "${pkgs.shellcheck}/bin/shellcheck" "--shell" "bash" file
   ];
 
+  # Dump the environment inside a `stdenv.mkDerivation` builder
+  # into an envdir (can be read in again with `s6-envdir`).
+  # This captures all magic `setupHooks` and linker paths and the like.
+  stdenvDrvEnvdir = { unsetVars }: drvAttrs: pkgs.stdenv.mkDerivation ({
+    name = "dumped-env";
+    phases = [ "buildPhase" ];
+    buildPhase = ''
+      mkdir $out
+      unset HOME TMP TEMP TEMPDIR TMPDIR
+      # unset user-requested variables as well
+      unset ${pkgs.lib.concatStringsSep " " unsetVars}
+      ${pkgs.s6-portable-utils}/bin/s6-dumpenv $out
+    '';
+  } // drvAttrs);
+
+  # On darwin we have to get the system libraries
+  # from their setup hooks, by exporting the variables
+  # from the builder.
+  # Otherwise building & linking the rust binaries fails.
+  darwinImpureEnv =
+    stdenvDrvEnvdir
+      # if this is set, the non-sandboxed build complains about
+      # linker paths outside of the nix store.
+      { unsetVars = [ "NIX_ENFORCE_PURITY" "NIX_SSL_CERT_FILE" "SSL_CERT_FILE" ]; }
+      {
+        buildInputs = [
+          # TODO: duplicated in shell.nix and default.nix
+          pkgs.darwin.Security
+          pkgs.darwin.apple_sdk.frameworks.Security
+          pkgs.darwin.apple_sdk.frameworks.CoreServices
+          pkgs.darwin.apple_sdk.frameworks.CoreFoundation
+          pkgs.stdenv.cc.bintools.bintools
+        ];
+      };
+
   cargoEnvironment =
-    # we have to add the bin to PATH,
-    # otherwise cargo doesn’t find its subcommands
-    pathPrependBins [ rust pkgs.gcc ]
+    # on darwin, this sets the environment to a normal builder environment.
+    (pkgs.lib.optionals pkgs.stdenv.isDarwin [
+       "importas" "OLDPATH" "PATH"
+       "${pkgs.s6}/bin/s6-envdir" darwinImpureEnv
+       (pathAdd "prepend") "$OLDPATH"
+       # TODO: duplicated in default.nix
+       # Cargo wasn't able to find CF during a `cargo test` run on Darwin.
+       # see https://stackoverflow.com/questions/51161225/how-can-i-make-macos-frameworks-available-to-clang-in-a-nix-environment
+       "importas" "NIX_LDFLAGS" "NIX_LDFLAGS"
+       "export" "NIX_LDFLAGS" "-F${pkgs.darwin.apple_sdk.frameworks.CoreFoundation}/Library/Frameworks -framework CoreFoundation \${NIX_LDFLAGS}"
+    ])
+    ++ (pathPrependBins [
+          rust
+          pkgs.stdenv.cc
+          # ar
+          pkgs.binutils-unwrapped
+        ])
     ++ [
+      "export" "RUST_BACKTRACE" "1"
       "export" "BUILD_REV_COUNT" (toString BUILD_REV_COUNT)
       "export" "RUN_TIME_CLOSURE" RUN_TIME_CLOSURE
+      "if" [ "${pkgs.coreutils}/bin/env" ]
+
     ];
 
-  cargo = name: setup: args:
+  writeCargo = name: setup: args:
     writeExecline name {} (cargoEnvironment ++ setup ++ [ "cargo" ] ++ args);
 
   # the CI tests we want to run
@@ -50,12 +102,12 @@ let
 
     cargo-fmt = {
       description = "cargo fmt was done";
-      test = cargo "lint-cargo-fmt" [] [ "fmt" "--" "--check" ];
+      test = writeCargo "lint-cargo-fmt" [] [ "fmt" "--" "--check" ];
     };
 
     cargo-test = {
       description = "run cargo test";
-      test = cargo "cargo-test"
+      test = writeCargo "cargo-test"
         # the tests need bash and nix and direnv
         (pathPrependBins [ pkgs.coreutils pkgs.bash pkgs.nix pkgs.direnv ])
         [ "test" ];
@@ -63,7 +115,7 @@ let
 
     cargo-clippy = {
       description = "run cargo clippy";
-      test = cargo "cargo-clippy" [ "export" "RUSTFLAGS" "-D warnings" ] [ "clippy" ];
+      test = writeCargo "cargo-clippy" [ "export" "RUSTFLAGS" "-D warnings" ] [ "clippy" ];
     };
 
     # TODO: it would be good to sandbox this (it changes files in the tree)
@@ -131,4 +183,5 @@ in {
   inherit testsuite;
   # we want the single test attributes to have their environment emptied as well.
   tests = testsWithEmptyEnv;
+  inherit darwinImpureEnv;
 }
