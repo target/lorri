@@ -37,9 +37,9 @@ let
       go = arg:
         if      builtins.isString arg then [(escapeExeclineArg arg)]
         else if pkgs.lib.isDerivation arg then [(escapeExeclineArg arg)]
-        else if builtins.isList arg then [ "{" ] ++ builtins.concatMap go arg ++ [ "}" ]
+        else if builtins.isList arg then [ "{" ] ++ pkgs.lib.concatMap go arg ++ [ "}" ]
         else abort "escapeExecline can only hande nested lists of strings, was ${pkgs.lib.generators.toPretty {} arg}";
-     in builtins.concatMap go execlineList);
+     in pkgs.lib.concatMap go execlineList);
 
   # Write a list of execline argv parameters to an execline script.
   # Everything is escaped correctly.
