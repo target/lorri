@@ -347,7 +347,7 @@ impl<'a> CallOpts<'a> {
 
         cmd.args(self.command_arguments());
 
-        debug!("{:?}", cmd);
+        println!("{:?}", cmd);
 
         let (paths, status): (Result<Vec<StorePath>, std::io::Error>, ExitStatus) =
             self.execute(cmd, move |stdout_handle| {
