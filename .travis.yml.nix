@@ -14,8 +14,19 @@ let
 
     macos = {
       os = "osx";
-      language = "nix";
-      nix = "2.3.1";
+      #language = "nix";
+      #nix = "2.3.1";
+      before_install = [
+        ''
+          wget --retry-connrefused --waitretry=1 -O /tmp/nix-install https://nixos.org/releases/nix/nix-2.3.1/install
+          yes | sh /tmp/nix-install --daemon
+          if [ -f /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then
+            source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+          elif [ -f ''${TRAVIS_HOME}/.nix-profile/etc/profile.d/nix.sh ]; then
+            source source ''${TRAVIS_HOME}/.nix-profile/etc/profile.d/nix.sh
+          fi
+        ''
+      ];
     };
   };
 
@@ -138,7 +149,7 @@ let
     in
     {
       git.depth = false;
-      language = "nix";
+      language = "minimal";
       matrix.include = map mergeShallowConcatLists [
         # Verifying lints on macOS and Linux ensures nix-shell works
         # on both platforms.
