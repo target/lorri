@@ -51,7 +51,7 @@
     "name": >-
       cargo build & linters
     "nix": >-
-      2.2.1
+      2.3.1
     "os": >-
       linux
     "script":
@@ -110,7 +110,7 @@
     "name": >-
       cargo build & linters
     "nix": >-
-      2.0
+      2.3.1
     "os": >-
       osx
     "script":
@@ -147,7 +147,7 @@
     "name": >-
       nix-build
     "nix": >-
-      2.2.1
+      2.3.1
     "os": >-
       linux
     "script":
@@ -169,7 +169,7 @@
     "name": >-
       nix-build
     "nix": >-
-      2.0
+      2.3.1
     "os": >-
       osx
     "script":

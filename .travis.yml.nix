@@ -9,13 +9,13 @@ let
     linux = {
       os = "linux";
       language = "nix";
-      nix = "2.2.1";
+      nix = "2.3.1";
     };
 
     macos = {
       os = "osx";
       language = "nix";
-      nix = "2.0";
+      nix = "2.3.1";
     };
   };
 
