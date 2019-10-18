@@ -2,13 +2,15 @@
 //! evaluate and build a given Nix file.
 
 use crate::builder;
+use crate::builder::RunStatus;
 use crate::notify;
 use crate::pathreduction::reduce_paths;
 use crate::project::roots;
 use crate::project::roots::Roots;
 use crate::project::Project;
 use crate::watch::Watch;
-use std::sync::mpsc::Sender;
+use std::path::PathBuf;
+use std::sync::mpsc::{channel, Sender};
 
 /// Builder events sent back over `BuildLoop.tx`.
 #[derive(Clone, Debug)]
@@ -79,9 +81,7 @@ impl<'a> BuildLoop<'a> {
                     tx.send(Event::Failure(failure))
                         .expect("Failed to notify the results of a failed evaluation");
                 }
-                otherwise => {
-                    otherwise.unwrap();
-                }
+                Err(BuildError::Unrecoverable(err)) => panic!("Unrecoverable error!\n{:#?}", err),
             }
 
             self.watch.wait_for_change().expect("Waiter exited");
@@ -93,31 +93,42 @@ impl<'a> BuildLoop<'a> {
     /// This will create GC roots and expand the file watch list for
     /// the evaluation.
     pub fn once(&mut self) -> Result<BuildResults, BuildError> {
-        let build = builder::run(&self.project.nix_file, &self.project.cas)?;
-        let roots = Roots::from_project(&self.project);
+        let (tx, rx) = channel();
+        let run_result = builder::run(tx, &self.project.nix_file, &self.project.cas)?;
 
-        let paths = build.paths;
+        self.register_paths(&run_result.referenced_paths)?;
+
+        let lines = rx.iter().collect();
+
+        match run_result.status {
+            RunStatus::FailedAtInstantiation => Err(BuildError::Recoverable(BuildExitFailure {
+                log_lines: lines,
+            })),
+            RunStatus::FailedAtRealize => Err(BuildError::Recoverable(BuildExitFailure {
+                log_lines: lines,
+            })),
+            RunStatus::Complete(path) => self.root_result(path),
+        }
+    }
+
+    fn register_paths(&mut self, paths: &[PathBuf]) -> Result<(), notify::Error> {
         debug!("original paths: {:?}", paths.len());
 
         let paths = reduce_paths(&paths);
         debug!("  -> reduced to: {:?}", paths.len());
 
-        debug!("named drvs: {:#?}", build.output_paths);
-
-        let event = BuildResults {
-            output_paths: roots.create_roots(build.output_paths)?,
-        };
-
         // add all new (reduced) nix sources to the input source watchlist
         self.watch.extend(&paths.into_iter().collect::<Vec<_>>())?;
 
-        if build.exec_result.success() {
-            Ok(event)
-        } else {
-            Err(BuildError::Recoverable(BuildExitFailure {
-                log_lines: build.log_lines,
-            }))
-        }
+        Ok(())
+    }
+
+    fn root_result(&mut self, build: builder::RootedPath) -> Result<BuildResults, BuildError> {
+        let roots = Roots::from_project(&self.project);
+
+        Ok(BuildResults {
+            output_paths: roots.create_roots(build)?,
+        })
     }
 }
 
