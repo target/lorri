@@ -24,6 +24,7 @@ pkgs.mkShell rec {
     pkgs.direnv
     pkgs.shellcheck
     pkgs.carnix
+    pkgs.nix-prefetch-git
   ] ++
   pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
     pkgs.darwin.Security

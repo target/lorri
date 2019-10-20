@@ -6,6 +6,55 @@ let inherit (lib.lists) fold;
 in
 rec {
   crates = cratesIO // rec {
+# human-panic-1.0.1
+
+    crates.human_panic."1.0.1" = deps: { features?(features_.human_panic."1.0.1" deps {}) }: buildRustCrate {
+      crateName = "human-panic";
+      version = "1.0.1";
+      description = "Panic messages for humans";
+      authors = [ "Yoshua Wuyts <yoshuawuyts@gmail.com>" "Pascal Hertleif <killercup@gmail.com>" "Katharina Fey <kookie@spacekookie.de>" ];
+      edition = "2018";
+      src = fetchgit {
+         url = "https://github.com/rust-cli/human-panic.git";
+         rev = "70db948973a746418e3a23434fe48fe45d3c9866";
+         sha256 = "0yznxvgxl5nka75p4bh1pf8ab0c3mfqwihp7lcl0vbiv2yli7nkv";
+         fetchSubmodules = false;
+      };
+      dependencies = mapFeatures features ([
+        (cratesIO.crates."backtrace"."${deps."human_panic"."1.0.1"."backtrace"}" deps)
+        (cratesIO.crates."os_type"."${deps."human_panic"."1.0.1"."os_type"}" deps)
+        (cratesIO.crates."serde"."${deps."human_panic"."1.0.1"."serde"}" deps)
+        (cratesIO.crates."serde_derive"."${deps."human_panic"."1.0.1"."serde_derive"}" deps)
+        (cratesIO.crates."termcolor"."${deps."human_panic"."1.0.1"."termcolor"}" deps)
+        (cratesIO.crates."toml"."${deps."human_panic"."1.0.1"."toml"}" deps)
+        (cratesIO.crates."uuid"."${deps."human_panic"."1.0.1"."uuid"}" deps)
+      ]);
+      features = mkFeatures (features."human_panic"."1.0.1" or {});
+    };
+    features_.human_panic."1.0.1" = deps: f: updateFeatures f (rec {
+      backtrace."${deps.human_panic."1.0.1".backtrace}".default = true;
+      human_panic."1.0.1".default = (f.human_panic."1.0.1".default or true);
+      os_type."${deps.human_panic."1.0.1".os_type}".default = true;
+      serde."${deps.human_panic."1.0.1".serde}".default = true;
+      serde_derive."${deps.human_panic."1.0.1".serde_derive}".default = true;
+      termcolor."${deps.human_panic."1.0.1".termcolor}".default = true;
+      toml."${deps.human_panic."1.0.1".toml}".default = true;
+      uuid = fold recursiveUpdate {} [
+        { "${deps.human_panic."1.0.1".uuid}"."v4" = true; }
+        { "${deps.human_panic."1.0.1".uuid}".default = (f.uuid."${deps.human_panic."1.0.1".uuid}".default or false); }
+      ];
+    }) [
+      (cratesIO.features_.backtrace."${deps."human_panic"."1.0.1"."backtrace"}" deps)
+      (cratesIO.features_.os_type."${deps."human_panic"."1.0.1"."os_type"}" deps)
+      (cratesIO.features_.serde."${deps."human_panic"."1.0.1"."serde"}" deps)
+      (cratesIO.features_.serde_derive."${deps."human_panic"."1.0.1"."serde_derive"}" deps)
+      (cratesIO.features_.termcolor."${deps."human_panic"."1.0.1"."termcolor"}" deps)
+      (cratesIO.features_.toml."${deps."human_panic"."1.0.1"."toml"}" deps)
+      (cratesIO.features_.uuid."${deps."human_panic"."1.0.1"."uuid"}" deps)
+    ];
+
+
+# end
 # lorri-0.1.0
 
     crates.lorri."0.1.0" = deps: { features?(features_.lorri."0.1.0" deps {}) }: buildRustCrate {
@@ -19,6 +68,7 @@ rec {
         (cratesIO.crates."directories"."${deps."lorri"."0.1.0"."directories"}" deps)
         (cratesIO.crates."env_logger"."${deps."lorri"."0.1.0"."env_logger"}" deps)
         (cratesIO.crates."futures"."${deps."lorri"."0.1.0"."futures"}" deps)
+        (crates."human_panic"."${deps."lorri"."0.1.0"."human_panic"}" deps)
         (cratesIO.crates."lazy_static"."${deps."lorri"."0.1.0"."lazy_static"}" deps)
         (cratesIO.crates."log"."${deps."lorri"."0.1.0"."log"}" deps)
         (cratesIO.crates."md5"."${deps."lorri"."0.1.0"."md5"}" deps)
@@ -40,6 +90,7 @@ rec {
       directories."${deps.lorri."0.1.0".directories}".default = true;
       env_logger."${deps.lorri."0.1.0".env_logger}".default = true;
       futures."${deps.lorri."0.1.0".futures}".default = true;
+      human_panic."${deps.lorri."0.1.0".human_panic}".default = true;
       lazy_static."${deps.lorri."0.1.0".lazy_static}".default = true;
       log."${deps.lorri."0.1.0".log}".default = true;
       lorri."0.1.0".default = (f.lorri."0.1.0".default or true);
@@ -60,6 +111,7 @@ rec {
       (cratesIO.features_.directories."${deps."lorri"."0.1.0"."directories"}" deps)
       (cratesIO.features_.env_logger."${deps."lorri"."0.1.0"."env_logger"}" deps)
       (cratesIO.features_.futures."${deps."lorri"."0.1.0"."futures"}" deps)
+      (features_.human_panic."${deps."lorri"."0.1.0"."human_panic"}" deps)
       (cratesIO.features_.lazy_static."${deps."lorri"."0.1.0"."lazy_static"}" deps)
       (cratesIO.features_.log."${deps."lorri"."0.1.0"."log"}" deps)
       (cratesIO.features_.md5."${deps."lorri"."0.1.0"."md5"}" deps)
@@ -99,6 +151,16 @@ rec {
     winapi = "0.3.6";
   };
   deps.autocfg."0.1.2" = {};
+  deps.backtrace."0.3.38" = {
+    backtrace_sys = "0.1.31";
+    cfg_if = "0.1.6";
+    libc = "0.2.55";
+    rustc_demangle = "0.1.16";
+  };
+  deps.backtrace_sys."0.1.31" = {
+    libc = "0.2.55";
+    cc = "1.0.37";
+  };
   deps.bincode."1.1.3" = {
     byteorder = "1.3.1";
     serde = "1.0.88";
@@ -160,6 +222,15 @@ rec {
   deps.heck."0.3.1" = {
     unicode_segmentation = "1.2.1";
   };
+  deps.human_panic."1.0.1" = {
+    backtrace = "0.3.38";
+    os_type = "2.2.0";
+    serde = "1.0.88";
+    serde_derive = "1.0.88";
+    termcolor = "1.0.4";
+    toml = "0.4.10";
+    uuid = "0.7.4";
+  };
   deps.humantime."1.2.0" = {
     quick_error = "1.2.2";
   };
@@ -194,6 +265,7 @@ rec {
     directories = "1.0.2";
     env_logger = "0.6.0";
     futures = "0.1.25";
+    human_panic = "1.0.1";
     lazy_static = "1.2.0";
     log = "0.4.6";
     md5 = "0.6.1";
@@ -260,6 +332,9 @@ rec {
     winapi = "0.3.6";
   };
   deps.num_traits."0.2.6" = {};
+  deps.os_type."2.2.0" = {
+    regex = "1.1.0";
+  };
   deps.proc_macro2."0.4.27" = {
     unicode_xid = "0.1.0";
   };
@@ -355,6 +430,7 @@ rec {
   deps.remove_dir_all."0.5.1" = {
     winapi = "0.3.6";
   };
+  deps.rustc_demangle."0.1.16" = {};
   deps.rustc_version."0.2.3" = {
     semver = "0.9.0";
   };
@@ -427,11 +503,17 @@ rec {
   deps.thread_local."0.3.6" = {
     lazy_static = "1.2.0";
   };
+  deps.toml."0.4.10" = {
+    serde = "1.0.88";
+  };
   deps.ucd_util."0.1.3" = {};
   deps.unicode_segmentation."1.2.1" = {};
   deps.unicode_width."0.1.5" = {};
   deps.unicode_xid."0.1.0" = {};
   deps.utf8_ranges."1.0.2" = {};
+  deps.uuid."0.7.4" = {
+    rand = "0.6.5";
+  };
   deps.vec1."1.1.0" = {};
   deps.vec_map."0.8.1" = {};
   deps.void."1.0.2" = {};

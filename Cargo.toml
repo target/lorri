@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = [
   "Graham Christensen <graham.christensen@target.com>",
 ]
+homepage = "https://github.com/target/lorri"
 license = "Apache-2.0"
 
 [dependencies]
@@ -25,3 +26,6 @@ atomicwrites = "0.2.3"
 vec1 = "1.1.0"
 proptest = "0.9.1"
 nix = "0.14.0"
+# pinned to a git commit pending v2.0 release
+# see: https://github.com/rust-cli/human-panic/issues/46
+human-panic = { git = "https://github.com/rust-cli/human-panic.git", rev = "70db9489" }
