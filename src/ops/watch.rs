@@ -2,8 +2,8 @@
 //! Can be used together with `direnv`.
 use crate::build_loop::{BuildError, BuildLoop};
 use crate::cli::WatchOptions;
+use crate::daemon::LoopHandlerEvent;
 use crate::ops::{ok, ExitError, OpResult};
-use crate::ops::daemon::LoopHanderEvent;
 use crate::project::Project;
 use std::fmt::Debug;
 use std::io::Write;
@@ -35,7 +35,7 @@ fn main_run_once(project: Project) -> OpResult {
 }
 
 fn main_run_forever(project: Project) -> OpResult {
-    let (tx, rx) = channel::<LoopHanderEvent>();
+    let (tx, rx) = channel::<LoopHandlerEvent>();
     let build_thread = {
         thread::spawn(move || {
             let mut build_loop = BuildLoop::new(&project);

@@ -1,31 +1,16 @@
 //! Run a BuildLoop for `shell.nix`, watching for input file changes.
 //! Can be used together with `direnv`.
-use NixFile;
 use crate::build_loop::Event;
-use crate::daemon::Daemon;
+use crate::daemon::{Daemon, LoopHandlerEvent};
 use crate::ops::{ok, ExitError, OpResult};
-use crate::socket::communicate::{listener,CommunicationType,DEFAULT_READ_TIMEOUT};
-use crate::socket::{Timeout,ReadWriter};
+use crate::socket::communicate::{listener, CommunicationType, DEFAULT_READ_TIMEOUT};
+use crate::socket::{ReadWriter, Timeout};
 use crate::thread::Pool;
+use std::collections::HashMap;
+use std::sync::mpsc::{channel, Sender};
 use std::thread::sleep;
 use std::time::Duration;
-use std::sync::mpsc::{channel,Sender};
-use std::collections::HashMap;
-
-#[derive(Debug,Clone)]
-/// Union of build_loop::Event and NewListener for internal use.
-pub enum LoopHanderEvent {
-    /// A new listener has joined for event streaming
-    NewListener(Sender<Event>),
-    /// Events from a BuildLoop
-    BuildEvent(Event),
-}
-
-impl From<Event> for LoopHanderEvent {
-    fn from(item: Event) -> Self {
-        LoopHanderEvent::BuildEvent(item)
-    }
-}
+use NixFile;
 
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
@@ -60,34 +45,32 @@ pub fn main() -> OpResult {
             .accept(move |unix_stream, comm_type| match comm_type {
                 CommunicationType::Ping => {
                     handlers.ping(ReadWriter::new(&unix_stream), accept_messages_tx)
-                },
+                }
                 CommunicationType::StreamEvents => {
                     let (tx, rx) = channel();
 
-                    build_events_tx.send(LoopHanderEvent::NewListener(tx))
+                    build_events_tx
+                        .send(LoopHandlerEvent::NewListener(tx))
                         .expect("daemon seems to have died");
 
                     handlers.stream_events(ReadWriter::new(&unix_stream), rx)
-                },
+                }
             })
             // TODO
             .unwrap();
     })
     .expect("Failed to spawn accept-loop");
 
-    match DEFAULT_READ_TIMEOUT {
-        Timeout::D(millis) => {
-            let tx = daemon.build_events_tx();
+    if let Timeout::D(millis) = DEFAULT_READ_TIMEOUT {
+        let tx = daemon.build_events_tx();
 
-            pool.spawn("heartbeat", move || {
-                loop {
-                    tx.send(Event::Heartbeat.into()).expect("couldn't send heartbeat");
+        pool.spawn("heartbeat", move || loop {
+            tx.send(Event::Heartbeat.into())
+                .expect("couldn't send heartbeat");
 
-                    sleep(Duration::from(millis) / 2);
-                }
-            }).expect("Failed to spawn heartbeat loop");
-        },
-        _ => ()
+            sleep(Duration::from(millis) / 2);
+        })
+        .expect("Failed to spawn heartbeat loop");
     }
 
     pool.spawn("build-loop", || {
@@ -96,36 +79,28 @@ pub fn main() -> OpResult {
 
         for msg in build_messages_rx {
             match &msg {
-                LoopHanderEvent::BuildEvent(Event::Heartbeat) => (),
-                m => println!("{:#?}", m)
+                LoopHandlerEvent::BuildEvent(Event::Heartbeat) => (),
+                m => println!("{:#?}", m),
             }
             match &msg {
-                LoopHanderEvent::BuildEvent(ev) => match ev {
+                LoopHandlerEvent::BuildEvent(ev) => match ev {
                     Event::SectionEnd => (),
-                    Event::Heartbeat => {
-                        event_listeners.retain(|tx| {
-                            tx.send(ev.clone()).is_ok()
-                        })
-                    },
-                    Event::Started{nix_file, ..} |
-                        Event::Completed{nix_file, ..} |
-                        Event::Failure{nix_file, ..} => {
-                            project_states.insert(nix_file.clone(), ev.clone());
-                            event_listeners.retain(|tx| {
-                                tx.send(ev.clone()).is_ok()
-                            })
-                        },
-                },
-                LoopHanderEvent::NewListener(tx) => {
-                    let keep = project_states.values().all(|event| {
-                        tx.send(event.clone()).is_ok()
-                    });
-                    if keep {
-                        if tx.send(Event::SectionEnd).is_ok() {
-                            event_listeners.push(tx.clone());
-                        }
+                    Event::Heartbeat => event_listeners.retain(|tx| tx.send(ev.clone()).is_ok()),
+                    Event::Started { nix_file, .. }
+                    | Event::Completed { nix_file, .. }
+                    | Event::Failure { nix_file, .. } => {
+                        project_states.insert(nix_file.clone(), ev.clone());
+                        event_listeners.retain(|tx| tx.send(ev.clone()).is_ok())
                     }
                 },
+                LoopHandlerEvent::NewListener(tx) => {
+                    let keep = project_states
+                        .values()
+                        .all(|event| tx.send(event.clone()).is_ok());
+                    if keep && tx.send(Event::SectionEnd).is_ok() {
+                        event_listeners.push(tx.clone());
+                    }
+                }
             }
         }
     })

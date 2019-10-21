@@ -1,12 +1,27 @@
 //! The lorri daemon, watches multiple projects in the background.
 
-use crate::build_loop::{Event,BuildLoop};
+use crate::build_loop::{BuildLoop, Event};
 use crate::project::Project;
 use crate::socket::communicate::{NoMessage, Ping, DEFAULT_READ_TIMEOUT};
 use crate::socket::{ReadError, ReadWriter, Timeout};
 use crate::NixFile;
 use std::collections::HashMap;
 use std::sync::mpsc;
+
+#[derive(Debug, Clone)]
+/// Union of build_loop::Event and NewListener for internal use.
+pub enum LoopHandlerEvent {
+    /// A new listener has joined for event streaming
+    NewListener(mpsc::Sender<Event>),
+    /// Events from a BuildLoop
+    BuildEvent(Event),
+}
+
+impl From<Event> for LoopHandlerEvent {
+    fn from(item: Event) -> Self {
+        LoopHandlerEvent::BuildEvent(item)
+    }
+}
 
 /// Indicate that the user is interested in a specific nix file.
 /// Usually a nix file describes the environment of a project,
@@ -31,7 +46,7 @@ pub struct Daemon {
     handler_threads: HashMap<NixFile, std::thread::JoinHandle<()>>,
     /// Sending end that we pass to every `BuildLoop` the daemon controls.
     // TODO: this needs to transmit information to identify the builder with
-    build_events_tx: mpsc::Sender<::ops::daemon::LoopHanderEvent>,
+    build_events_tx: mpsc::Sender<LoopHandlerEvent>,
     /// The handlers functions for incoming requests
     handler_fns: HandlerFns,
 }
@@ -42,7 +57,7 @@ impl Daemon {
     /// Create a new daemon. Also return an `mpsc::Receiver` that
     /// receives `build_loop::Event`s for all builders this daemon
     /// supervises.
-    pub fn new() -> (Daemon, mpsc::Receiver<::ops::daemon::LoopHanderEvent>) {
+    pub fn new() -> (Daemon, mpsc::Receiver<LoopHandlerEvent>) {
         let (tx, rx) = mpsc::channel();
         (
             Daemon {
@@ -62,7 +77,7 @@ impl Daemon {
     }
 
     /// The deamon's transmission channel for build events
-    pub fn build_events_tx(&self) -> mpsc::Sender<::ops::daemon::LoopHanderEvent> {
+    pub fn build_events_tx(&self) -> mpsc::Sender<LoopHandlerEvent> {
         self.build_events_tx.clone()
     }
 
@@ -134,8 +149,8 @@ impl HandlerFns {
             match rw.write(&self.read_timeout, &event) {
                 Err(e) => {
                     debug!("Couldn't write event: {:?}", e);
-                    break
-                },
+                    break;
+                }
                 Ok(_) => debug!("Sent an event"),
             }
         }

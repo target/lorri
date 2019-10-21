@@ -1,16 +1,15 @@
 extern crate lorri;
 extern crate tempfile;
 
-
 use lorri::build_loop;
 use lorri::cas::ContentAddressable;
+use lorri::daemon::LoopHandlerEvent;
 use lorri::project::Project;
 use lorri::socket::communicate::{client, listener};
 use lorri::socket::communicate::{CommunicationType, Ping};
 use lorri::socket::path::SocketPath;
 use lorri::socket::{ReadWriter, Timeout};
 use lorri::NixFile;
-use lorri::ops::daemon::LoopHanderEvent;
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -51,9 +50,10 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
                     handlers.ping(ReadWriter::new(&unix_stream), accept_messages_tx)
                 }
                 ev => Err(Error::new(
-                        ErrorKind::Other,
-                        format!("didn’t expect event {:?}", ev),
-                        )).unwrap(),
+                    ErrorKind::Other,
+                    format!("didn’t expect event {:?}", ev),
+                ))
+                .unwrap(),
             })
             .unwrap()
     });
@@ -81,7 +81,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
         .recv_timeout(Duration::from_millis(100))
         .unwrap()
     {
-        LoopHanderEvent::BuildEvent(build_loop::Event::Started{..}) => Ok(()),
+        LoopHandlerEvent::BuildEvent(build_loop::Event::Started { .. }) => Ok(()),
         ev => Err(Error::new(
             ErrorKind::Other,
             format!("didn’t expect event {:?}", ev),

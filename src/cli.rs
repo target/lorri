@@ -1,8 +1,8 @@
 //! Defines the CLI interface using structopt.
 
+use ops::stream_events::EventKind;
 use std::path::PathBuf;
 use NixFile;
-use ops::stream_events::EventKind;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "lorri")]
@@ -99,7 +99,7 @@ pub struct Ping_ {
 /// Stream events from the daemon.
 #[derive(StructOpt, Debug)]
 pub struct StreamEvents_ {
-    #[structopt(short,long,default_value="all")]
+    #[structopt(short, long, default_value = "all")]
     /// The kind of events to report
     pub kind: EventKind,
 }

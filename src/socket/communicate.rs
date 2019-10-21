@@ -11,9 +11,9 @@
 
 use std::os::unix::net::UnixStream;
 
+use crate::build_loop::Event;
 use crate::socket::path::{BindError, BindLock, SocketPath};
 use crate::socket::{ReadWriteError, ReadWriter, Timeout};
-use crate::build_loop::Event;
 use crate::NixFile;
 
 /// We declare 1s as the time readers should wait
@@ -21,7 +21,7 @@ use crate::NixFile;
 pub const DEFAULT_READ_TIMEOUT: Timeout = Timeout::from_millis(1000);
 
 /// Enum of all communication modes the lorri daemon supports.
-#[derive(Serialize, Deserialize,Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum CommunicationType {
     /// Ping the daemon from a project to tell it to watch & evaluate
     // TODO: rename to IndicateActivity (along with all other `ping` things)
@@ -208,7 +208,7 @@ pub mod client {
                     let rw: ReadWriter<R, W> = ReadWriter::new(sock);
                     rw.read(&self.timeout)
                         .map_err(|e| Error::Message(ReadWriteError::R(e)))
-                },
+                }
                 None => Err(Error::NotConnected),
             }
         }

@@ -44,11 +44,10 @@ pub fn ok() -> OpResult {
     Ok(None)
 }
 
-
 /// Exit 1 with an exit message
 pub fn err_msg<T>(message: T) -> OpResult
-    where
-        T: Into<String>,
+where
+    T: Into<String>,
 {
     Err(ExitError::errmsg(message))
 }

@@ -1,9 +1,9 @@
 //! Run to output a stream of build events in a machine-parseable form.
-use crate::ops::{OpResult,err_msg};
 use crate::build_loop::Event;
-use crate::socket::{ReadWriteError, ReadError};
-use crate::socket::communicate::client::{self,Error};
+use crate::ops::{err_msg, ok, OpResult};
+use crate::socket::communicate::client::{self, Error};
 use crate::socket::communicate::DEFAULT_READ_TIMEOUT;
+use crate::socket::{ReadError, ReadWriteError};
 use std::str::FromStr;
 
 /// Options for the kinds of events to report
@@ -25,7 +25,7 @@ impl FromStr for EventKind {
             "all" => Ok(EventKind::All),
             "live" => Ok(EventKind::Live),
             "snapshot" => Ok(EventKind::Snapshot),
-            _ => Err(format!("{} not in all,live,snapshot", s))
+            _ => Err(format!("{} not in all,live,snapshot", s)),
         }
     }
 }
@@ -44,20 +44,28 @@ pub fn main(kind: EventKind) -> OpResult {
     loop {
         match events.read() {
             Ok(Event::Heartbeat) => debug!("heartbeat received"),
-            Ok(Event::SectionEnd) => snapshot_done = true,
-            Ok(ev) => {
-                match (snapshot_done, &kind) {
-                    (_, EventKind::All) | (false, EventKind::Snapshot) | (true, EventKind::Live) =>
-                        println!("{}", serde_json::to_string(&ev).expect("couldn't serialize event")),
-                    _ => ()
+            Ok(Event::SectionEnd) => {
+                if let EventKind::Snapshot = kind {
+                    return ok();
+                } else {
+                    snapshot_done = true
                 }
+            }
+            Ok(ev) => match (snapshot_done, &kind) {
+                (_, EventKind::All) | (false, EventKind::Snapshot) | (true, EventKind::Live) => {
+                    println!(
+                        "{}",
+                        serde_json::to_string(&ev).expect("couldn't serialize event")
+                    )
+                }
+                _ => (),
             },
             Err(Error::Message(ReadWriteError::R(ReadError::Timeout))) => {
                 return err_msg("Server appears to have quit");
-            },
+            }
             Err(Error::Message(ReadWriteError::R(ReadError::Deserialize(_)))) => {
                 return err_msg("Socket closed unexpectedly");
-            },
+            }
             otherwise => {
                 return err_msg(format!("{:?}", otherwise));
             }

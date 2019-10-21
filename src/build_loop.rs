@@ -1,7 +1,6 @@
 //! Uses `builder` and filesystem watch code to repeatedly
 //! evaluate and build a given Nix file.
 
-use NixFile;
 use crate::builder;
 use crate::builder::RunStatus;
 use crate::notify;
@@ -9,38 +8,39 @@ use crate::pathreduction::reduce_paths;
 use crate::project::roots;
 use crate::project::roots::Roots;
 use crate::project::Project;
-use crate::watch::{DebugMessage, RawEventError, Reason, Watch};
+use crate::watch::{Reason, Watch};
+use crate::NixFile;
 use std::path::PathBuf;
 use std::sync::mpsc::{channel, Sender};
 
 /// Builder events sent back over `BuildLoop.tx`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all="snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum Event {
     /// A heartbeat to send over sockets to keep them alive
     Heartbeat,
     /// Demarks a stream of events from recent history becoming live
     SectionEnd,
     /// A build has started
-    Started{
+    Started {
         /// The shell.nix file for the building project
         nix_file: NixFile,
         /// The reason the build started
-        reason: Reason
+        reason: Reason,
     },
     /// A build completed successfully
-    Completed{
+    Completed {
         /// The shell.nix file for the building project
         nix_file: NixFile,
         /// The result of the build
-        result: BuildResults
+        result: BuildResults,
     },
     /// A build command returned a failing exit status
-    Failure{
+    Failure {
         /// The shell.nix file for the building project
         nix_file: NixFile,
         /// The error that exited the build
-        failure: BuildExitFailure
+        failure: BuildExitFailure,
     },
 }
 
