@@ -1,6 +1,8 @@
 //! Defines the CLI interface using structopt.
 
 use std::path::PathBuf;
+use NixFile;
+use ops::stream_events::EventKind;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "lorri")]
@@ -44,7 +46,7 @@ pub enum Command {
 
     /// (plumbing) Ask the lorri daemon to report build events as they occur
     #[structopt(name = "stream_events_")]
-    StreamEvents_,
+    StreamEvents_(StreamEvents_),
 
     /// Upgrade Lorri
     #[structopt(name = "self-upgrade", alias = "self-update")]
@@ -91,7 +93,15 @@ pub struct WatchOptions {
 pub struct Ping_ {
     /// The .nix file to watch and build on changes.
     #[structopt(parse(from_os_str))]
-    pub nix_file: PathBuf,
+    pub nix_file: NixFile,
+}
+
+/// Stream events from the daemon.
+#[derive(StructOpt, Debug)]
+pub struct StreamEvents_ {
+    #[structopt(short,long,default_value="all")]
+    /// The kind of events to report
+    pub kind: EventKind,
 }
 
 /// A stub struct to represent how what we want to upgrade to.

@@ -101,6 +101,7 @@ pub fn main() -> OpResult {
             }
             match &msg {
                 LoopHanderEvent::BuildEvent(ev) => match ev {
+                    Event::SectionEnd => (),
                     Event::Heartbeat => {
                         event_listeners.retain(|tx| {
                             tx.send(ev.clone()).is_ok()
@@ -120,7 +121,9 @@ pub fn main() -> OpResult {
                         tx.send(event.clone()).is_ok()
                     });
                     if keep {
-                        event_listeners.push(tx.clone());
+                        if tx.send(Event::SectionEnd).is_ok() {
+                            event_listeners.push(tx.clone());
+                        }
                     }
                 },
             }

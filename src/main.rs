@@ -87,7 +87,7 @@ fn run_command(opts: Arguments) -> OpResult {
         // TODO: remove
         Command::Ping_(opts) => get_shell_nix(&opts.nix_file).and_then(ping::main),
 
-        Command::StreamEvents_ => stream_events::main(),
+        Command::StreamEvents_(se) => stream_events::main(se.kind),
 
         Command::Init => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
     }

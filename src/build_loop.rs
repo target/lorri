@@ -19,6 +19,8 @@ use std::sync::mpsc::{channel, Sender};
 pub enum Event {
     /// A heartbeat to send over sockets to keep them alive
     Heartbeat,
+    /// Demarks a stream of events from recent history becoming live
+    SectionEnd,
     /// A build has started
     Started{
         /// The shell.nix file for the building project
