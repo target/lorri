@@ -4,6 +4,18 @@ let
   projectname = "lorri";
 
   cachix-queue-file = "$HOME/push-to-cachix";
+  cachix-repo = "lorri-test";
+  pushToCachix = cachix-queue-file: [
+    # read every store path written by previous phases
+    # from the cachix-queue-file file and push to cachix
+    ''echo "pushing these paths to cachix:"''
+    ''cat ${cachix-queue-file}''
+    ''
+    if [ -n "$CACHIX_SIGNING_KEY" ]; then
+      cachix push ${cachix-repo} < ${cachix-queue-file}
+    fi
+    ''
+  ];
 
   hosts = {
     linux = {
@@ -37,10 +49,12 @@ let
         ''set -e''
         ''nix-build''
         ''nix-env -i ./result''
-        ''lorri self-upgrade local $(pwd)''
-        # push build closure to cachix
-        ''readlink ./result >> ${cachix-queue-file}''
-      ];
+      ]
+      # push build closure to cachix
+      ++ [ ''readlink ./result > ./cachix-file'' ]
+      ++ pushToCachix "./cachix-file"
+      # test lorri self-upgrade
+      ++ [ ''lorri self-upgrade local $(pwd)'' ];
     };
 
     lints = {
@@ -56,13 +70,12 @@ let
         ''cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml''
         ''git diff -q ./.travis.yml''
 
-        ''
-          testsuite=$(nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix)
-          eval "$testsuite"
-        ''
-        # push test suite closure to cachix
-        ''printf '%s' "$testsuite" >> ${cachix-queue-file}''
-      ];
+        ''nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix > ./testsuite''
+      ]
+      # push test suite closure to cachix
+      ++ pushToCachix "./testsuite"
+      # run testsuite
+      ++ [ ''eval $(cat ./testsuite)'' ];
     };
 
     # cache rust dependency building
@@ -95,26 +108,13 @@ let
     };
 
     setup-cachix =
-      let cachix-repo = "lorri-test";
-      in {
+      {
         install = [
           # install cachix
           ''nix-env -iA cachix -f https://cachix.org/api/v1/install''
           # setup cachix
           ''cachix use ${cachix-repo}''
           # set cachix into watch-mode (listen for new paths and push in the background)
-        ];
-
-        before_cache = [
-          # read every store path written by previous phases
-          # from the cachix-queue-file file and push to cachix
-          ''echo "pushing these paths to cachix:"''
-          ''cat ${cachix-queue-file}''
-          ''
-          if [ -n "$CACHIX_SIGNING_KEY" ]; then
-            cachix push ${cachix-repo} < ${cachix-queue-file}
-          fi
-          ''
         ];
       };
 

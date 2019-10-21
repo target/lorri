@@ -7,14 +7,6 @@
   "include":
   - "before_cache":
     - >-
-      echo "pushing these paths to cachix:"
-    - >-
-      cat $HOME/push-to-cachix
-    - >
-      if [ -n "$CACHIX_SIGNING_KEY" ]; then
-        cachix push lorri-test < $HOME/push-to-cachix
-      fi
-    - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/lorri*"
@@ -73,12 +65,18 @@
       cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
     - >-
       git diff -q ./.travis.yml
-    - >
-      testsuite=$(nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix)
-
-      eval "$testsuite"
     - >-
-      printf '%s' "$testsuite" >> $HOME/push-to-cachix
+      nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix > ./testsuite
+    - >-
+      echo "pushing these paths to cachix:"
+    - >-
+      cat ./testsuite
+    - >
+      if [ -n "$CACHIX_SIGNING_KEY" ]; then
+        cachix push lorri-test < ./testsuite
+      fi
+    - >-
+      eval $(cat ./testsuite)
   - "before_cache":
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
@@ -141,22 +139,19 @@
       cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
     - >-
       git diff -q ./.travis.yml
-    - >
-      testsuite=$(nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix)
-
-      eval "$testsuite"
     - >-
-      printf '%s' "$testsuite" >> $HOME/push-to-cachix
-  - "before_cache":
+      nix-build --arg isDevelopmentShell false -A ci.testsuite shell.nix > ./testsuite
     - >-
       echo "pushing these paths to cachix:"
     - >-
-      cat $HOME/push-to-cachix
+      cat ./testsuite
     - >
       if [ -n "$CACHIX_SIGNING_KEY" ]; then
-        cachix push lorri-test < $HOME/push-to-cachix
+        cachix push lorri-test < ./testsuite
       fi
-    "install":
+    - >-
+      eval $(cat ./testsuite)
+  - "install":
     - >-
       nix-env -iA cachix -f https://cachix.org/api/v1/install
     - >-
@@ -177,9 +172,17 @@
     - >-
       nix-env -i ./result
     - >-
-      lorri self-upgrade local $(pwd)
+      readlink ./result > ./cachix-file
     - >-
-      readlink ./result >> $HOME/push-to-cachix
+      echo "pushing these paths to cachix:"
+    - >-
+      cat ./cachix-file
+    - >
+      if [ -n "$CACHIX_SIGNING_KEY" ]; then
+        cachix push lorri-test < ./cachix-file
+      fi
+    - >-
+      lorri self-upgrade local $(pwd)
   - "before_install":
     - >
       wget --retry-connrefused --waitretry=1 -O /tmp/nix-install https://nixos.org/releases/nix/nix-2.3.1/install
@@ -203,6 +206,14 @@
     - >-
       nix-env -i ./result
     - >-
-      lorri self-upgrade local $(pwd)
+      readlink ./result > ./cachix-file
     - >-
-      readlink ./result >> $HOME/push-to-cachix
+      echo "pushing these paths to cachix:"
+    - >-
+      cat ./cachix-file
+    - >
+      if [ -n "$CACHIX_SIGNING_KEY" ]; then
+        cachix push lorri-test < ./cachix-file
+      fi
+    - >-
+      lorri self-upgrade local $(pwd)
