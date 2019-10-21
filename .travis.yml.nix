@@ -4,6 +4,18 @@ let
   projectname = "lorri";
 
   cachix-queue-file = "$HOME/push-to-cachix";
+  cachix-repo = "lorri-test";
+  pushToCachix = cachix-queue-file: [
+    # read every store path written by previous phases
+    # from the cachix-queue-file file and push to cachix
+    ''echo "pushing these paths to cachix:"''
+    ''cat ${cachix-queue-file}''
+    ''
+    if [ -n "$CACHIX_SIGNING_KEY" ]; then
+      cachix push ${cachix-repo} < ${cachix-queue-file}
+    fi
+    ''
+  ];
 
   hosts = {
     linux = {
@@ -37,32 +49,33 @@ let
         ''set -e''
         ''nix-build''
         ''nix-env -i ./result''
-        ''lorri self-upgrade local $(pwd)''
-        # push build closure to cachix
-        ''readlink ./result >> ${cachix-queue-file}''
-      ];
+      ]
+      # push build closure to cachix
+      ++ [ ''readlink ./result > ./cachix-file'' ]
+      ++ pushToCachix "./cachix-file"
+      # test lorri self-upgrade
+      ++ [ ''lorri self-upgrade local $(pwd)'' ];
     };
 
     lints = {
       name = "cargo build & linters";
       script = [
         ''set -e''
+        ''nix-build -A allBuildInputs shell.nix > ./shell-inputs''
+      ]
+      ++ pushToCachix "./shell-inputs"
+      ++ [
         ''nix-shell --quiet --arg isDevelopmentShell false --run ci_check''
         ''cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml''
         ''git diff -q ./.travis.yml''
         ''git diff -q ./Cargo.nix''
-        # push test suite closure to cachix
-        ''
-          nix-build -E '(import ./shell.nix { isDevelopmentShell = false; }).buildInputs' \
-            >> ${cachix-queue-file}
-        ''
       ];
-      # delete all our own artifacts from the cache dir
-      # based on https://gist.github.com/jkcclemens/000456ca646bd502cac0dbddcb8fa307
     };
 
     # cache rust dependency building
     cache = name: {
+      # delete all our own artifacts from the cache dir
+      # based on https://gist.github.com/jkcclemens/000456ca646bd502cac0dbddcb8fa307
       before_cache =
         let rmTarget = path: ''rm -rvf "$TRAVIS_BUILD_DIR/target/debug/${path}"'';
         in (map rmTarget [
@@ -89,24 +102,13 @@ let
     };
 
     setup-cachix =
-      let cachix-repo = "lorri-test";
-      in {
+      {
         install = [
           # install cachix
           ''nix-env -iA cachix -f https://cachix.org/api/v1/install''
           # setup cachix
           ''cachix use ${cachix-repo}''
           # set cachix into watch-mode (listen for new paths and push in the background)
-        ];
-
-        before_cache = [
-          # read every store path written by previous phases
-          # from the cachix-queue-file file and push to cachix
-          ''
-          if [ -n "$CACHIX_SIGNING_KEY" ]; then
-            cachix push lorri-test < $HOME/push-to-cachix
-          fi
-          ''
         ];
       };
 

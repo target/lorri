@@ -11,33 +11,41 @@ let
       (import ./nix/rust-channels.nix {
         stableVersion = "1.35.0";
       });
+
+  buildInputs = [
+      # This rust comes from the Mozilla rust overlay so we can
+      # get Clippy. Not suitable for production builds. See
+      # ./nix/nixpkgs.nix for more details.
+      rustChannels.stable.rust
+      pkgs.bashInteractive
+      pkgs.git
+      pkgs.direnv
+      pkgs.shellcheck
+      pkgs.carnix
+      pkgs.nix-prefetch-git
+
+      # To ensure we always have a compatible nix in our shells.
+      # Travis doesn’t know `nix-env` otherwise.
+      pkgs.nix
+    ] ++
+    pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
+      pkgs.darwin.Security
+      pkgs.darwin.apple_sdk.frameworks.CoreServices
+      pkgs.darwin.apple_sdk.frameworks.CoreFoundation
+    ];
+
+    # we manually collect all build inputs,
+    # because `mkShell` derivations cannot be built
+    # and we want to cachix them.
+    allBuildInputs = buildInputs;
+
 in
 pkgs.mkShell rec {
   name = "lorri";
-  buildInputs = [
-    # This rust comes from the Mozilla rust overlay so we can
-    # get Clippy. Not suitable for production builds. See
-    # ./nix/nixpkgs.nix for more details.
-    rustChannels.stable.rust
-    pkgs.bashInteractive
-    pkgs.git
-    pkgs.direnv
-    pkgs.shellcheck
-    pkgs.carnix
-    pkgs.nix-prefetch-git
-
-    # To ensure we always have a compatible nix in our shells.
-    # Travis doesn’t know `nix-env` otherwise.
-    pkgs.nix
-  ] ++
-  pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
-    pkgs.darwin.Security
-    pkgs.darwin.apple_sdk.frameworks.CoreServices
-    pkgs.darwin.apple_sdk.frameworks.CoreFoundation
-  ] ++
-  pkgs.stdenv.lib.optionals isDevelopmentShell [
-    (pkgs.callPackage ./nix/racer.nix { rustNightly = rustChannels.nightly; })
-  ];
+  buildInputs = buildInputs
+    ++ pkgs.stdenv.lib.optionals isDevelopmentShell [
+      (pkgs.callPackage ./nix/racer.nix { rustNightly = rustChannels.nightly; })
+    ];
 
   # Keep project-specific shell commands local
   HISTFILE = "${toString ./.}/.bash_history";
@@ -144,6 +152,8 @@ pkgs.mkShell rec {
     # Cargo wasn't able to find CF during a `cargo test` run on Darwin.
     export NIX_LDFLAGS="-F${pkgs.darwin.apple_sdk.frameworks.CoreFoundation}/Library/Frameworks -framework CoreFoundation $NIX_LDFLAGS"
   '');
+
+  passthru.allBuildInputs = allBuildInputs;
 
   preferLocalBuild = true;
   allowSubstitutes = false;
