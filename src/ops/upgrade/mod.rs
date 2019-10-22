@@ -79,10 +79,13 @@ pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResul
                 err(1, "\nError: nix-env command was not successful!")
             }
         }
-        Err(e) => err(1, format!(
-            "Failed to build the update! Please report a bug!\n\
-             {:?}",
-            e
-        )),
+        Err(e) => err(
+            1,
+            format!(
+                "Failed to build the update! Please report a bug!\n\
+                 {:?}",
+                e
+            ),
+        ),
     }
 }

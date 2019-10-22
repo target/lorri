@@ -3,7 +3,7 @@
 mod version;
 
 use self::version::{DirenvVersion, MIN_DIRENV_VERSION};
-use crate::ops::{ok, ok_msg, err, ExitError, OpResult};
+use crate::ops::{err, ok, ok_msg, ExitError, OpResult};
 use crate::project::roots::Roots;
 use crate::project::Project;
 use crate::socket::communicate::client;
@@ -88,12 +88,17 @@ fn check_direnv_version() -> OpResult {
     let version = std::str::from_utf8(&out.stdout)
         .map_err(|_| ())
         .and_then(|utf| utf.trim_end().parse::<DirenvVersion>())
-        .map_err(|()| ExitError::errmsg("Could not figure out the current `direnv` version (parse error)"))?;
+        .map_err(|()| {
+            ExitError::errmsg("Could not figure out the current `direnv` version (parse error)")
+        })?;
     if version < MIN_DIRENV_VERSION {
-        err(1, format!(
-            "`direnv` is version {}, but >= {} is required for lorri to function",
-            version, MIN_DIRENV_VERSION
-        ))
+        err(
+            1,
+            format!(
+                "`direnv` is version {}, but >= {} is required for lorri to function",
+                version, MIN_DIRENV_VERSION
+            ),
+        )
     } else {
         ok()
     }
@@ -107,9 +112,13 @@ where
     F: FnOnce(Command) -> std::io::Result<T>,
 {
     let res = cmd(Command::new(executable));
-    res.map_err(|a| ExitError::errmsg( // TODO: other exit code for missing executable?
-             match a.kind() {
+    res.map_err(|a| {
+        ExitError::errmsg(
+            // TODO: other exit code for missing executable?
+            match a.kind() {
                 std::io::ErrorKind::NotFound => format!("`{}`: executable not found", executable),
                 _ => format!("Could not start `{}`: {}", executable, a),
-            }))
+            },
+        )
+    })
 }
