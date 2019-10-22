@@ -3,7 +3,7 @@
 mod version;
 
 use self::version::{DirenvVersion, MIN_DIRENV_VERSION};
-use crate::ops::{ok, ok_msg, ExitError, OpResult};
+use crate::ops::{ok, ok_msg, err, ExitError, OpResult};
 use crate::project::roots::Roots;
 use crate::project::Project;
 use crate::socket::communicate::client;
@@ -90,10 +90,10 @@ fn check_direnv_version() -> OpResult {
         .and_then(|utf| utf.trim_end().parse::<DirenvVersion>())
         .map_err(|()| ExitError::errmsg("Could not figure out the current `direnv` version (parse error)"))?;
     if version < MIN_DIRENV_VERSION {
-        Err(ExitError::errmsg(format!(
+        err(1, format!(
             "`direnv` is version {}, but >= {} is required for lorri to function",
             version, MIN_DIRENV_VERSION
-        )))
+        ))
     } else {
         ok()
     }

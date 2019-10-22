@@ -8,7 +8,7 @@ use lorri::locate_file;
 use lorri::NixFile;
 
 use lorri::cli::{Arguments, Command};
-use lorri::ops::{daemon, direnv, info, init, ping, upgrade, watch, ExitError, OpResult};
+use lorri::ops::{daemon, direnv, info, init, ping, upgrade, watch, err, ExitError, OpResult};
 use lorri::project::Project;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -58,7 +58,7 @@ fn get_shell_nix(shellfile: &PathBuf) -> Result<NixFile, ExitError> {
 
 fn create_project(paths: &constants::Paths, shell_nix: NixFile) -> Result<Project, ExitError> {
     Project::new(shell_nix, &paths.gc_root_dir(), paths.cas_store().clone())
-        .or_else(|_| Err(ExitError::errmsg("Could not set up project paths")))
+        .or_else(|_| err(1, "Could not set up project paths"))
 }
 
 /// Run the main function of the relevant command.

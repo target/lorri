@@ -7,7 +7,7 @@
 use crate::changelog;
 use crate::cli;
 use crate::nix;
-use crate::ops::{ExitError, OpResult};
+use crate::ops::{err, ok_msg, OpResult};
 use crate::VERSION_BUILD_REV;
 use cas::ContentAddressable;
 use std::process::Command;
@@ -74,17 +74,15 @@ pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResul
             drop(gc_root);
 
             if status.success() {
-                Ok(Some(String::from("\nUpgrade successful.")))
+                ok_msg("\nUpgrade successful.")
             } else {
-                Err(ExitError::errmsg(String::from(
-                    "\nError: nix-env command was not successful!",
-                )))
+                err(1, "\nError: nix-env command was not successful!")
             }
         }
-        Err(e) => Err(ExitError::errmsg(format!(
+        Err(e) => err(1, format!(
             "Failed to build the update! Please report a bug!\n\
              {:?}",
             e
-        ))),
+        )),
     }
 }

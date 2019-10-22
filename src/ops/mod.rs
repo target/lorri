@@ -24,8 +24,11 @@ pub struct ExitError {
     message: String,
 }
 
+/// Ops Result type; error corresponds with application exit
+pub type ExitResult<T> = Result<T, ExitError>;
+
 /// Final result from a CLI operation
-pub type OpResult = Result<Option<String>, ExitError>;
+pub type OpResult = ExitResult<Option<String>>;
 
 /// Return an OpResult with a final message to print before exit 0
 /// Note, the final message is possibly intended to be consumed
@@ -47,7 +50,7 @@ pub fn ok() -> OpResult {
 /// with a status code.
 /// Note, the final message is possibly intended to be consumed
 /// by automated tests.
-pub fn err<T>(exitcode: i32, message: T) -> OpResult
+pub fn err<S, T>(exitcode: i32, message: T) -> ExitResult<S>
 where
     T: Into<String>,
 {
