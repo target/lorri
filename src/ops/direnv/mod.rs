@@ -88,10 +88,7 @@ fn check_direnv_version() -> OpResult {
     let version = std::str::from_utf8(&out.stdout)
         .map_err(|_| ())
         .and_then(|utf| utf.trim_end().parse::<DirenvVersion>())
-        .map_err(|()| ExitError {
-            exitcode: 1,
-            message: "Could not figure out the current `direnv` version (parse error)".to_string(),
-        })?;
+        .map_err(|()| ExitError::errmsg("Could not figure out the current `direnv` version (parse error)"))?;
     if version < MIN_DIRENV_VERSION {
         Err(ExitError::errmsg(format!(
             "`direnv` is version {}, but >= {} is required for lorri to function",
@@ -110,12 +107,9 @@ where
     F: FnOnce(Command) -> std::io::Result<T>,
 {
     let res = cmd(Command::new(executable));
-    res.map_err(|a| ExitError {
-        // TODO: other exit code for missing executable?
-        exitcode: 1,
-        message: match a.kind() {
-            std::io::ErrorKind::NotFound => format!("`{}`: executable not found", executable),
-            _ => format!("Could not start `{}`: {}", executable, a),
-        },
-    })
+    res.map_err(|a| ExitError::errmsg( // TODO: other exit code for missing executable?
+             match a.kind() {
+                std::io::ErrorKind::NotFound => format!("`{}`: executable not found", executable),
+                _ => format!("Could not start `{}`: {}", executable, a),
+            }))
 }

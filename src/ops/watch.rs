@@ -2,7 +2,7 @@
 //! Can be used together with `direnv`.
 use crate::build_loop::{BuildError, BuildLoop};
 use crate::cli::WatchOptions;
-use crate::ops::{ok, ExitError, OpResult};
+use crate::ops::{ok, err, OpResult};
 use crate::project::Project;
 use std::fmt::Debug;
 use std::io::Write;
@@ -26,10 +26,8 @@ fn main_run_once(project: Project) -> OpResult {
             print_build_message(msg);
             ok()
         }
-        Err(BuildError::Unrecoverable(err)) => Err(ExitError::err(100, format!("{:?}", err))),
-        Err(BuildError::Recoverable(exit_failure)) => {
-            Err(ExitError::errmsg(format!("{:#?}", exit_failure)))
-        }
+        Err(BuildError::Unrecoverable(e)) => err(100, format!("{:?}", e)),
+        Err(BuildError::Recoverable(failure)) => err(1, format!("{:#?}", failure))
     }
 }
 

@@ -43,6 +43,17 @@ pub fn ok() -> OpResult {
     Ok(None)
 }
 
+/// Return an OpResult with a final message to print before exiting
+/// with a status code.
+/// Note, the final message is possibly intended to be consumed
+/// by automated tests.
+pub fn err<T>(exitcode: i32, message: T) -> OpResult
+where
+    T: Into<String>,
+{
+    Err(ExitError::err(exitcode, message))
+}
+
 impl ExitError {
     /// Exit 1 with an exit message
     pub fn errmsg<T>(message: T) -> ExitError
@@ -75,6 +86,13 @@ impl ExitError {
     /// Exit message to be displayed to the user on stderr
     pub fn message(&self) -> &str {
         &self.message
+    }
+}
+
+use std::io;
+impl From<io::Error> for ExitError {
+    fn from(e: io::Error) -> Self {
+        ExitError::errmsg(format!("{}", e))
     }
 }
 
