@@ -6,6 +6,37 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 309;
+        changes = ''
+          - The deprecated `lorri shell` command was removed.
+          - Fix problem with non-UTF8 build output, arbitrary bytes are now fine.
+          - Add `--shell-file` option to `info`, `watch` and `direnv`.
+
+          - `daemon`:
+            - Panic when any thread panics.
+              Before the daemon would just hang doing nothing.
+
+          - `direnv`:
+            - Print info messages when daemon is not running
+              and/or project has not yet been evaluated.
+            - Take `PWD`, `OLDPWD` and `SHELL` from user environment
+              instead of shell file context.
+            - Set `IN_NIX_SHELL` to `impure`.
+              - Fixes SSL certificates being set to bogus path.
+
+          - `watch`:
+            - Add `--once` option to exit after one build.
+
+          - Watcher logic:
+            - Emulate Nix’s `default.nix` behaviour instead of watching
+              the parent directory recursively.
+
+          - Build logic:
+            - Split `nix-instantiate` and `nix-build`, to provide
+              fine-grained status events.
+        '';
+      }
+      {
         version = 223;
         changes = ''
           - Running lorri on a project where the nix-shell dependencies
