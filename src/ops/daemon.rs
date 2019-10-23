@@ -1,5 +1,7 @@
 //! Run a BuildLoop for `shell.nix`, watching for input file changes.
 //! Can be used together with `direnv`.
+
+use crate::cli::DaemonOptions;
 use crate::daemon::Daemon;
 use crate::ops::{ok, ExitError, OpResult};
 use crate::socket::communicate::listener;
@@ -10,7 +12,7 @@ use std::sync::mpsc;
 
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
-pub fn main() -> OpResult {
+pub fn main(_opts: DaemonOptions) -> OpResult {
     let paths = ::ops::get_paths()?;
     let daemon_socket_file = paths.daemon_socket_file().to_owned();
     let socket_path = ::socket::path::SocketPath::from(&daemon_socket_file);

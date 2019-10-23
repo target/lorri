@@ -37,7 +37,7 @@ pub enum Command {
 
     /// Start the multi-project daemon. Replaces `lorri watch`
     #[structopt(name = "daemon")]
-    Daemon,
+    Daemon(DaemonOptions),
 
     /// (plumbing) Tell the lorri daemon to care about the current directory's project
     #[structopt(name = "ping_")]
@@ -74,6 +74,14 @@ pub struct WatchOptions {
     /// The .nix file in the current directory to use
     #[structopt(long = "shell-file", parse(from_os_str), default_value = "shell.nix")]
     pub nix_file: PathBuf,
+    /// Exit after a the first build
+    #[structopt(long = "once")]
+    pub once: bool,
+}
+
+/// Options for `daemon` subcommand.
+#[derive(StructOpt, Debug)]
+pub struct DaemonOptions {
     /// Exit after a the first build
     #[structopt(long = "once")]
     pub once: bool,

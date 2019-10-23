@@ -76,7 +76,7 @@ fn run_command(opts: Arguments) -> OpResult {
         Command::Watch(opts) => get_shell_nix(&opts.nix_file)
             .and_then(|sn| watch::main(create_project(&paths, sn)?, opts)),
 
-        Command::Daemon => daemon::main(),
+        Command::Daemon(opts) => daemon::main(opts),
 
         Command::Upgrade(args) => upgrade::main(args, paths.cas_store()),
 
