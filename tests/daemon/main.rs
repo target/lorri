@@ -61,7 +61,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
         .unwrap();
 
     // The client pinged, so now a message should have arrived
-    let daemon_subroutine_handle = accept_handle.join().unwrap();
+    accept_handle.join().unwrap();
     let start_build = accept_messages_rx
         .recv_timeout(Duration::from_millis(100))
         .unwrap();
@@ -83,7 +83,6 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     }?;
 
     drop(tempdir);
-    daemon_subroutine_handle.join().unwrap();
     Ok(())
 }
 

@@ -1,6 +1,7 @@
 //! Run a BuildLoop for `shell.nix`, watching for input file changes.
 //! Can be used together with `direnv`.
 
+use crate::build_loop::Event;
 use crate::cli::DaemonOptions;
 use crate::daemon::Daemon;
 use crate::ops::{ok, ExitError, OpResult};
@@ -8,12 +9,14 @@ use crate::socket::communicate::listener;
 use crate::socket::communicate::CommunicationType;
 use crate::socket::ReadWriter;
 use crate::thread::Pool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
+use std::sync::Arc;
 
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
-pub fn main(_opts: DaemonOptions) -> OpResult {
-    let paths = ::ops::get_paths()?;
+pub fn main(opts: DaemonOptions) -> OpResult {
+    let paths = crate::ops::get_paths()?;
     let daemon_socket_file = paths.daemon_socket_file().to_owned();
     let socket_path = ::socket::path::SocketPath::from(&daemon_socket_file);
     // TODO: move listener into Daemon struct?
@@ -31,28 +34,43 @@ pub fn main(_opts: DaemonOptions) -> OpResult {
     // messages sent from accept handlers
     let (accept_messages_tx, accept_messages_rx) = mpsc::channel();
 
+    // coordinate single-shot build
+    let cont = Arc::new(AtomicBool::new(true));
+    let once = opts.once;
+
     let handlers = daemon.handlers();
 
     let mut pool = Pool::new();
-    pool.spawn("accept-loop", move || loop {
-        let accept_messages_tx = accept_messages_tx.clone();
-        // has to clone handlers once per accept loop,
-        // because accept spawns a thread each time.
-        let handlers = handlers.clone();
-        let _handle = listener
-            .accept(move |unix_stream, comm_type| match comm_type {
-                CommunicationType::Ping => {
-                    handlers.ping(ReadWriter::new(&unix_stream), accept_messages_tx)
-                }
-            })
-            // TODO
-            .unwrap();
+    pool.spawn("accept-loop", move || {
+        while cont.load(Ordering::SeqCst) {
+            // Cloning required because of the closure.
+            let accept_messages_tx = accept_messages_tx.clone();
+            let cont = cont.clone();
+            let handlers = handlers.clone();
+            let _handle = listener
+                .accept(move |unix_stream, comm_type| match comm_type {
+                    CommunicationType::Ping => {
+                        handlers.ping(ReadWriter::new(&unix_stream), accept_messages_tx);
+                        if once {
+                            cont.store(false, Ordering::SeqCst);
+                        }
+                    }
+                })
+                // TODO
+                .unwrap();
+        }
     })
     .expect("Failed to spawn accept-loop");
 
-    pool.spawn("build-loop", || {
+    pool.spawn("build-loop", move || {
         for msg in build_messages_rx {
             println!("{:#?}", msg);
+            if once {
+                match msg {
+                    Event::Started => {}
+                    Event::Completed(_) | Event::Failure(_) => break,
+                }
+            }
         }
     })
     .expect("Failed to spawn build-loop");
