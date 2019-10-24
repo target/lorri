@@ -95,7 +95,10 @@ pub mod listener {
         /// The handler is start in a thread, the thread handle is returned.
         ///
         /// This method blocks until a client tries to connect.
-        pub fn accept<F: 'static>(&self, handler: F) -> Result<(), AcceptError>
+        pub fn accept<F: 'static>(
+            &self,
+            handler: F,
+        ) -> Result<(), AcceptError>
         where
             F: FnOnce(UnixStream, CommunicationType) -> (),
             F: std::marker::Send,
@@ -108,7 +111,8 @@ pub mod listener {
                     .react(self.accept_timeout.clone(), |_| ConnectionAccepted())
                     .map_err(AcceptError::Message)?;
             // spawn a thread with the accept handler
-            Ok(handler(unix_stream, comm_type))
+            handler(unix_stream, comm_type);
+            Ok(())
         }
     }
 

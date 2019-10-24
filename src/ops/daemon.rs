@@ -47,7 +47,7 @@ pub fn main(opts: DaemonOptions) -> OpResult {
             let accept_messages_tx = accept_messages_tx.clone();
             let cont = cont.clone();
             let handlers = handlers.clone();
-            let _handle = listener
+            listener
                 .accept(move |unix_stream, comm_type| match comm_type {
                     CommunicationType::Ping => {
                         handlers.ping(ReadWriter::new(&unix_stream), accept_messages_tx);
