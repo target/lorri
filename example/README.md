@@ -85,22 +85,32 @@ Do *not* run `direnv allow` for now, or if you already did so run
 
 ## Set up `lorri`
 
-`lorri` can watch a `shell.nix` file, together with all its
-dependencies. If any of these files change, `lorri` starts nix and
-builds the new version.
+`lorri daemon` starts a process that watches one or more `shell.nix` files,
+together with all its dependencies. If any of these files change, the
+daemon starts nix and builds the new version.
 
 Install `lorri` by following the instructions [in the
 README](../README.md#install).
 
-Now that you have installed `lorri`, let’s take it for a spin.
-Start up the `lorri` watcher:
+Now that you have installed `lorri`, let’s take it for a spin. Start up the
+`lorri` daemon (note that it does not matter which directory this command is
+run in):
 
 ```bash
-$ lorri watch
+$ lorri daemon
 ```
 
-As you can see, the watcher starts a build, which finishes after a
-short while.
+As you can see, the daemon does nothing initially. It is waiting to be told
+about projects. There is a "plumbing" command `lorri ping_` to do this manually
+- see the next section for how this can be automated using `direnv`.
+
+Keep `lorri daemon` running, open up a second terminal and `cd` into
+`lorri/example`. Ignore any `direnv` warnings and run the following command:
+
+```bash
+$ lorri _ping $(readlink -f shell.nix)
+```
+
 Open the `shell.nix` file in your editor and edit the package list to
 include GNU hello:
 
@@ -114,16 +124,17 @@ mkShell {
 }
 ```
 
-As soon as you save, `lorri` starts building the changes.
+Then tell the daemon to build the changes:
+
+```bash
+$ lorri _ping $(readlink -f shell.nix)
+```
 
 
 ## Change the environment of your shell with lorri & direnv
 
-Keep `lorri watch` running and open up a second terminal. `cd` back
-into `lorri/example`.
-
-You should see the direnv warning message again (`error .envrc is
-blocked …`). Type
+Still keeping `lorri daemon` running, let's enable the `direnv` integration. In
+`lorri/examples`, run:
 
 ```bash
 $ direnv allow
