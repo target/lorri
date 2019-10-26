@@ -66,9 +66,7 @@ Enable direnv according to [its setup instructions][direnv-setup].
 Install with nix-env:
 
 ```
-$ git clone -b rolling-release https://github.com/target/lorri.git
-$ cd lorri
-$ nix-env -if .
+$ nix-env -if https://github.com/target/lorri/archive/rolling-release.tar.gz
 ```
 
 ## Usage
