@@ -62,8 +62,6 @@ let
             cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
           lorri_travis_fold travis-yml-idempotent \
             git diff -q ./.travis.yml
-          lorri_travis_fold carnix-idempotent \
-            git diff -q ./Cargo.nix
         ''
         # push test suite closure to cachix
         ''

@@ -67,8 +67,6 @@
         cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
       lorri_travis_fold travis-yml-idempotent \
         git diff -q ./.travis.yml
-      lorri_travis_fold carnix-idempotent \
-        git diff -q ./Cargo.nix
     - >
       nix-build -E '(import ./shell.nix { isDevelopmentShell = false; }).buildInputs'
       \
@@ -133,8 +131,6 @@
         cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
       lorri_travis_fold travis-yml-idempotent \
         git diff -q ./.travis.yml
-      lorri_travis_fold carnix-idempotent \
-        git diff -q ./Cargo.nix
     - >
       nix-build -E '(import ./shell.nix { isDevelopmentShell = false; }).buildInputs'
       \

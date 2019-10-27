@@ -22,5 +22,3 @@ bumped in `shell.nix`, the `stableVersion` string in the
 
 <!-- TODO: should we switch to `nightly` for everything instead of using
 `stable` just for cargo clippy? -->
-
-Run `./nix/update-carnix.sh` to update Cargo's dependency list.
