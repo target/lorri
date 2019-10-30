@@ -28,12 +28,14 @@
           --no-out-link
       '';
 
-      buildInputs = [ pkgs.nix pkgs.direnv pkgs.which ] ++
-      pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
-        pkgs.darwin.cf-private
-        pkgs.darwin.Security
-        pkgs.darwin.apple_sdk.frameworks.CoreServices
-      ];
+      nativeBuildInputs = attrs.nativeBuildInputs or []
+        ++ [ pkgs.nix pkgs.direnv pkgs.which ];
+      buildInputs = attrs.buildInputs or []
+        ++ pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
+          pkgs.darwin.cf-private
+          pkgs.darwin.Security
+          pkgs.darwin.apple_sdk.frameworks.CoreServices
+        ];
     };
   };
 }
