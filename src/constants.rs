@@ -13,24 +13,57 @@ pub struct Paths {
     cas_store: ContentAddressable,
 }
 
+/// Everything that can happen when creating `Paths`.
+/// Mostly filesystem access problems.
+#[derive(Debug)]
+pub enum PathsInitError {
+    /// The `gc_root_dir` creation failed.
+    #[allow(missing_docs)]
+    GcRootsDirectoryCantBeCreated {
+        gc_root_dir: PathBuf,
+        err: std::io::Error,
+    },
+    /// The `socket_dir` creation failed.
+    #[allow(missing_docs)]
+    SocketDirCantBeCreated {
+        socket_dir: PathBuf,
+        err: std::io::Error,
+    },
+    /// The CAS creation failed.
+    #[allow(missing_docs)]
+    CasCantBeCreated {
+        cas_dir: PathBuf,
+        err: std::io::Error,
+    },
+}
+
 impl Paths {
     /// Set up project paths, creating directories if necessary.
-    pub fn initialize() -> std::io::Result<Paths> {
+    pub fn initialize() -> Result<Paths, PathsInitError> {
         let pd = ProjectDirs::from("com.github.target.lorri", "lorri", "lorri")
             .expect("Could not determine lorri project/cache directories, please set $HOME");
         let create_dir = |dir: PathBuf| -> std::io::Result<PathBuf> {
             std::fs::create_dir_all(&dir).and(Ok(dir))
         };
+        let gc_root_dir = pd.cache_dir().join("gc_roots");
+        let runtime_dir = pd
+            .runtime_dir()
+            // fall back to the cache dir on non-linux
+            .unwrap_or_else(|| pd.cache_dir())
+            .to_owned();
+        let cas_dir = pd.cache_dir().join("cas");
         Ok(Paths {
-            gc_root_dir: create_dir(pd.cache_dir().join("gc_roots"))?,
-            daemon_socket_file: create_dir(
-                pd.runtime_dir()
-                    // fall back to the cache dir on non-linux
-                    .unwrap_or_else(|| pd.cache_dir())
-                    .to_owned(),
-            )?
-            .join("daemon.socket"),
-            cas_store: ContentAddressable::new(pd.cache_dir().join("cas"))?,
+            gc_root_dir: create_dir(gc_root_dir.clone()).map_err(|err| {
+                PathsInitError::GcRootsDirectoryCantBeCreated { gc_root_dir, err }
+            })?,
+            daemon_socket_file: create_dir(runtime_dir.clone())
+                .map_err(|err| PathsInitError::SocketDirCantBeCreated {
+                    socket_dir: runtime_dir,
+                    err,
+                })?
+                .join("daemon.socket"),
+            cas_store: ContentAddressable::new(cas_dir.clone())
+                .map_err(|err| PathsInitError::CasCantBeCreated { cas_dir, err })?,
         })
     }
 
