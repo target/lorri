@@ -11,7 +11,7 @@ pub mod watch;
 /// Set up necessary directories or fail.
 pub fn get_paths() -> Result<::constants::Paths, ExitError> {
     ::constants::Paths::initialize()
-        .map_err(|e| ExitError::errmsg(format!("Cannot initialize the lorri paths: {}", e)))
+        .map_err(|e| ExitError::errmsg(format!("Cannot initialize the lorri paths: {:#?}", e,)))
 }
 
 /// Non-zero exit status from an op
