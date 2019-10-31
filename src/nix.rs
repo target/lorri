@@ -543,7 +543,7 @@ mod tests {
     use super::CallOpts;
     use std::env;
     use std::ffi::OsStr;
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
     use std::sync::mpsc::channel;
 
     #[test]

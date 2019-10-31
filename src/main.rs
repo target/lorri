@@ -95,6 +95,8 @@ mod tests {
     #[test]
     fn trivial_shell_nix() -> std::io::Result<()> {
         let out = std::process::Command::new("nix-instantiate")
+            // we can’t assume to have a <nixpkgs>, so use bogus-nixpkgs
+            .args(&["-I", "nixpkgs=./nix/bogus-nixpkgs/"])
             .args(&["--expr", TRIVIAL_SHELL_SRC])
             .output()?;
         assert!(
