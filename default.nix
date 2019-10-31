@@ -48,6 +48,13 @@ let
           --arg runTimeClosure "$RUN_TIME_CLOSURE" \
           --no-out-link
       '';
+
+      # TODO: upstream to naersk
+      # set HOME because on MacOS there’s no sandboxing,
+      # otherwise it tries to create `/homeless-shelter`
+      preCheck = ''
+        export HOME=$(mktemp -d)
+      '';
     });
 
 in lorri
