@@ -78,10 +78,10 @@ fn run_command(opts: Arguments) -> OpResult {
 
         Command::Daemon => daemon::main(),
 
-        Command::Upgrade(args) => upgrade::main(args, paths.cas_store()),
+        Command::Upgrade(opts) => upgrade::main(opts, paths.cas_store()),
 
         // TODO: remove
-        Command::Ping_(p) => ping::main(p.nix_file),
+        Command::Ping_(opts) => get_shell_nix(&opts.nix_file).and_then(ping::main),
 
         Command::Init => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
     }
