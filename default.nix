@@ -17,6 +17,11 @@
       RUN_TIME_CLOSURE = pkgs.callPackage ./nix/runtime.nix {};
       NIX_PATH = "nixpkgs=${./nix/bogus-nixpkgs}";
 
+      # required by human-panic, because carnix doesn’t
+      # set the cargo environment variables correctly.
+      # see https://doc.rust-lang.org/cargo/reference/environment-variables.html
+      homepage = "https://github.com/target/lorri";
+
       preConfigure = ''
         . ${./nix/pre-check.sh}
 
