@@ -56,7 +56,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
         .connect(&socket_path)
         .unwrap()
         .write(&Ping {
-            nix_file: NixFile::from(PathBuf::from("/who/cares")),
+            nix_file: NixFile::from_absolute_path_unchecked(PathBuf::from("/who/cares")),
         })
         .unwrap();
 

@@ -34,7 +34,10 @@ impl Project {
         gc_root_dir: &Path,
         cas: ContentAddressable,
     ) -> std::io::Result<Project> {
-        let hash = format!("{:x}", md5::compute(nix_file.as_os_str().as_bytes()));
+        let hash = format!(
+            "{:x}",
+            md5::compute(nix_file.as_absolute_path().as_os_str().as_bytes())
+        );
         let project_gc_root = gc_root_dir.join(&hash).join("gc_root").to_path_buf();
 
         std::fs::create_dir_all(&project_gc_root)?;

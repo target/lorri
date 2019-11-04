@@ -52,13 +52,22 @@ use std::path::{Path, PathBuf};
 include!(concat!(env!("OUT_DIR"), "/build_rev.rs"));
 
 /// A .nix file.
+///
+/// Is guaranteed to have an absolute path by construction.
 #[derive(Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct NixFile(PathBuf);
 
 impl NixFile {
-    /// Underlying `&OsStr`.
-    pub fn as_os_str(&self) -> &std::ffi::OsStr {
-        self.0.as_os_str()
+    /// Convert from a known absolute path.
+    ///
+    /// Passing a relative path is a programming bug (unchecked).
+    pub fn from_absolute_path_unchecked(path: PathBuf) -> Self {
+        NixFile(path)
+    }
+
+    /// Absolute path of this file
+    pub fn as_absolute_path(&self) -> &Path {
+        &self.0
     }
 }
 
@@ -66,18 +75,6 @@ impl NixFile {
 impl std::fmt::Display for NixFile {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.0.display().fmt(f)
-    }
-}
-
-impl From<&std::ffi::OsStr> for NixFile {
-    fn from(s: &std::ffi::OsStr) -> NixFile {
-        NixFile(PathBuf::from(s.to_owned()))
-    }
-}
-
-impl From<PathBuf> for NixFile {
-    fn from(p: PathBuf) -> NixFile {
-        NixFile(p)
     }
 }
 

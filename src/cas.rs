@@ -25,6 +25,8 @@ impl ContentAddressable {
     /// pointing to another `ContentAddressable` store.
     /// If it is a directory with some other data,
     /// the correctness cannot be guaranteed.
+    ///
+    /// TODO: assert that it’s an absolute path
     pub fn new(store_dir: PathBuf) -> std::io::Result<ContentAddressable> {
         std::fs::create_dir_all(&store_dir)?;
         Ok(ContentAddressable { store_dir })
