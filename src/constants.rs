@@ -4,11 +4,14 @@ extern crate directories;
 
 use self::directories::ProjectDirs;
 use crate::cas::ContentAddressable;
+use crate::AbsPathBuf;
 use std::path::{Path, PathBuf};
 
 /// Path constants like the GC root directory.
 pub struct Paths {
+    // TODO: make AbsPathBuf
     gc_root_dir: PathBuf,
+    // TODO: make AbsPathBuf
     daemon_socket_file: PathBuf,
     cas_store: ContentAddressable,
 }
@@ -32,7 +35,7 @@ pub enum PathsInitError {
     /// The CAS creation failed.
     #[allow(missing_docs)]
     CasCantBeCreated {
-        cas_dir: PathBuf,
+        cas_dir: AbsPathBuf,
         err: std::io::Error,
     },
 }
@@ -51,7 +54,15 @@ impl Paths {
             // fall back to the cache dir on non-linux
             .unwrap_or_else(|| pd.cache_dir())
             .to_owned();
-        let cas_dir = pd.cache_dir().join("cas");
+
+        // TODO: return as good error value
+        assert!(
+            pd.cache_dir().is_absolute(),
+            "Your cache directory is not an absolute path! It is: {}",
+            pd.cache_dir().display()
+        );
+        let abs_cache_dir = AbsPathBuf::new_unchecked(pd.cache_dir().to_owned());
+        let cas_dir = abs_cache_dir.join("cas");
         Ok(Paths {
             gc_root_dir: create_dir(gc_root_dir.clone()).map_err(|err| {
                 PathsInitError::GcRootsDirectoryCantBeCreated { gc_root_dir, err }

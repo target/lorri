@@ -66,7 +66,9 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
         .recv_timeout(Duration::from_millis(100))
         .unwrap();
 
-    let cas = ContentAddressable::new(tempdir.path().join("cas")).unwrap();
+    let cas =
+        ContentAddressable::new(AbsPathBuf::new_unchecked(tempdir.path().to_owned()).join("cas"))
+            .unwrap();
     let project = Project::new(start_build.nix_file, &tempdir.path().join("gc_root"), cas).unwrap();
     daemon.add(project);
 

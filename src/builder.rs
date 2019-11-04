@@ -93,7 +93,7 @@ fn instrumented_instantiation(
         root_nix_file.as_absolute_path().as_os_str(),
         // instrumented by `./logged-evaluation.nix`
         OsStr::new("--"),
-        &logged_evaluation_nix.as_os_str(),
+        &logged_evaluation_nix.as_absolute_path().as_os_str(),
     ])
     .stdin(Stdio::null())
     .stdout(Stdio::piped())
@@ -460,7 +460,7 @@ derivation {{
     #[test]
     fn non_utf8_nix_output() -> std::io::Result<()> {
         let tmp = tempfile::tempdir()?;
-        let cas = ContentAddressable::new(tmp.path().to_owned())?;
+        let cas = ContentAddressable::new(crate::AbsPathBuf::new_unchecked(tmp.path().to_owned()))?;
 
         let inner_drv = drv(
             "dep",
@@ -490,9 +490,7 @@ in {}
         let (tx, rx) = chan::unbounded();
         let info = run(
             tx,
-            &crate::NixFile::from(crate::AbsPathBuf::new_unchecked(
-                cas.file_from_string(&nix_drv)?,
-            )),
+            &crate::NixFile::from(cas.file_from_string(&nix_drv)?),
             &cas,
         )
         .unwrap();
@@ -525,14 +523,12 @@ in {}
     #[test]
     fn gracefully_handle_failing_build() -> std::io::Result<()> {
         let tmp = tempfile::tempdir()?;
-        let cas = ContentAddressable::new(tmp.path().to_owned())?;
+        let cas = ContentAddressable::new(crate::AbsPathBuf::new_unchecked(tmp.path().to_owned()))?;
 
-        let d = crate::NixFile::from(crate::AbsPathBuf::new_unchecked(cas.file_from_string(
-            &drv(
-                "shell",
-                &format!("dep = {};", drv("dep", r##"args = [ "-c" "exit 1" ];"##)),
-            ),
-        )?));
+        let d = crate::NixFile::from(cas.file_from_string(&drv(
+            "shell",
+            &format!("dep = {};", drv("dep", r##"args = [ "-c" "exit 1" ];"##)),
+        ))?);
 
         let (tx, _rx) = chan::unbounded();
         run(tx, &d, &cas).expect("build can fail, but must not panic");
@@ -584,7 +580,8 @@ dir-as-source = ./dir;
         let foo_baz = &foo.join("baz");
         std::fs::write(&foo_baz, "\"This file should be watched\"")?;
 
-        let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
+        let cas =
+            ContentAddressable::new(crate::AbsPathBuf::new_unchecked(cas_tmp.path().join("cas")))?;
 
         let (tx, rx) = chan::unbounded();
         let inst_info = instrumented_instantiation(

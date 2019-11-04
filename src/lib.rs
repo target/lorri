@@ -78,6 +78,20 @@ impl AbsPathBuf {
     pub fn display(&self) -> std::path::Display {
         self.0.display()
     }
+
+    /// Joins a path to the end of this absolute path.
+    /// If the path is absolute, it will replace this absolute path.
+    pub fn join<P: AsRef<Path>>(&self, pb: P) -> Self {
+        let mut new = self.0.to_owned();
+        new.push(pb);
+        Self::new_unchecked(new)
+    }
+}
+
+impl AsRef<Path> for AbsPathBuf {
+    fn as_ref(&self) -> &Path {
+        self.as_absolute_path()
+    }
 }
 
 impl NixFile {

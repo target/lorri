@@ -6,15 +6,15 @@
 //! written if the content hasn’t been added before.
 //!
 //! Internally uses md5, don’t use for security-critical stuff.
+use crate::AbsPathBuf;
 use std::io::Write;
-use std::path::PathBuf;
 
 extern crate atomicwrites;
 
 /// A content-addressable store.
 #[derive(Clone)]
 pub struct ContentAddressable {
-    store_dir: PathBuf,
+    store_dir: AbsPathBuf,
 }
 
 impl ContentAddressable {
@@ -25,22 +25,20 @@ impl ContentAddressable {
     /// pointing to another `ContentAddressable` store.
     /// If it is a directory with some other data,
     /// the correctness cannot be guaranteed.
-    ///
-    /// TODO: assert that it’s an absolute path
-    pub fn new(store_dir: PathBuf) -> std::io::Result<ContentAddressable> {
-        std::fs::create_dir_all(&store_dir)?;
+    pub fn new(store_dir: AbsPathBuf) -> std::io::Result<ContentAddressable> {
+        std::fs::create_dir_all(store_dir.as_absolute_path())?;
         Ok(ContentAddressable { store_dir })
     }
 
     /// Adds the contents to a file in the content-addressable store
-    /// and returns the `PathBuf` pointing to the file.
+    /// and returns the `AbsPathBuf` pointing to the file.
     ///
     /// If the same contents were already written, the existing file
     /// is returned.
     ///
     /// This operation hashes the file contents, its cost is at least
     /// the cost of hashing the `content` string.
-    pub fn file_from_string(&self, content: &str) -> std::io::Result<PathBuf> {
+    pub fn file_from_string(&self, content: &str) -> std::io::Result<AbsPathBuf> {
         use self::atomicwrites::{AtomicFile, OverwriteBehavior};
 
         // md5 should be okay, since this is not security-critical
@@ -85,6 +83,11 @@ impl ContentAddressable {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use AbsPathBuf;
+
+    fn abs_path(td: &tempfile::TempDir) -> AbsPathBuf {
+        AbsPathBuf::new_unchecked(td.path().to_owned())
+    }
 
     /// Tests adding some content to the store and whether
     /// the returned file path contains the same content.
@@ -92,13 +95,16 @@ mod tests {
     fn save_and_check_same_content() -> std::io::Result<()> {
         let content = "this is content";
         let store_dir = tempfile::tempdir()?;
-        let cas_file = ContentAddressable::new(store_dir.path().to_owned())
+        let cas_file = ContentAddressable::new(abs_path(&store_dir))
             .unwrap()
             .file_from_string(content)
             .unwrap();
 
         // small check to check that the file lives in store_path
-        assert_eq!(store_dir.path().to_owned(), cas_file.parent().unwrap());
+        assert_eq!(
+            store_dir.path().to_owned(),
+            cas_file.as_absolute_path().parent().unwrap()
+        );
         // the content should be the same in the file that was written
         Ok(assert_eq!(
             content,
@@ -112,15 +118,15 @@ mod tests {
     fn writing_the_same_content_doesnt_write_file() -> std::io::Result<()> {
         let content = "this is content";
         let store_dir = tempfile::tempdir()?;
-        let cas = ContentAddressable::new(store_dir.path().to_owned()).unwrap();
+        let cas = ContentAddressable::new(abs_path(&store_dir)).unwrap();
         let cas_file = cas.file_from_string(content).unwrap();
 
-        let first_mtime = cas_file.metadata()?.modified()?;
+        let first_mtime = cas_file.as_absolute_path().metadata()?.modified()?;
 
         // creating a cas for the same content doesn’t write to the file
         let cas_file_new = cas.file_from_string(content).unwrap();
 
-        let second_mtime = cas_file_new.metadata()?.modified()?;
+        let second_mtime = cas_file_new.as_absolute_path().metadata()?.modified()?;
 
         // if the mtimes are different, the file has been overwritten
         assert_eq!(first_mtime, second_mtime);

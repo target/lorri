@@ -34,7 +34,12 @@ impl DirenvTestCase {
 
         let shell_file = NixFile::from(AbsPathBuf::new_unchecked(test_root.join("shell.nix")));
 
-        let cas = ContentAddressable::new(cachedir.path().join("cas").to_owned()).unwrap();
+        let cas = ContentAddressable::new(
+            AbsPathBuf::new_unchecked(cachedir.path().to_owned())
+                .join("cas")
+                .to_owned(),
+        )
+        .unwrap();
         let project = Project::new(
             shell_file.clone(),
             &cachedir.path().join("gc_roots").to_owned(),

@@ -41,7 +41,7 @@ pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResul
     let expr = {
         let src = String::from(upgrade_target);
         println!("Upgrading from source: {}", src);
-        let mut expr = nix::CallOpts::file(&upgrade_expr);
+        let mut expr = nix::CallOpts::file(&upgrade_expr.as_absolute_path());
         expr.argstr("src", &src);
         // ugly hack to prevent expr from being mutable outside,
         // since I can't sort out how to chain argstr and still
