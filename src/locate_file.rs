@@ -21,7 +21,8 @@ impl From<std::io::Error> for FileLocationError {
     }
 }
 
-/// Hunt for filename `name` in the current directory
+/// Hunt for filename `name` in the current directory.
+/// If `path` is absolute, it returns `path`.
 pub fn in_cwd(name: &PathBuf) -> Result<PathBuf, FileLocationError> {
     let mut path = env::current_dir()?;
     path.push(name);

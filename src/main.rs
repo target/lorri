@@ -46,8 +46,10 @@ fn main() {
     exit(result);
 }
 
-/// Try to read `shell.nix` from the current working dir.
-fn get_shell_nix(shellfile: &PathBuf) -> Result<NixFile, ExitError> {
+/// Reads a nix filename given by the user and either returns
+/// the `NixFile` type or exists with a helpful error message
+/// that instructs the user how to write a minimal `shell.nix`.
+fn find_nix_file(shellfile: &PathBuf) -> Result<NixFile, ExitError> {
     // use shell.nix from cwd
     Ok(NixFile::from_absolute_path_unchecked(
         locate_file::in_cwd(&shellfile).map_err(|_| {
@@ -76,14 +78,14 @@ fn run_command(opts: Arguments) -> OpResult {
     let paths = lorri::ops::get_paths()?;
     match opts.command {
         Command::Info(opts) => {
-            get_shell_nix(&opts.nix_file).and_then(|sn| info::main(create_project(&paths, sn)?))
+            find_nix_file(&opts.nix_file).and_then(|sn| info::main(create_project(&paths, sn)?))
         }
 
         Command::Direnv(opts) => {
-            get_shell_nix(&opts.nix_file).and_then(|sn| direnv::main(create_project(&paths, sn)?))
+            find_nix_file(&opts.nix_file).and_then(|sn| direnv::main(create_project(&paths, sn)?))
         }
 
-        Command::Watch(opts) => get_shell_nix(&opts.nix_file)
+        Command::Watch(opts) => find_nix_file(&opts.nix_file)
             .and_then(|sn| watch::main(create_project(&paths, sn)?, opts)),
 
         Command::Daemon => daemon::main(),
@@ -91,7 +93,7 @@ fn run_command(opts: Arguments) -> OpResult {
         Command::Upgrade(opts) => upgrade::main(opts, paths.cas_store()),
 
         // TODO: remove
-        Command::Ping_(opts) => get_shell_nix(&opts.nix_file).and_then(ping::main),
+        Command::Ping_(opts) => find_nix_file(&opts.nix_file).and_then(ping::main),
 
         Command::Init => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
     }
