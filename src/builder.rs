@@ -490,7 +490,9 @@ in {}
         let (tx, rx) = chan::unbounded();
         let info = run(
             tx,
-            &crate::NixFile::from_absolute_path_unchecked(cas.file_from_string(&nix_drv)?),
+            &crate::NixFile::from(crate::AbsPathBuf::new_unchecked(
+                cas.file_from_string(&nix_drv)?,
+            )),
             &cas,
         )
         .unwrap();
@@ -525,10 +527,12 @@ in {}
         let tmp = tempfile::tempdir()?;
         let cas = ContentAddressable::new(tmp.path().to_owned())?;
 
-        let d = crate::NixFile::from_absolute_path_unchecked(cas.file_from_string(&drv(
-            "shell",
-            &format!("dep = {};", drv("dep", r##"args = [ "-c" "exit 1" ];"##)),
-        ))?);
+        let d = crate::NixFile::from(crate::AbsPathBuf::new_unchecked(cas.file_from_string(
+            &drv(
+                "shell",
+                &format!("dep = {};", drv("dep", r##"args = [ "-c" "exit 1" ];"##)),
+            ),
+        )?));
 
         let (tx, _rx) = chan::unbounded();
         run(tx, &d, &cas).expect("build can fail, but must not panic");
@@ -583,9 +587,12 @@ dir-as-source = ./dir;
         let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
 
         let (tx, rx) = chan::unbounded();
-        let inst_info =
-            instrumented_instantiation(tx, &NixFile::from_absolute_path_unchecked(shell), &cas)
-                .unwrap();
+        let inst_info = instrumented_instantiation(
+            tx,
+            &NixFile::from(crate::AbsPathBuf::new_unchecked(shell)),
+            &cas,
+        )
+        .unwrap();
         let ends_with = |end| inst_info.referenced_paths.iter().any(|p| p.ends_with(end));
         assert!(
             ends_with("foo/default.nix"),

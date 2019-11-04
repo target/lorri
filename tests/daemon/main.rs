@@ -9,7 +9,7 @@ use lorri::socket::communicate::{client, listener};
 use lorri::socket::communicate::{CommunicationType, Ping};
 use lorri::socket::path::SocketPath;
 use lorri::socket::{ReadWriter, Timeout};
-use lorri::NixFile;
+use lorri::{AbsPathBuf, NixFile};
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use std::thread;
@@ -56,7 +56,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
         .connect(&socket_path)
         .unwrap()
         .write(&Ping {
-            nix_file: NixFile::from_absolute_path_unchecked(PathBuf::from("/who/cares")),
+            nix_file: NixFile::from(AbsPathBuf::new_unchecked(PathBuf::from("/who/cares"))),
         })
         .unwrap();
 

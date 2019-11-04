@@ -55,23 +55,45 @@ include!(concat!(env!("OUT_DIR"), "/build_rev.rs"));
 ///
 /// Is guaranteed to have an absolute path by construction.
 #[derive(Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-pub struct NixFile(PathBuf);
+pub struct NixFile(AbsPathBuf);
 
-impl NixFile {
+/// Path guaranteed to be absolute by construction.
+#[derive(Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+pub struct AbsPathBuf(PathBuf);
+
+impl AbsPathBuf {
     /// Convert from a known absolute path.
     ///
     /// Passing a relative path is a programming bug (unchecked).
-    pub fn from_absolute_path_unchecked(path: PathBuf) -> Self {
-        NixFile(path)
+    pub fn new_unchecked(path: PathBuf) -> Self {
+        AbsPathBuf(path)
     }
 
-    /// Absolute path of this file
+    /// The absolute path, as `&Path`.
     pub fn as_absolute_path(&self) -> &Path {
         &self.0
     }
+
+    /// Proxy through the `Display` class for `PathBuf`.
+    pub fn display(&self) -> std::path::Display {
+        self.0.display()
+    }
 }
 
-/// Proxy through the `Display` class for `PathBuf`.
+impl NixFile {
+    /// Absolute path of this file.
+    pub fn as_absolute_path(&self) -> &Path {
+        &self.0.as_absolute_path()
+    }
+}
+
+impl From<AbsPathBuf> for NixFile {
+    fn from(abs_path: AbsPathBuf) -> Self {
+        NixFile(abs_path)
+    }
+}
+
+/// Proxy through the `Display` class for `AbsPathBuf`.
 impl std::fmt::Display for NixFile {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.0.display().fmt(f)

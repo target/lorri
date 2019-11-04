@@ -7,7 +7,7 @@ use lorri::{
     cas::ContentAddressable,
     ops::direnv,
     project::Project,
-    NixFile,
+    AbsPathBuf, NixFile,
 };
 use std::fs::File;
 use std::io::Write;
@@ -32,7 +32,7 @@ impl DirenvTestCase {
         let test_root =
             PathBuf::from_iter(&[env!("CARGO_MANIFEST_DIR"), "tests", "integration", name]);
 
-        let shell_file = NixFile::from_absolute_path_unchecked(test_root.join("shell.nix"));
+        let shell_file = NixFile::from(AbsPathBuf::new_unchecked(test_root.join("shell.nix")));
 
         let cas = ContentAddressable::new(cachedir.path().join("cas").to_owned()).unwrap();
         let project = Project::new(
