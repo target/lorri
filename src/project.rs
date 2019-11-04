@@ -14,6 +14,7 @@ pub struct Project {
     /// Absolute path to this project’s nix file.
     pub nix_file: NixFile,
 
+    // TODO: make into AbsPathBuf
     /// Directory in which this project’s
     /// garbage collection roots are stored.
     gc_root_path: PathBuf,

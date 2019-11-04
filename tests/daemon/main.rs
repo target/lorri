@@ -32,8 +32,8 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     let tempdir = tempfile::tempdir()?;
 
     // create unix socket file
-    let p = &tempdir.path().join("socket");
-    let socket_path = SocketPath::from(p);
+    let p = AbsPathBuf::new_unchecked(tempdir.path().to_owned()).join("socket");
+    let socket_path = SocketPath::from(&p);
     let listener = listener::Listener::new(&socket_path).unwrap();
 
     // The daemon knows how to build stuff
@@ -94,8 +94,8 @@ pub fn start_two_listeners_on_same_socket() -> std::io::Result<()> {
     let tempdir = tempfile::tempdir()?;
 
     // create unix socket file
-    let p = &tempdir.path().join("socket");
-    let socket_path = SocketPath::from(p);
+    let p = AbsPathBuf::new_unchecked(tempdir.path().to_owned()).join("socket");
+    let socket_path = SocketPath::from(&p);
     let listener = listener::Listener::new(&socket_path).unwrap();
 
     match listener::Listener::new(&socket_path) {

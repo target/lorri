@@ -66,7 +66,13 @@ fn find_nix_file(shellfile: &PathBuf) -> Result<NixFile, ExitError> {
 }
 
 fn create_project(paths: &constants::Paths, shell_nix: NixFile) -> Result<Project, ExitError> {
-    Project::new(shell_nix, &paths.gc_root_dir(), paths.cas_store().clone()).or_else(|e| {
+    Project::new(
+        shell_nix,
+        // TODO: pass the AbsPathDir
+        &paths.gc_root_dir().as_absolute_path(),
+        paths.cas_store().clone(),
+    )
+    .or_else(|e| {
         Err(ExitError::temporary(format!(
             "Could not set up project paths: {:#?}",
             e

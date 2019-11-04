@@ -75,7 +75,9 @@ watch_file "$EVALUATION_ROOT"
 "#,
         root_paths.shell_gc_root,
         socket_path
-            .into_os_string()
+            .as_absolute_path()
+            .as_os_str()
+            .to_owned()
             .into_string()
             .expect("Socket path is not UTF-8 clean!"),
         include_str!("envrc.bash")

@@ -2,12 +2,12 @@
 
 extern crate nix;
 
+use crate::AbsPathBuf;
 use std::os::unix::io::AsRawFd;
 use std::os::unix::net::{UnixListener, UnixStream};
-use std::path::{Path, PathBuf};
 
 /// Small wrapper that makes sure lorri sockets are handled correctly.
-pub struct SocketPath<'a>(&'a Path);
+pub struct SocketPath<'a>(&'a AbsPathBuf);
 
 /// Binding to the socket failed.
 #[derive(Debug)]
@@ -32,7 +32,7 @@ pub struct BindLock(std::fs::File);
 impl<'a> SocketPath<'a> {
     /// Create from the path of the socket.
     /// Must be passed a valid socket file path (ending in a file name).
-    pub fn from(socket_path: &Path) -> SocketPath {
+    pub fn from(socket_path: &AbsPathBuf) -> SocketPath {
         SocketPath(socket_path)
     }
 
@@ -42,16 +42,23 @@ impl<'a> SocketPath<'a> {
     }
 
     /// Return lockfile path.
-    pub fn lockfile(&self) -> PathBuf {
-        self.0.with_file_name({
-            let mut s = self
-                .0
-                .file_name()
-                .unwrap_or_else(|| panic!("Socket file ({:?}) must end in a file name", self.0))
-                .to_owned();
-            s.push(".lock");
-            s
-        })
+    pub fn lockfile(&self) -> AbsPathBuf {
+        let mut name = self
+            .0
+            .as_absolute_path()
+            .file_name()
+            .unwrap_or_else(|| panic!("Socket file ({:?}) must end in a file name", self.0))
+            .to_owned();
+        name.push(".lock");
+        let mut new_file = self
+            .0
+            .as_absolute_path()
+            .parent()
+            .unwrap_or_else(|| panic!("Socket file ({:?}) must have a parent directory", self.0))
+            .to_owned();
+        new_file.push(name);
+        // We didn’t do anything to not make the path relative
+        AbsPathBuf::new_unchecked(new_file)
     }
 
     /// Try to lock the lock file to find outswhether another process is listening.
