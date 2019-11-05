@@ -49,20 +49,19 @@ impl ExitError {
     where
         T: Into<String>,
     {
-        ExitError::err(1, message.into())
+        ExitError {
+            exitcode: 1,
+            message: message.into(),
+        }
     }
 
-    /// Helpers to create exit results
-    ///
-    /// Note: err panics if exitcode is zero.
-    fn err<T>(exitcode: i32, message: T) -> ExitError
+    /// Exit 100 to signify an unexpected crash (lorri bug).
+    pub fn unrecoverable<T>(message: T) -> ExitError
     where
         T: Into<String>,
     {
-        assert!(exitcode != 0, "ExitError exitcode must be > 0!");
-
         ExitError {
-            exitcode,
+            exitcode: 100,
             message: message.into(),
         }
     }
@@ -75,26 +74,5 @@ impl ExitError {
     /// Exit message to be displayed to the user on stderr
     pub fn message(&self) -> &str {
         &self.message
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::ExitError;
-
-    #[test]
-    #[should_panic]
-    fn err_requires_nonzero() {
-        ExitError::err(0, "bogus");
-    }
-
-    #[test]
-    fn getters() {
-        match ExitError::err(1, "bogus") {
-            e => {
-                assert_eq!(e.exitcode(), 1);
-                assert_eq!(e.message(), "bogus");
-            }
-        }
     }
 }

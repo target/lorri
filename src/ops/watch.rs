@@ -27,7 +27,7 @@ fn main_run_once(project: Project) -> OpResult {
             print_build_message(msg);
             ok()
         }
-        Err(BuildError::Unrecoverable(err)) => Err(ExitError::err(100, format!("{:?}", err))),
+        Err(BuildError::Unrecoverable(err)) => Err(ExitError::unrecoverable(format!("{:?}", err))),
         Err(BuildError::Recoverable(exit_failure)) => {
             Err(ExitError::errmsg(format!("{:#?}", exit_failure)))
         }
