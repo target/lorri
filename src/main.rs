@@ -10,7 +10,8 @@ use lorri::locate_file;
 use lorri::NixFile;
 
 use lorri::cli::{Arguments, Command};
-use lorri::ops::{daemon, direnv, info, init, ping, upgrade, watch, ExitError, OpResult};
+use lorri::ops::error::{ExitError, OpResult};
+use lorri::ops::{daemon, direnv, info, init, ping, upgrade, watch};
 use lorri::project::Project;
 use std::path::PathBuf;
 use structopt::StructOpt;

@@ -3,7 +3,7 @@
 mod version;
 
 use self::version::{DirenvVersion, MIN_DIRENV_VERSION};
-use crate::ops::{ok, ok_msg, ExitError, OpResult};
+use crate::ops::error::{ok, ok_msg, ExitError, OpResult};
 use crate::project::roots::Roots;
 use crate::project::Project;
 use crate::socket::communicate::client;

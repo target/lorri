@@ -3,7 +3,7 @@
 
 use crate::build_loop::{BuildError, BuildLoop};
 use crate::cli::WatchOptions;
-use crate::ops::{ok, ExitError, OpResult};
+use crate::ops::error::{ok, ExitError, OpResult};
 use crate::project::Project;
 use crossbeam_channel as chan;
 use std::fmt::Debug;

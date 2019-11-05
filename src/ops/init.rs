@@ -1,6 +1,6 @@
 //! Bootstrap a new lorri project
 
-use crate::ops::{ok_msg, ExitError, OpResult};
+use crate::ops::error::{ok_msg, ExitError, OpResult};
 use std::fs::File;
 use std::io;
 use std::io::Write;
