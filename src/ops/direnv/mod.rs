@@ -112,8 +112,7 @@ where
 {
     let res = cmd(Command::new(executable));
     res.map_err(|a| {
-        // TODO use a different exit-code for the missing executable
-        ExitError::errmsg(match a.kind() {
+        ExitError::missing_executable(match a.kind() {
             std::io::ErrorKind::NotFound => format!("`{}`: executable not found", executable),
             _ => format!("Could not start `{}`: {}", executable, a),
         })

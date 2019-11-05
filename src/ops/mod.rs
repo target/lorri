@@ -15,6 +15,13 @@ pub fn get_paths() -> Result<crate::constants::Paths, ExitError> {
 }
 
 /// Non-zero exit status from an op
+///
+/// Based on the execline convention:
+/// All these commands exit
+/// - 1 if they encounter an expected error
+/// - 111 if they encounter a temporary error
+/// - 100 if they encounter a permanent error - such as a misuse
+/// - 127 if they're trying to execute into a program and cannot find it
 #[derive(Debug, Clone)]
 pub struct ExitError {
     /// Exit code of the process, should be non-zero
@@ -62,6 +69,17 @@ impl ExitError {
     {
         ExitError {
             exitcode: 100,
+            message: message.into(),
+        }
+    }
+
+    /// Exit 127 to signify a missing executable.
+    pub fn missing_executable<T>(message: T) -> ExitError
+    where
+        T: Into<String>,
+    {
+        ExitError {
+            exitcode: 127,
             message: message.into(),
         }
     }
