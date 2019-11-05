@@ -69,6 +69,7 @@ pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResul
                 .arg("--install")
                 .arg(build_result.as_path())
                 .status()
+                // TODO: check existence of commands at the beginning
                 .expect("Error: failed to execute nix-env --install");
             // we can drop the temporary gc root
             drop(gc_root);
@@ -76,15 +77,13 @@ pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResul
             if status.success() {
                 Ok(Some(String::from("\nUpgrade successful.")))
             } else {
-                Err(ExitError::errmsg(String::from(
-                    "\nError: nix-env command was not successful!",
+                Err(ExitError::expected_error(format!(
+                    "\nError: nix-env command was not successful!\n{:#?}",
+                    status
                 )))
             }
         }
-        Err(e) => Err(ExitError::errmsg(format!(
-            "Failed to build the update! Please report a bug!\n\
-             {:?}",
-            e
-        ))),
+        // our update expression is broken, crash
+        Err(e) => panic!("Failed to build the update! {:#?}", e),
     }
 }

@@ -11,16 +11,20 @@ pub mod watch;
 /// Set up necessary directories or fail.
 pub fn get_paths() -> Result<crate::constants::Paths, ExitError> {
     crate::constants::Paths::initialize()
-        .map_err(|e| ExitError::errmsg(format!("Cannot initialize the lorri paths: {:#?}", e,)))
+        .map_err(|e| ExitError::user_error(format!("Cannot initialize the lorri paths: {:#?}", e)))
 }
 
-/// Non-zero exit status from an op
+/// Non-zero exit status from an op.
 ///
-/// Based on the execline convention:
+/// Based in part on the execline convention
+/// (see https://skarnet.org/software/execline/exitcodes.html).
+///
 /// All these commands exit
 /// - 1 if they encounter an expected error
-/// - 111 if they encounter a temporary error
-/// - 100 if they encounter a permanent error - such as a misuse
+/// - 100 if they encounter a permanent error – “the user is holding it wrong”
+/// - 101 if they encounter a programming error, like a panic or failed assert
+/// - 111 if they encounter a temporary error, such as resource exhaustion
+/// - 126 if there is a problem with the environment in which lorri is run
 /// - 127 if they're trying to execute into a program and cannot find it
 #[derive(Debug, Clone)]
 pub struct ExitError {
@@ -51,8 +55,9 @@ pub fn ok() -> OpResult {
 }
 
 impl ExitError {
-    /// Exit 1 with an exit message
-    pub fn errmsg<T>(message: T) -> ExitError
+    /// Exit 1 to signify a generic expected error
+    /// (e.g. something that sometimes just goes wrong, like a nix build).
+    pub fn expected_error<T>(message: T) -> ExitError
     where
         T: Into<String>,
     {
@@ -62,13 +67,51 @@ impl ExitError {
         }
     }
 
-    /// Exit 100 to signify an unexpected crash (lorri bug).
-    pub fn unrecoverable<T>(message: T) -> ExitError
+    /// Exit 100 to signify a user error (“the user is holding it wrong”).
+    /// This is a permanent error, if the program is executed the same way
+    /// it should crash with 100 again.
+    pub fn user_error<T>(message: T) -> ExitError
     where
         T: Into<String>,
     {
         ExitError {
             exitcode: 100,
+            message: message.into(),
+        }
+    }
+
+    /// Exit 101 to signify an unexpected crash (failing assertion or panic).
+    /// This is the same exit code that `panic!()` emits.
+    pub fn panic<T>(message: T) -> ExitError
+    where
+        T: Into<String>,
+    {
+        ExitError {
+            exitcode: 101,
+            message: message.into(),
+        }
+    }
+
+    /// Exit 111 to signify a temporary error (such as resource exhaustion)
+    pub fn temporary<T>(message: T) -> ExitError
+    where
+        T: Into<String>,
+    {
+        ExitError {
+            exitcode: 111,
+            message: message.into(),
+        }
+    }
+
+    // TODO: combine 126 and 127
+    /// Exit 126 to signify an environment problem
+    /// (the user has set up stuff incorrectly so lorri cannot work)
+    pub fn environment_problem<T>(message: T) -> ExitError
+    where
+        T: Into<String>,
+    {
+        ExitError {
+            exitcode: 126,
             message: message.into(),
         }
     }

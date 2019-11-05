@@ -89,12 +89,12 @@ fn check_direnv_version() -> OpResult {
         .map_err(|_| ())
         .and_then(|utf| utf.trim_end().parse::<DirenvVersion>())
         .map_err(|()| {
-            ExitError::errmsg(
+            ExitError::environment_problem(
                 "Could not figure out the current `direnv` version (parse error)".to_string(),
             )
         })?;
     if version < MIN_DIRENV_VERSION {
-        Err(ExitError::errmsg(format!(
+        Err(ExitError::environment_problem(format!(
             "`direnv` is version {}, but >= {} is required for lorri to function",
             version, MIN_DIRENV_VERSION
         )))

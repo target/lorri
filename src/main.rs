@@ -19,6 +19,7 @@ const TRIVIAL_SHELL_SRC: &str = include_str!("./trivial-shell.nix");
 const DEFAULT_ENVRC: &str = "eval \"$(lorri direnv)\"";
 
 fn main() {
+    // This returns 101 on panics, see also `ExitError::panic`.
     setup_panic!();
 
     let exit = |result: OpResult| match result {
@@ -49,7 +50,7 @@ fn get_shell_nix(shellfile: &PathBuf) -> Result<NixFile, ExitError> {
     // use shell.nix from cwd
     Ok(NixFile::from(locate_file::in_cwd(&shellfile).map_err(
         |_| {
-            ExitError::errmsg(format!(
+            ExitError::user_error(format!(
                 "`{}` does not exist\n\
                  You can use the following minimal `shell.nix` to get started:\n\n\
                  {}",
@@ -61,8 +62,12 @@ fn get_shell_nix(shellfile: &PathBuf) -> Result<NixFile, ExitError> {
 }
 
 fn create_project(paths: &constants::Paths, shell_nix: NixFile) -> Result<Project, ExitError> {
-    Project::new(shell_nix, &paths.gc_root_dir(), paths.cas_store().clone())
-        .or_else(|_| Err(ExitError::errmsg("Could not set up project paths")))
+    Project::new(shell_nix, &paths.gc_root_dir(), paths.cas_store().clone()).or_else(|e| {
+        Err(ExitError::temporary(format!(
+            "Could not set up project paths: {:#?}",
+            e
+        )))
+    })
 }
 
 /// Run the main function of the relevant command.

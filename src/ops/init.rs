@@ -1,6 +1,6 @@
 //! Bootstrap a new lorri project
 
-use crate::ops::{ok, ok_msg, ExitError, OpResult};
+use crate::ops::{ok_msg, ExitError, OpResult};
 use std::fs::File;
 use std::io;
 use std::io::Write;
@@ -18,27 +18,21 @@ fn create_if_missing(path: &Path, contents: &str, msg: &str) -> Result<(), io::E
     }
 }
 
-fn to_op(e: Result<(), io::Error>) -> OpResult {
-    match e {
-        Ok(_) => ok(),
-        Err(e) => Err(ExitError::errmsg(format!("{}", e))),
-    }
-}
-
 /// See the documentation for lorri::cli::Command::Init for
 /// more details
 pub fn main(default_shell: &str, default_envrc: &str) -> OpResult {
-    to_op(create_if_missing(
+    create_if_missing(
         Path::new("./shell.nix"),
         default_shell,
         "shell.nix exists, skipping. Make sure it is of a form that works with nix-shell.",
-    ))?;
+    )
+    .map_err(|e| ExitError::user_error(format!("{}", e)))?;
 
-    to_op(create_if_missing(
+    create_if_missing(
         Path::new("./.envrc"),
         default_envrc,
-        ".envrc exists, skipping. Please add 'eval \"$(lorri direnv)\" to it to set up lorri support.",
-    ))?;
+        ".envrc exists, skipping. Please add 'eval \"$(lorri direnv)\" to it to set up lorri support."
+    ).map_err(|e| ExitError::user_error(format!("{}", e)))?;
 
     ok_msg(String::from("\nSetup done."))
 }
