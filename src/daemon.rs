@@ -148,7 +148,7 @@ impl HandlerFns {
         for event in build_chan {
             match rw.write(&self.read_timeout, &event) {
                 Err(e) => {
-                    debug!("Couldn't write event: {:?}", e);
+                    debug!("Couldn't write event: {:?} {:?}", &event, e);
                     break;
                 }
                 Ok(_) => debug!("Sent an event"),

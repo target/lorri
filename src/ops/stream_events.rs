@@ -45,6 +45,7 @@ pub fn main(kind: EventKind) -> OpResult {
         match events.read() {
             Ok(Event::Heartbeat) => debug!("heartbeat received"),
             Ok(Event::SectionEnd) => {
+                debug!("SectionEnd");
                 if let EventKind::Snapshot = kind {
                     return ok();
                 } else {
@@ -67,6 +68,7 @@ pub fn main(kind: EventKind) -> OpResult {
                 return err_msg("Socket closed unexpectedly");
             }
             otherwise => {
+                debug!("some other error!");
                 return err_msg(format!("{:?}", otherwise));
             }
         }

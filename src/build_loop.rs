@@ -10,6 +10,10 @@ use crate::project::roots::Roots;
 use crate::project::Project;
 use crate::watch::{Reason, Watch};
 use crate::NixFile;
+use serde::{
+    de::{self, Visitor},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 use std::path::PathBuf;
 use std::sync::mpsc::{channel, Sender};
 
@@ -55,7 +59,107 @@ pub struct BuildResults {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BuildExitFailure {
     /// stderr log output
-    pub log_lines: Vec<std::ffi::OsString>,
+    pub log_lines: Vec<LogLine>,
+}
+
+/// A line from stderr log output
+#[derive(Debug, Clone)]
+pub struct LogLine(std::ffi::OsString);
+
+impl Serialize for LogLine {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let LogLine(oss) = self;
+        serializer.serialize_str(&*oss.to_string_lossy())
+    }
+}
+
+impl<'de> Deserialize<'de> for LogLine {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use std::fmt;
+
+        struct LLVisitor;
+
+        impl<'de> Visitor<'de> for LLVisitor {
+            type Value = LogLine;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<LogLine, E>
+            where
+                E: de::Error,
+            {
+                Ok(LogLine(std::ffi::OsString::from(value)))
+            }
+        }
+
+        deserializer.deserialize_str(LLVisitor)
+    }
+}
+
+impl From<std::ffi::OsString> for LogLine {
+    fn from(oss: std::ffi::OsString) -> Self {
+        LogLine(oss)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{BuildExitFailure, Event, LogLine};
+    use crate::NixFile;
+    use serde_json;
+
+    fn build_failure() -> Event {
+        Event::Failure {
+            nix_file: NixFile(std::path::PathBuf::from("/somewhere/shell.nix")),
+            failure: BuildExitFailure {
+                log_lines: vec![
+                    LogLine::from(std::ffi::OsString::from(
+                        "this is a test of the emergency broadcast system",
+                    )),
+                    LogLine::from(std::ffi::OsString::from("you will hear a tone")),
+                    LogLine::from(std::ffi::OsString::from("remember, this is only a test")),
+                ],
+            },
+        }
+    }
+
+    #[test]
+    fn logline_json_readable() -> Result<(), serde_json::Error> {
+        // just don't explode, you know?
+        assert!(serde_json::to_string(&build_failure())?.contains("emergency"));
+        Ok(())
+    }
+
+    #[test]
+    fn logline_json_roundtrip() -> Result<(), serde_json::Error> {
+        // just don't explode, you know?
+        serde_json::from_str::<serde_json::Value>(&serde_json::to_string(&build_failure())?)
+            .map(|_| ())
+    }
+
+    #[test]
+    fn logline_bincode_roundtrip() -> Result<(), bincode::Error> {
+        // just don't explode, you know?
+        //let serzd = bincode::serialize(&build_failure()).unwrap();
+        //panic!(format!("serialized as: {:?} {:?}", String::from_utf8(serzd.clone()).unwrap(), serzd));
+
+        match bincode::deserialize(&bincode::serialize(&build_failure())?)? {
+            Event::Failure { failure: f, .. } => {
+                let LogLine(ret) = f.log_lines.get(0).unwrap().clone();
+                assert!(ret.into_string().unwrap().contains("emergency"));
+            }
+            otherwise => panic!(otherwise),
+        }
+        Ok(())
+    }
 }
 
 /// The BuildLoop repeatedly builds the Nix expression in
@@ -134,7 +238,7 @@ impl<'a> BuildLoop<'a> {
 
         self.register_paths(&run_result.referenced_paths)?;
 
-        let lines = rx.iter().collect();
+        let lines = rx.iter().map(LogLine::from).collect();
 
         match run_result.status {
             RunStatus::FailedAtInstantiation => Err(BuildError::Recoverable(BuildExitFailure {

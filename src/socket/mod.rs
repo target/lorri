@@ -199,8 +199,10 @@ impl<'a, R, W> ReadWriter<'a, R, W> {
     where
         R: serde::de::DeserializeOwned,
     {
+        debug!("read");
         let timeout_socket = timeout::TimeoutReadWriter::new(self.socket, timeout);
 
+        debug!("Deserialize");
         // XXX: “If this returns an Error, `reader` may be in an invalid state”.
         // what the heck does that mean.
         bincode::deserialize_from(timeout_socket).map_err(|e| {
