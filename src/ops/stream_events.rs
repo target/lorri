@@ -37,7 +37,7 @@ pub fn main(kind: EventKind) -> OpResult {
         .connect(&::socket::path::SocketPath::from(
             ::ops::get_paths()?.daemon_socket_file(),
         ))
-        .expect("trying to open socket to daemon");
+        .map_err(|e| ::ops::ExitError::errmsg(format!("connecting to daemon: {:?}", e)))?;
 
     let mut snapshot_done = false;
 
