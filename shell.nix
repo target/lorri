@@ -1,8 +1,9 @@
-{ pkgs ? import ./nix/nixpkgs.nix { enableMozillaOverlay = true; }
-, isDevelopmentShell ? true }:
+{ isDevelopmentShell ? true
+, pkgs ? import ./nix/nixpkgs.nix { enableMozillaOverlay = true; }
+}:
 
 # Must have the stable rust overlay (enableMozillaOverlay)
-assert isDevelopmentShell -> pkgs ? latest;
+assert isDevelopmentShell -> pkgs ? rustChannels;
 
 let
   # import a static version of the mozilla overlay’s rust distribution
@@ -24,6 +25,20 @@ let
   # the build of lorri's environment derivations.
   RUN_TIME_CLOSURE = pkgs.callPackage ./nix/runtime.nix {};
 
+  # Rust-specific
+
+  # Enable printing backtraces for rust binaries
+  RUST_BACKTRACE = 1;
+
+  # Only in development shell
+
+  # Needed for racer “jump to definition” editor support
+  # In Emacs with `racer-mode`, you need to set
+  # `racer-rust-src-path` to `nil` for it to pick
+  # up the environment variable with `direnv`.
+  RUST_SRC_PATH = "${rustChannels.stable.rust-src}/lib/rustlib/src/rust/src/";
+  # Set up a local directory to install binaries in
+  CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
   # CI testsuite
   ci = import ./nix/ci {
     inherit pkgs LORRI_ROOT BUILD_REV_COUNT RUN_TIME_CLOSURE;
@@ -31,7 +46,7 @@ let
   };
 
 in
-pkgs.mkShell rec {
+pkgs.mkShell ({
   name = "lorri";
   buildInputs = [
     # This rust comes from the Mozilla rust overlay so we can
@@ -64,18 +79,6 @@ pkgs.mkShell rec {
 
   inherit LORRI_ROOT BUILD_REV_COUNT RUN_TIME_CLOSURE;
 
-  # Rust-specific
-
-  # Enable printing backtraces for rust binaries
-  RUST_BACKTRACE = 1;
-  # Needed for racer “jump to definition” editor support
-  # In Emacs with `racer-mode`, you need to set
-  # `racer-rust-src-path` to `nil` for it to pick
-  # up the environment variable with `direnv`.
-  RUST_SRC_PATH = "${rustChannels.stable.rust-src}/lib/rustlib/src/rust/src/";
-  # Set up a local directory to install binaries in
-  CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
-
 
   # Executed when entering `nix-shell`
   shellHook = ''
@@ -91,7 +94,6 @@ pkgs.mkShell rec {
     export SHELL="${pkgs.bashInteractive}/bin/bash";
 
     alias newlorri="(cd $LORRI_ROOT; cargo run -- shell)"
-    alias ci="${ci.testsuite}"
 
     # this is mirrored from .envrc to make available from nix-shell
     # pick up cargo plugins
@@ -100,6 +102,8 @@ pkgs.mkShell rec {
     export PATH="$LORRI_ROOT/target/debug:$PATH"
 
     ${pkgs.lib.optionalString isDevelopmentShell ''
+      alias ci="${ci.testsuite}"
+
       echo "lorri" | ${pkgs.figlet}/bin/figlet | ${pkgs.lolcat}/bin/lolcat
       (
         format="  %-12s %s\n"
@@ -123,3 +127,7 @@ pkgs.mkShell rec {
   preferLocalBuild = true;
   allowSubstitutes = false;
 }
+//
+(if isDevelopmentShell then {
+  inherit RUST_SRC_PATH CARGO_INSTALL_ROOT;
+} else {}))
