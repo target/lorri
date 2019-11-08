@@ -36,13 +36,13 @@ let
   # In Emacs with `racer-mode`, you need to set
   # `racer-rust-src-path` to `nil` for it to pick
   # up the environment variable with `direnv`.
-  RUST_SRC_PATH = "${rustChannels.stable.rust-src}/lib/rustlib/src/rust/src/";
+  RUST_SRC_PATH = "${rustChannels.rust-src}/lib/rustlib/src/rust/src/";
   # Set up a local directory to install binaries in
   CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
   # CI testsuite
   ci = import ./nix/ci {
     inherit pkgs LORRI_ROOT BUILD_REV_COUNT RUN_TIME_CLOSURE;
-    inherit (rustChannels.stable) rust cargo;
+    inherit (rustChannels.stable) rust;
   };
 
 in
@@ -129,5 +129,5 @@ pkgs.mkShell ({
 }
 //
 (if isDevelopmentShell then {
-  inherit RUST_SRC_PATH CARGO_INSTALL_ROOT;
+  #inherit RUST_SRC_PATH CARGO_INSTALL_ROOT;
 } else {}))

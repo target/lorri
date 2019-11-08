@@ -1,4 +1,4 @@
-{ pkgs, LORRI_ROOT, BUILD_REV_COUNT, RUN_TIME_CLOSURE, rust, cargo }:
+{ pkgs, LORRI_ROOT, BUILD_REV_COUNT, RUN_TIME_CLOSURE, rust }:
 let
 
   lorriBinDir = "${LORRI_ROOT}/target/debug";
@@ -43,7 +43,7 @@ let
     stdenvDrvEnvdir
       # if this is set, the non-sandboxed build complains about
       # linker paths outside of the nix store.
-      { unsetVars = [ "NIX_ENFORCE_PURITY" ]; }
+      { unsetVars = [ "NIX_ENFORCE_PURITY" "NIX_SSL_CERT_FILE" "SSL_CERT_FILE" ]; }
       {
         buildInputs = [
           # TODO: duplicated in shell.nix and default.nix
@@ -67,12 +67,18 @@ let
        "importas" "NIX_LDFLAGS" "NIX_LDFLAGS"
        "export" "NIX_LDFLAGS" "-F${pkgs.darwin.apple_sdk.frameworks.CoreFoundation}/Library/Frameworks -framework CoreFoundation \${NIX_LDFLAGS}"
     ])
-    ++ (pathPrependBins [ cargo rust pkgs.stdenv.cc ])
+    ++ (pathPrependBins [
+          rust
+          pkgs.stdenv.cc
+          # ar
+          pkgs.binutils-unwrapped
+        ])
     ++ [
       "export" "RUST_BACKTRACE" "1"
       "export" "BUILD_REV_COUNT" (toString BUILD_REV_COUNT)
       "export" "RUN_TIME_CLOSURE" RUN_TIME_CLOSURE
-      "foreground" [ "env" ]
+      "if" [ "${pkgs.coreutils}/bin/env" ]
+
     ];
 
   writeCargo = name: setup: args:
