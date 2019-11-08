@@ -8,7 +8,7 @@ use crate::pathreduction::reduce_paths;
 use crate::project::roots;
 use crate::project::roots::Roots;
 use crate::project::Project;
-use crate::watch::{Reason, Watch};
+use crate::watch::{DebugMessage, RawEventError, Reason, Watch};
 use crate::NixFile;
 use serde::{
     de::{self, Visitor},
@@ -188,17 +188,25 @@ impl<'a> BuildLoop<'a> {
     /// Sends `Event`s over `Self.tx` once they happen.
     /// When new filesystem changes are detected while a build is
     /// still running, it is finished first before starting a new build.
-    pub fn forever(&mut self, tx: Sender<Event>) {
-        let send = |msg| tx.send(msg).expect("Failed to send an event");
+    pub fn forever<T: From<Event>>(&mut self, tx: Sender<T>) {
+        let send = |msg| tx.send(T::from(msg)).expect("Failed to send an event");
 
-        send(Event::Started(Reason::ProjectAdded(
+        send(Event::Started{
+            nix_file: self.project.nix_file.clone(),
+            reason: Reason::ProjectAdded(
             self.project.nix_file.clone(),
-        )));
+            )});
 
         loop {
             match self.once() {
-                Ok(result) => send(Event::Completed(result)),
-                Err(BuildError::Recoverable(failure)) => send(Event::Failure(failure)),
+                Ok(result) => send(Event::Completed{
+                    nix_file: self.project.nix_file.clone(),
+                    result
+                }),
+                Err(BuildError::Recoverable(failure)) => send(Event::Failure{
+                    nix_file: self.project.nix_file.clone(),
+                    failure
+                }),
                 Err(BuildError::Unrecoverable(err)) => {
                     panic!("Unrecoverable error:\n{:#?}", err);
                 }
@@ -224,7 +232,10 @@ impl<'a> BuildLoop<'a> {
             // Otherwise user errors (especially for IO errors)
             // are pretty hard to debug. Might need to review
             // whether we can handle some errors earlier than here.
-            send(Event::Started(reason));
+            send(Event::Started{
+                nix_file: self.project.nix_file.clone(),
+                reason
+            });
         }
     }
 

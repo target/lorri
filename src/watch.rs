@@ -18,11 +18,11 @@ pub struct Watch {
 }
 
 /// Count of extra events batched with this change.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NumberOfBatchedEvents(u16);
 
 /// A debug message string that can only be displayed via `Debug`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DebugMessage(String);
 
 impl From<String> for DebugMessage {
