@@ -191,21 +191,20 @@ impl<'a> BuildLoop<'a> {
     pub fn forever<T: From<Event>>(&mut self, tx: Sender<T>) {
         let send = |msg| tx.send(T::from(msg)).expect("Failed to send an event");
 
-        send(Event::Started{
+        send(Event::Started {
             nix_file: self.project.nix_file.clone(),
-            reason: Reason::ProjectAdded(
-            self.project.nix_file.clone(),
-            )});
+            reason: Reason::ProjectAdded(self.project.nix_file.clone()),
+        });
 
         loop {
             match self.once() {
-                Ok(result) => send(Event::Completed{
+                Ok(result) => send(Event::Completed {
                     nix_file: self.project.nix_file.clone(),
-                    result
+                    result,
                 }),
-                Err(BuildError::Recoverable(failure)) => send(Event::Failure{
+                Err(BuildError::Recoverable(failure)) => send(Event::Failure {
                     nix_file: self.project.nix_file.clone(),
-                    failure
+                    failure,
                 }),
                 Err(BuildError::Unrecoverable(err)) => {
                     panic!("Unrecoverable error:\n{:#?}", err);
@@ -232,9 +231,9 @@ impl<'a> BuildLoop<'a> {
             // Otherwise user errors (especially for IO errors)
             // are pretty hard to debug. Might need to review
             // whether we can handle some errors earlier than here.
-            send(Event::Started{
+            send(Event::Started {
                 nix_file: self.project.nix_file.clone(),
-                reason
+                reason,
             });
         }
     }
