@@ -12,6 +12,18 @@ let
         stableVersion = "1.35.0";
       });
 
+  # Lorri-specific
+
+  # The root directory of this project
+  LORRI_ROOT = toString ./.;
+  # Needed by the lorri build.rs to determine its own version
+  # for the development repository (non-release), we set it to 1
+  BUILD_REV_COUNT = 1;
+  # Needed by the lorri build.rs to access some tools used during
+  # the build of lorri's environment derivations.
+  RUN_TIME_CLOSURE = pkgs.callPackage ./nix/runtime.nix {};
+
+
   buildInputs = [
       # This rust comes from the Mozilla rust overlay so we can
       # get Clippy. Not suitable for production builds. See
@@ -40,7 +52,7 @@ let
     allBuildInputs = buildInputs;
 
 in
-pkgs.mkShell rec {
+pkgs.mkShell {
   name = "lorri";
   buildInputs = buildInputs
     ++ pkgs.stdenv.lib.optionals isDevelopmentShell [
@@ -50,16 +62,7 @@ pkgs.mkShell rec {
   # Keep project-specific shell commands local
   HISTFILE = "${toString ./.}/.bash_history";
 
-  # Lorri-specific
-
-  # The root directory of this project
-  LORRI_ROOT = toString ./.;
-  # Needed by the lorri build.rs to determine its own version
-  # for the development repository (non-release), we set it to 1
-  BUILD_REV_COUNT = 1;
-  # Needed by the lorri build.rs to access some tools used during
-  # the build of lorri's environment derivations.
-  RUN_TIME_CLOSURE = pkgs.callPackage ./nix/runtime.nix {};
+  inherit BUILD_REV_COUNT RUN_TIME_CLOSURE;
 
   # Rust-specific
 
@@ -72,7 +75,6 @@ pkgs.mkShell rec {
   RUST_SRC_PATH = "${rustChannels.stable.rust-src}/lib/rustlib/src/rust/src/";
   # Set up a local directory to install binaries in
   CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
-
 
   # Executed when entering `nix-shell`
   shellHook = ''
