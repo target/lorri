@@ -1,8 +1,13 @@
-{ pkgs ? import ./nix/nixpkgs.nix { enableMozillaOverlay = true; }
-, isDevelopmentShell ? true }:
+{
+  # Pull in tools & environment variables that are only
+  # required for interactive development (i.e. not necessary
+  # on CI). Only when this is enabled, Rust nighly is used.
+  isDevelopmentShell ? true
+, pkgs ? import ./nix/nixpkgs.nix { enableMozillaOverlay = true; }
+}:
 
 # Must have the stable rust overlay (enableMozillaOverlay)
-assert isDevelopmentShell -> pkgs ? latest;
+assert isDevelopmentShell -> pkgs ? rustChannels;
 
 let
   rustChannels =
@@ -11,6 +16,9 @@ let
       (import ./nix/rust-channels.nix {
         stableVersion = "1.35.0";
       });
+
+  # Keep project-specific shell commands local
+  HISTFILE = "${toString ./.}/.bash_history";
 
   # Lorri-specific
 
@@ -23,6 +31,20 @@ let
   # the build of lorri's environment derivations.
   RUN_TIME_CLOSURE = pkgs.callPackage ./nix/runtime.nix {};
 
+  # Rust-specific
+
+  # Enable printing backtraces for rust binaries
+  RUST_BACKTRACE = 1;
+
+  # Only in development shell
+
+  # Needed for racer “jump to definition” editor support
+  # In Emacs with `racer-mode`, you need to set
+  # `racer-rust-src-path` to `nil` for it to pick
+  # up the environment variable with `direnv`.
+  RUST_SRC_PATH = "${rustChannels.stable.rust-src}/lib/rustlib/src/rust/src/";
+  # Set up a local directory to install binaries in
+  CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
 
   buildInputs = [
       # This rust comes from the Mozilla rust overlay so we can
@@ -52,29 +74,16 @@ let
     allBuildInputs = buildInputs;
 
 in
-pkgs.mkShell {
+pkgs.mkShell ({
   name = "lorri";
   buildInputs = buildInputs
     ++ pkgs.stdenv.lib.optionals isDevelopmentShell [
       (pkgs.callPackage ./nix/racer.nix { rustNightly = rustChannels.nightly; })
     ];
 
-  # Keep project-specific shell commands local
-  HISTFILE = "${toString ./.}/.bash_history";
-
   inherit BUILD_REV_COUNT RUN_TIME_CLOSURE;
 
-  # Rust-specific
-
-  # Enable printing backtraces for rust binaries
-  RUST_BACKTRACE = 1;
-  # Needed for racer “jump to definition” editor support
-  # In Emacs with `racer-mode`, you need to set
-  # `racer-rust-src-path` to `nil` for it to pick
-  # up the environment variable with `direnv`.
-  RUST_SRC_PATH = "${rustChannels.stable.rust-src}/lib/rustlib/src/rust/src/";
-  # Set up a local directory to install binaries in
-  CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
+  inherit RUST_BACKTRACE;
 
   # Executed when entering `nix-shell`
   shellHook = ''
@@ -160,3 +169,7 @@ pkgs.mkShell {
   preferLocalBuild = true;
   allowSubstitutes = false;
 }
+//
+(if isDevelopmentShell then {
+  inherit RUST_SRC_PATH CARGO_INSTALL_ROOT HISTFILE;
+} else {}))
