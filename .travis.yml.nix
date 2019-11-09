@@ -17,9 +17,9 @@ let
       #language = "nix";
       #nix = "2.3.1";
       before_install = [
+        ''wget --retry-connrefused --waitretry=1 -O /tmp/nix-install https://nixos.org/releases/nix/nix-2.3.1/install''
+        ''yes | sh /tmp/nix-install --daemon''
         ''
-          wget --retry-connrefused --waitretry=1 -O /tmp/nix-install https://nixos.org/releases/nix/nix-2.3.1/install
-          yes | sh /tmp/nix-install --daemon
           if [ -f /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then
             source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
           elif [ -f ''${TRAVIS_HOME}/.nix-profile/etc/profile.d/nix.sh ]; then
@@ -34,16 +34,10 @@ let
     builds = {
       name = "nix-build";
       script = [
-        ''
-          set -e
-          source ./.travis_fold.sh
-          lorri_travis_fold lorri-nix-build \
-            nix-build
-          lorri_travis_fold lorri-install \
-            nix-env -i ./result
-          lorri_travis_fold lorri-self-upgrade \
-            lorri self-upgrade local $(pwd)
-        ''
+        ''set -e''
+        ''nix-build''
+        ''nix-env -i ./result''
+        ''lorri self-upgrade local $(pwd)''
         # push build closure to cachix
         ''readlink ./result >> ${cachix-queue-file}''
       ];
@@ -52,19 +46,11 @@ let
     lints = {
       name = "cargo build & linters";
       script = [
-        ''
-          set -e
-          source ./.travis_fold.sh
-
-          lorri_travis_fold ci_check \
-            nix-shell --quiet --arg isDevelopmentShell false --run ci_check
-          lorri_travis_fold travis-yml-gen \
-            cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
-          lorri_travis_fold travis-yml-idempotent \
-            git diff -q ./.travis.yml
-          lorri_travis_fold carnix-idempotent \
-            git diff -q ./Cargo.nix
-        ''
+        ''set -e''
+        ''nix-shell --quiet --arg isDevelopmentShell false --run ci_check''
+        ''cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml''
+        ''git diff -q ./.travis.yml''
+        ''git diff -q ./Cargo.nix''
         # push test suite closure to cachix
         ''
           nix-build -E '(import ./shell.nix { isDevelopmentShell = false; }).buildInputs' \
