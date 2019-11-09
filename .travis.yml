@@ -124,14 +124,6 @@
     - >-
       nix-build -A allBuildInputs shell.nix > ./shell-inputs
     - >-
-      echo "pushing these paths to cachix:"
-    - >-
-      cat ./shell-inputs
-    - >
-      if [ -n "$CACHIX_SIGNING_KEY" ]; then
-        cachix push lorri-test < ./shell-inputs
-      fi
-    - >-
       nix-shell --quiet --arg isDevelopmentShell false --run ci_check
     - >-
       cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
@@ -195,13 +187,5 @@
       nix-env -i ./result
     - >-
       readlink ./result > ./cachix-file
-    - >-
-      echo "pushing these paths to cachix:"
-    - >-
-      cat ./cachix-file
-    - >
-      if [ -n "$CACHIX_SIGNING_KEY" ]; then
-        cachix push lorri-test < ./cachix-file
-      fi
     - >-
       lorri self-upgrade local $(pwd)
