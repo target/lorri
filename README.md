@@ -44,10 +44,21 @@ a comment when you start working on something.
 
 You will need [direnv v2.19.2 or later][direnv-2-19-2].
 
+#### NixOS
+
 On NixOS, we have a simple service for installing and enabling the
 needed direnv version at [./direnv/nixos.nix](./direnv/nixos.nix).
-Download this file inside `/etc/nixos/` and add `imports = [ ./nixos.nix ];` to your
+
+- Download the file into `/etc/nixos/`:
+   ```
+   cd /etc/nixos/
+   wget https://raw.githubusercontent.com/target/lorri/rolling-release/direnv/nixos.nix
+   ```
+
+- Add `imports = [ ./nixos.nix ];` to your
 system's `configuration.nix`. Then run `nixos-rebuild switch` to install and enable it.
+
+#### Nix on Linux (non-NixOS) or macOS
 
 For Nix on Linux or macOS, you can install the needed version of
 direnv with:
