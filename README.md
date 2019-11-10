@@ -74,8 +74,12 @@ $ nix-env -if https://github.com/target/lorri/archive/rolling-release.tar.gz
 Create a file named `.envrc` in your project's root with the contents:
 
 ```
-# content of `.envrc` file:
 eval "$(lorri direnv)"
+```
+
+Can be done via:
+```
+echo 'eval "$(lorri direnv)"' > .envrc
 ```
 
 Then, run `lorri daemon`. The first time you run `lorri daemon` on a
