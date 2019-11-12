@@ -1,5 +1,5 @@
-use direnv::DirenvValue;
-use direnvtestcase::DirenvTestCase;
+use crate::direnv::DirenvValue;
+use crate::direnvtestcase::DirenvTestCase;
 use std::env;
 
 #[test]

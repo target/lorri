@@ -32,7 +32,7 @@
 //! }
 //! ```
 
-use osstrlines;
+use crate::osstrlines;
 use serde_json;
 use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};

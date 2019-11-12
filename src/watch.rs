@@ -2,12 +2,12 @@
 //! cross-platform way.
 
 use crate::mpsc::FilterTimeoutIterator;
+use crate::NixFile;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, RecvError};
 use std::time::Duration;
-use NixFile;
 
 /// A dynamic list of paths to watch for changes, and
 /// react to changes when they occur.

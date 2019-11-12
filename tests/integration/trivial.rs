@@ -1,5 +1,5 @@
-use direnv::DirenvValue;
-use direnvtestcase::DirenvTestCase;
+use crate::direnv::DirenvValue;
+use crate::direnvtestcase::DirenvTestCase;
 
 #[test]
 fn trivial() -> std::io::Result<()> {

@@ -15,13 +15,13 @@ use std::process::Command;
 pub fn main(project: Project) -> OpResult {
     check_direnv_version()?;
 
-    let socket_path = ::ops::get_paths()?.daemon_socket_file().to_owned();
+    let socket_path = crate::ops::get_paths()?.daemon_socket_file().to_owned();
 
     let root_paths = Roots::from_project(&project).paths();
     let paths_are_cached: bool = root_paths.all_exist();
 
     let ping_sent: bool = if let Ok(client) = client::ping(DEFAULT_READ_TIMEOUT).connect(
-        &::socket::path::SocketPath::from(::ops::get_paths()?.daemon_socket_file()),
+        &crate::socket::path::SocketPath::from(crate::ops::get_paths()?.daemon_socket_file()),
     ) {
         client
             .write(&Ping {

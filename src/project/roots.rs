@@ -1,9 +1,9 @@
 //! Handling of nix GC roots
 //!
 //! TODO: inline this module into `::project`
+use crate::builder::{OutputPaths, RootedPath};
+use crate::nix::StorePath;
 use crate::project::Project;
-use builder::{OutputPaths, RootedPath};
-use nix::StorePath;
 use std::env;
 use std::path::{Path, PathBuf};
 
@@ -31,7 +31,7 @@ impl OutputPaths<RootPath> {
     pub fn all_exist(&self) -> bool {
         match self {
             // Match here to ensure we cover every field
-            ::builder::OutputPaths { shell_gc_root } => shell_gc_root.0.exists(),
+            crate::builder::OutputPaths { shell_gc_root } => shell_gc_root.0.exists(),
         }
     }
 

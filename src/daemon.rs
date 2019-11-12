@@ -31,7 +31,7 @@ pub struct Daemon {
     handler_threads: HashMap<NixFile, std::thread::JoinHandle<()>>,
     /// Sending end that we pass to every `BuildLoop` the daemon controls.
     // TODO: this needs to transmit information to identify the builder with
-    build_events_tx: mpsc::Sender<::build_loop::Event>,
+    build_events_tx: mpsc::Sender<crate::build_loop::Event>,
     /// The handlers functions for incoming requests
     handler_fns: HandlerFns,
 }
@@ -42,7 +42,7 @@ impl Daemon {
     /// Create a new daemon. Also return an `mpsc::Receiver` that
     /// receives `build_loop::Event`s for all builders this daemon
     /// supervises.
-    pub fn new() -> (Daemon, mpsc::Receiver<::build_loop::Event>) {
+    pub fn new() -> (Daemon, mpsc::Receiver<crate::build_loop::Event>) {
         let (tx, rx) = mpsc::channel();
         (
             Daemon {
