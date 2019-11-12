@@ -38,7 +38,7 @@ fn main_run_forever(project: Project) -> OpResult {
     let build_thread = {
         thread::spawn(move || {
             let mut build_loop = BuildLoop::new(&project);
-            build_loop.forever(tx);
+            build_loop.forever(tx, channel().1);
         })
     };
 

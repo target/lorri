@@ -36,6 +36,8 @@ impl From<String> for DebugMessage {
 pub enum Reason {
     /// When a project is presented to Lorri to track, it's built for this reason.
     ProjectAdded(NixFile),
+    /// When a ping is received.
+    PingReceived,
     /// When there is a filesystem change, the first changed file is recorded,
     /// along with a count of other filesystem events.
     FilesChanged(PathBuf, NumberOfBatchedEvents),
@@ -98,12 +100,22 @@ impl Watch {
         }
     }
 
-    /// Block until we have at least one event
-    pub fn block_timeout(&self, timeout: Duration) -> Result<NumberOfBatchedEvents, ()> {
-        if let Some(Ok(_)) = self.timeout_iter(timeout).next() {
-            Ok(self.process_ready())
-        } else {
-            Err(())
+    /// Block until we have at least one event, or the timeout is reached
+    pub fn block_timeout(&mut self, timeout: Duration) -> Option<Result<Reason, RawEventError>> {
+        match self.timeout_iter(timeout).next() {
+            Some(Ok(event)) => {
+                let count_of_changes = self.process_ready();
+                let path = event.path.clone();
+                Some(
+                    path.map(|p| Reason::FilesChanged(p, count_of_changes))
+                        .ok_or_else(|| RawEventError::EventHasNoFilePath(event)),
+                )
+            }
+            Some(Err(RecvError)) => Some(Err(RawEventError::RxNoEventReceived)),
+            None => {
+                debug!("No event received!");
+                None
+            }
         }
     }
 
@@ -288,7 +300,10 @@ mod tests {
         //
         // Note, this is racey in the kernel. Otherwise I'd assert
         // this is_ok().
-        watcher.block_timeout(Duration::from_millis(250)).is_ok();
+        watcher
+            .block_timeout(Duration::from_millis(250))
+            .unwrap()
+            .is_ok();
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -298,7 +313,7 @@ mod tests {
         // platforms.
         //
         // If we do receive any notifications, our test is broken.
-        assert!(watcher.block_timeout(Duration::from_millis(250)).is_err());
+        assert!(watcher.block_timeout(Duration::from_millis(250)).is_none());
     }
 
     #[test]
@@ -309,10 +324,16 @@ mod tests {
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
         watcher.extend(&[temp.path().to_path_buf()]).unwrap();
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(upper_watcher_timeout()).is_ok());
+        assert!(watcher
+            .block_timeout(upper_watcher_timeout())
+            .unwrap()
+            .is_ok());
 
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(upper_watcher_timeout()).is_ok());
+        assert!(watcher
+            .block_timeout(upper_watcher_timeout())
+            .unwrap()
+            .is_ok());
     }
 
     #[test]
@@ -326,7 +347,10 @@ mod tests {
         macos_eat_late_notifications(&mut watcher);
 
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(upper_watcher_timeout()).is_ok());
+        assert!(watcher
+            .block_timeout(upper_watcher_timeout())
+            .unwrap()
+            .is_ok());
     }
 
     #[test]
@@ -342,18 +366,24 @@ mod tests {
 
         // bar is not watched, expect error
         expect_bash(r#"echo 1 > "$1/bar""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(upper_watcher_timeout()).is_err());
+        assert!(watcher.block_timeout(upper_watcher_timeout()).is_none());
 
         // Rename bar to foo, expect a notification
         expect_bash(r#"mv "$1/bar" "$1/foo""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(upper_watcher_timeout()).is_ok());
+        assert!(watcher
+            .block_timeout(upper_watcher_timeout())
+            .unwrap()
+            .is_ok());
 
         // Do it a second time
         expect_bash(r#"echo 1 > "$1/bar""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(upper_watcher_timeout()).is_err());
+        assert!(watcher.block_timeout(upper_watcher_timeout()).is_none());
 
         // Rename bar to foo, expect a notification
         expect_bash(r#"mv "$1/bar" "$1/foo""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(upper_watcher_timeout()).is_ok());
+        assert!(watcher
+            .block_timeout(upper_watcher_timeout())
+            .unwrap()
+            .is_ok());
     }
 }

@@ -10,7 +10,7 @@ use crate::project::roots::Roots;
 use crate::project::Project;
 use crate::watch::{DebugMessage, RawEventError, Reason, Watch};
 use std::path::PathBuf;
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc::{channel, Receiver, Sender};
 
 /// Builder events sent back over `BuildLoop.tx`.
 #[derive(Clone, Debug)]
@@ -63,43 +63,62 @@ impl<'a> BuildLoop<'a> {
     /// Sends `Event`s over `Self.tx` once they happen.
     /// When new filesystem changes are detected while a build is
     /// still running, it is finished first before starting a new build.
-    pub fn forever(&mut self, tx: Sender<Event>) {
+    pub fn forever(&mut self, tx: Sender<Event>, rx: Receiver<()>) {
         let send = |msg| tx.send(msg).expect("Failed to send an event");
 
         send(Event::Started(Reason::ProjectAdded(
             self.project.nix_file.clone(),
         )));
 
+        // The project has just been added, so run the builder
+        let mut run = true;
+
         loop {
-            match self.once() {
-                Ok(result) => send(Event::Completed(result)),
-                Err(BuildError::Recoverable(failure)) => send(Event::Failure(failure)),
-                Err(BuildError::Unrecoverable(err)) => {
-                    panic!("Unrecoverable error:\n{:#?}", err);
-                }
+            // Drain the message queue, but only send PingReceived if we're not already building
+            // the project for some other reason
+            if rx.try_recv().into_iter().count() > 0 && !run {
+                send(Event::Started(Reason::PingReceived));
+                run = true;
             }
 
-            let reason = match self.watch.wait_for_change() {
-                Ok(r) => r,
-                // we should continue and just cite an unknown reason
-                Err(RawEventError::EventHasNoFilePath(msg)) => {
-                    warn!(
-                        "Event has no file path; possible issue with the watcher?: {:#?}",
-                        msg
-                    );
-                    // can’t Clone RawEvents, so we return the Debug output here
-                    Reason::UnknownEvent(DebugMessage::from(format!("{:#?}", msg)))
+            if run {
+                match self.once() {
+                    Ok(result) => send(Event::Completed(result)),
+                    Err(BuildError::Recoverable(failure)) => send(Event::Failure(failure)),
+                    Err(BuildError::Unrecoverable(err)) => {
+                        panic!("Unrecoverable error:\n{:#?}", err);
+                    }
                 }
-                Err(RawEventError::RxNoEventReceived) => {
-                    panic!("The file watcher died!");
-                }
-            };
+                run = false;
+            }
 
-            // TODO: Make err use Display instead of Debug.
-            // Otherwise user errors (especially for IO errors)
-            // are pretty hard to debug. Might need to review
-            // whether we can handle some errors earlier than here.
-            send(Event::Started(reason));
+            // block_timeout returns Some iff a change was registered before the timeout
+            if let Some(reason) = self
+                .watch
+                .block_timeout(std::time::Duration::from_millis(100))
+                .map(|r| match r {
+                    Ok(r) => r,
+                    // we should continue and just cite an unknown reason
+                    Err(RawEventError::EventHasNoFilePath(msg)) => {
+                        warn!(
+                            "Event has no file path; possible issue with the watcher?: {:#?}",
+                            msg
+                        );
+                        // can’t Clone RawEvents, so we return the Debug output here
+                        Reason::UnknownEvent(DebugMessage::from(format!("{:#?}", msg)))
+                    }
+                    Err(RawEventError::RxNoEventReceived) => {
+                        panic!("The file watcher died!");
+                    }
+                })
+            {
+                // TODO: Make err use Display instead of Debug.
+                // Otherwise user errors (especially for IO errors)
+                // are pretty hard to debug. Might need to review
+                // whether we can handle some errors earlier than here.
+                send(Event::Started(reason));
+                run = true;
+            }
         }
     }
 
