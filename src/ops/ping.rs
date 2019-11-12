@@ -12,8 +12,8 @@ pub fn main(nix_file: NixFile) -> OpResult {
     // TODO: set up socket path, make it settable by the user
     client::ping(DEFAULT_READ_TIMEOUT)
         // TODO
-        .connect(&::socket::path::SocketPath::from(
-            ::ops::get_paths()?.daemon_socket_file(),
+        .connect(&crate::socket::path::SocketPath::from(
+            crate::ops::get_paths()?.daemon_socket_file(),
         ))
         .unwrap()
         .write(&Ping { nix_file })

@@ -11,12 +11,12 @@ use std::sync::mpsc;
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
 pub fn main() -> OpResult {
-    let paths = ::ops::get_paths()?;
+    let paths = crate::ops::get_paths()?;
     let daemon_socket_file = paths.daemon_socket_file().to_owned();
-    let socket_path = ::socket::path::SocketPath::from(&daemon_socket_file);
+    let socket_path = crate::socket::path::SocketPath::from(&daemon_socket_file);
     // TODO: move listener into Daemon struct?
     let listener = listener::Listener::new(&socket_path).map_err(|e| match e {
-        ::socket::path::BindError::OtherProcessListening => ExitError::errmsg(format!(
+        crate::socket::path::BindError::OtherProcessListening => ExitError::errmsg(format!(
             "Another daemon is already listening on the socket at {}. \
              We are currently only allowing one daemon to be running at the same time.",
             socket_path.display()
@@ -61,7 +61,7 @@ pub fn main() -> OpResult {
         // For each build instruction, add the corresponding file
         // to the watch list.
         for start_build in accept_messages_rx {
-            let project = ::project::Project::new(
+            let project = crate::project::Project::new(
                 start_build.nix_file,
                 paths.gc_root_dir(),
                 paths.cas_store().clone(),

@@ -6,6 +6,7 @@ authors = [
 ]
 homepage = "https://github.com/target/lorri"
 license = "Apache-2.0"
+edition = "2018"
 
 [dependencies]
 structopt = "0.2"

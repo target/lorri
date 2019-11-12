@@ -3,7 +3,7 @@
 extern crate directories;
 
 use self::directories::ProjectDirs;
-use cas::ContentAddressable;
+use crate::cas::ContentAddressable;
 use std::path::{Path, PathBuf};
 
 /// Path constants like the GC root directory.

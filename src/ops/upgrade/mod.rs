@@ -4,12 +4,12 @@
 //! However, while this repo is closed source, it uses a
 //! rolling-release branch.
 
+use crate::cas::ContentAddressable;
 use crate::changelog;
 use crate::cli;
 use crate::nix;
 use crate::ops::{ExitError, OpResult};
 use crate::VERSION_BUILD_REV;
-use cas::ContentAddressable;
 use std::process::Command;
 
 impl From<cli::UpgradeTo> for String {

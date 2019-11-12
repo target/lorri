@@ -2,10 +2,10 @@
 
 pub mod roots;
 
-use cas::ContentAddressable;
+use crate::cas::ContentAddressable;
+use crate::NixFile;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
-use NixFile;
 
 /// A “project” knows how to handle the lorri state
 /// for a given nix file.

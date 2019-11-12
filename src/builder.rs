@@ -7,9 +7,10 @@
 //! can parse additional information from the `nix-build`
 //! `stderr`, like which source files are used by the evaluator.
 
-use cas::ContentAddressable;
-use nix::StorePath;
-use osstrlines;
+use crate::cas::ContentAddressable;
+use crate::nix::StorePath;
+use crate::osstrlines;
+use crate::{DrvFile, NixFile};
 use regex::Regex;
 use std::any::Any;
 use std::ffi::{OsStr, OsString};
@@ -18,7 +19,6 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::mpsc::Sender;
 use std::thread;
-use {DrvFile, NixFile};
 
 struct RootedDrv {
     _gc_handle: GcRootTempDir,
@@ -32,7 +32,7 @@ struct RootedDrv {
 #[derive(Debug)]
 pub struct RootedPath {
     /// The handle to a temporary directory keeping `.path` alive.
-    pub gc_handle: ::nix::GcRootTempDir,
+    pub gc_handle: crate::nix::GcRootTempDir,
     /// The realized store path
     pub path: StorePath,
 }
@@ -210,7 +210,7 @@ struct BuildOutput {
 /// which is valuable even if the build fails.
 fn build(tx: Sender<OsString>, drv_path: DrvFile) -> Result<BuildOutput, NixNotFoundError> {
     //let drv_path = s.path.clone();
-    match ::nix::CallOpts::file(drv_path.as_path())
+    match crate::nix::CallOpts::file(drv_path.as_path())
         .set_stderr_sender(tx)
         .path()
     {
@@ -220,19 +220,21 @@ fn build(tx: Sender<OsString>, drv_path: DrvFile) -> Result<BuildOutput, NixNotF
                 path: realized.0,
             }),
         }),
-        Err(::nix::OnePathError::TooManyResults) => {
+        Err(crate::nix::OnePathError::TooManyResults) => {
             panic!(
                 "Too many results from building the instrumented, instantiated, shell environment."
             );
         }
-        Err(::nix::OnePathError::Build(::nix::BuildError::NoResult)) => {
+        Err(crate::nix::OnePathError::Build(crate::nix::BuildError::NoResult)) => {
             panic!("No results from building the instrumented, instantiated, shell environment.");
         }
-        Err(::nix::OnePathError::Build(::nix::BuildError::Io(e))) => Err(NixNotFoundError::from(e)),
-        Err(::nix::OnePathError::Build(::nix::BuildError::ExecutionFailed(_))) => {
+        Err(crate::nix::OnePathError::Build(crate::nix::BuildError::Io(e))) => {
+            Err(NixNotFoundError::from(e))
+        }
+        Err(crate::nix::OnePathError::Build(crate::nix::BuildError::ExecutionFailed(_))) => {
             Ok(BuildOutput { output: None })
         }
-        Err(::nix::OnePathError::Build(::nix::BuildError::NixNotFound)) => {
+        Err(crate::nix::OnePathError::Build(crate::nix::BuildError::NixNotFound)) => {
             Err(NixNotFoundError::NixNotFound)
         }
     }
@@ -397,7 +399,7 @@ impl From<Box<dyn Any + Send + 'static>> for Error {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cas::ContentAddressable;
+    use crate::cas::ContentAddressable;
     use std::ffi::OsString;
     use std::os::unix::ffi::OsStrExt;
     use std::path::PathBuf;
@@ -486,7 +488,12 @@ in {}
 
         // build, because instantiate doesn’t return the build output (obviously …)
         let (tx, rx) = std::sync::mpsc::channel();
-        let info = run(tx, &::NixFile::from(cas.file_from_string(&nix_drv)?), &cas).unwrap();
+        let info = run(
+            tx,
+            &crate::NixFile::from(cas.file_from_string(&nix_drv)?),
+            &cas,
+        )
+        .unwrap();
         let stderr = rx.iter().collect::<Vec<OsString>>();
         println!("stderr:");
         for line in &stderr {
@@ -518,7 +525,7 @@ in {}
         let tmp = tempfile::tempdir()?;
         let cas = ContentAddressable::new(tmp.path().to_owned())?;
 
-        let d = ::NixFile::from(cas.file_from_string(&drv(
+        let d = crate::NixFile::from(cas.file_from_string(&drv(
             "shell",
             &format!("dep = {};", drv("dep", r##"args = [ "-c" "exit 1" ];"##)),
         ))?);

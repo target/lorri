@@ -9,8 +9,8 @@ pub mod upgrade;
 pub mod watch;
 
 /// Set up necessary directories or fail.
-pub fn get_paths() -> Result<::constants::Paths, ExitError> {
-    ::constants::Paths::initialize()
+pub fn get_paths() -> Result<crate::constants::Paths, ExitError> {
+    crate::constants::Paths::initialize()
         .map_err(|e| ExitError::errmsg(format!("Cannot initialize the lorri paths: {}", e)))
 }
 
