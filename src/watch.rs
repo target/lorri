@@ -3,17 +3,17 @@
 
 use crate::mpsc::FilterTimeoutIterator;
 use crate::NixFile;
+use crossbeam_channel as chan;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{channel, RecvError};
 use std::time::Duration;
 
 /// A dynamic list of paths to watch for changes, and
 /// react to changes when they occur.
 pub struct Watch {
     notify: RecommendedWatcher,
-    rx: std::sync::mpsc::Receiver<notify::RawEvent>,
+    rx: chan::Receiver<notify::RawEvent>,
     watches: HashSet<PathBuf>,
 }
 
@@ -54,10 +54,10 @@ pub enum RawEventError {
 impl Watch {
     /// Instantiate a new Watch.
     pub fn init() -> Result<Watch, notify::Error> {
-        let (tx, rx) = channel();
+        let (tx, rx) = chan::unbounded();
 
         Ok(Watch {
-            notify: Watcher::new_raw(tx)?,
+            notify: Watcher::new_immediate(tx)?,
             watches: HashSet::new(),
             rx,
         })
@@ -117,7 +117,7 @@ impl Watch {
     fn timeout_iter<'a>(
         &'a self,
         timeout: Duration,
-    ) -> impl 'a + Iterator<Item = Result<notify::RawEvent, RecvError>> {
+    ) -> impl 'a + Iterator<Item = Result<notify::RawEvent, chan::RecvError>> {
         FilterTimeoutIterator::new(&self.rx, timeout, move |event| {
             self.event_is_interesting(event)
         })
