@@ -1,12 +1,13 @@
 //! Run a BuildLoop for `shell.nix`, watching for input file changes.
 //! Can be used together with `direnv`.
+
 use crate::daemon::Daemon;
 use crate::ops::{ok, ExitError, OpResult};
 use crate::socket::communicate::listener;
 use crate::socket::communicate::CommunicationType;
 use crate::socket::ReadWriter;
 use crate::thread::Pool;
-use std::sync::mpsc;
+use crossbeam_channel as chan;
 
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
@@ -27,7 +28,7 @@ pub fn main() -> OpResult {
     let (mut daemon, build_messages_rx) = Daemon::new();
 
     // messages sent from accept handlers
-    let (accept_messages_tx, accept_messages_rx) = mpsc::channel();
+    let (accept_messages_tx, accept_messages_rx) = chan::unbounded();
 
     let handlers = daemon.handlers();
 

@@ -5,8 +5,8 @@ use crate::project::Project;
 use crate::socket::communicate::{NoMessage, Ping, DEFAULT_READ_TIMEOUT};
 use crate::socket::{ReadError, ReadWriter, Timeout};
 use crate::NixFile;
+use crossbeam_channel as chan;
 use std::collections::HashMap;
-use std::sync::mpsc;
 
 /// Indicate that the user is interested in a specific nix file.
 /// Usually a nix file describes the environment of a project,
@@ -31,7 +31,7 @@ pub struct Daemon {
     handler_threads: HashMap<NixFile, std::thread::JoinHandle<()>>,
     /// Sending end that we pass to every `BuildLoop` the daemon controls.
     // TODO: this needs to transmit information to identify the builder with
-    build_events_tx: mpsc::Sender<crate::build_loop::Event>,
+    build_events_tx: chan::Sender<crate::build_loop::Event>,
     /// The handlers functions for incoming requests
     handler_fns: HandlerFns,
 }
@@ -39,11 +39,11 @@ pub struct Daemon {
 // TODO: set a `Listener` up in the daemon instead of manually outside
 
 impl Daemon {
-    /// Create a new daemon. Also return an `mpsc::Receiver` that
+    /// Create a new daemon. Also return an `chan::Receiver` that
     /// receives `build_loop::Event`s for all builders this daemon
     /// supervises.
-    pub fn new() -> (Daemon, mpsc::Receiver<crate::build_loop::Event>) {
-        let (tx, rx) = mpsc::channel();
+    pub fn new() -> (Daemon, chan::Receiver<crate::build_loop::Event>) {
+        let (tx, rx) = chan::unbounded();
         (
             Daemon {
                 handler_threads: HashMap::new(),
@@ -96,7 +96,7 @@ impl HandlerFns {
     pub fn ping(
         &self,
         rw: ReadWriter<Ping, NoMessage>,
-        build_chan: mpsc::Sender<IndicateActivity>,
+        build_chan: chan::Sender<IndicateActivity>,
     ) {
         let ping: Result<Ping, ReadError> = rw.read(&self.read_timeout);
         match ping {
