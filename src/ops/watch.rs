@@ -39,7 +39,9 @@ fn main_run_forever(project: Project) -> OpResult {
     let build_thread = {
         thread::spawn(move || {
             let mut build_loop = BuildLoop::new(&project);
-            build_loop.forever(tx);
+
+            // The `watch` command does not currently react to pings, hence the `chan::never()`
+            build_loop.forever(tx, chan::never());
         })
     };
 
