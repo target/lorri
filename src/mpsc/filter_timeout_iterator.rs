@@ -3,11 +3,11 @@
 //!
 //! Example:
 //!
-//!     use std::sync::mpsc::channel;
-//!     use std::time::Duration;
+//!     use crossbeam_channel as chan;
 //!     use lorri::mpsc::FilterTimeoutIterator;
+//!     use std::time::Duration;
 //!
-//!     let (sender, receiver) = channel();
+//!     let (sender, receiver) = chan::unbounded();
 //!     sender.send(String::from("Tag!")).unwrap();
 //!     sender.send(String::from("Hello!")).unwrap();
 //!
@@ -19,9 +19,7 @@
 //!
 //!     assert_eq!(iter.next(), Some(Ok(String::from("Hello!"))));
 
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::RecvError;
-use std::sync::mpsc::RecvTimeoutError;
+use crossbeam_channel as chan;
 use std::time::{Duration, Instant};
 
 /// A FilterTimeoutIterator is an abstraction over an MPSC Receiver.
@@ -42,11 +40,11 @@ use std::time::{Duration, Instant};
 ///
 /// # Basic Example:
 ///
-///     use std::sync::mpsc::channel;
-///     use std::time::Duration;
+///     use crossbeam_channel as chan;
 ///     use lorri::mpsc::FilterTimeoutIterator;
+///     use std::time::Duration;
 ///
-///     let (sender, receiver) = channel();
+///     let (sender, receiver) = chan::unbounded();
 ///     sender.send(String::from("Tag!")).unwrap();
 ///     sender.send(String::from("Hello!")).unwrap();
 ///
@@ -70,12 +68,12 @@ use std::time::{Duration, Instant};
 ///
 /// ## Concrete Example
 ///
-///     use std::sync::mpsc::channel;
+///     use crossbeam_channel as chan;
+///     use lorri::mpsc::FilterTimeoutIterator;
 ///     use std::thread;
 ///     use std::time::Duration;
-///     use lorri::mpsc::FilterTimeoutIterator;
 ///
-///     let (sender, receiver) = channel::<String>();
+///     let (sender, receiver) = chan::unbounded::<String>();
 ///
 ///     let thread = thread::spawn(move || {
 ///        thread::sleep(Duration::from_millis(750));
@@ -97,7 +95,7 @@ pub struct FilterTimeoutIterator<'a, T, P>
 where
     P: Fn(&T) -> bool,
 {
-    receiver: &'a Receiver<T>,
+    receiver: &'a chan::Receiver<T>,
     predicate: P,
     timeout: Duration,
 }
@@ -109,7 +107,7 @@ where
     /// Construct a new FilterTimeoutIterator with the specified timeout
     /// duration.
     pub fn new(
-        receiver: &'a Receiver<T>,
+        receiver: &'a chan::Receiver<T>,
         timeout: Duration,
         predicate: P,
     ) -> FilterTimeoutIterator<'a, T, P> {
@@ -121,7 +119,7 @@ where
     }
 
     /// Receive an item, and filter.
-    fn next_timeout(&self, timeout: Duration) -> Option<Result<T, RecvTimeoutError>> {
+    fn next_timeout(&self, timeout: Duration) -> Option<Result<T, chan::RecvTimeoutError>> {
         match self.receiver.recv_timeout(timeout) {
             Ok(value) => {
                 if (self.predicate)(&value) {
@@ -139,9 +137,9 @@ impl<'a, T, P> Iterator for FilterTimeoutIterator<'a, T, P>
 where
     P: Fn(&T) -> bool,
 {
-    type Item = Result<T, RecvError>;
+    type Item = Result<T, chan::RecvError>;
 
-    fn next(&mut self) -> Option<Result<T, RecvError>> {
+    fn next(&mut self) -> Option<Result<T, chan::RecvError>> {
         let mut timeout = self.timeout;
         let start = Instant::now();
 
@@ -149,8 +147,8 @@ where
             if let Some(result) = self.next_timeout(timeout) {
                 return match result {
                     Ok(value) => Some(Ok(value)),
-                    Err(RecvTimeoutError::Disconnected) => Some(Err(RecvError)),
-                    Err(RecvTimeoutError::Timeout) => None,
+                    Err(chan::RecvTimeoutError::Disconnected) => Some(Err(chan::RecvError)),
+                    Err(chan::RecvTimeoutError::Timeout) => None,
                 };
             } else {
                 // Reduce the timeout on each iteration, but if
@@ -165,8 +163,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::FilterTimeoutIterator;
-    use std::sync::mpsc::channel;
-    use std::sync::mpsc::RecvError;
+    use crossbeam_channel as chan;
     use std::thread;
     use std::time::{Duration, Instant};
 
@@ -186,7 +183,7 @@ mod tests {
 
     #[test]
     fn events_passed_properly() {
-        let (sender, receiver) = channel();
+        let (sender, receiver) = chan::unbounded();
         sender.send("hello!").unwrap();
 
         let mut iter = FilterTimeoutIterator::new(&receiver, Duration::from_secs(0), |_| true);
@@ -196,7 +193,7 @@ mod tests {
 
     #[test]
     fn it_does_time_out() {
-        let (sender, receiver) = channel::<()>();
+        let (sender, receiver) = chan::unbounded::<()>();
 
         let mut iter = FilterTimeoutIterator::new(&receiver, Duration::from_secs(0), |_| true);
 
@@ -206,17 +203,17 @@ mod tests {
 
     #[test]
     fn hangup_errs() {
-        let (sender, receiver) = channel::<()>();
+        let (sender, receiver) = chan::unbounded::<()>();
         drop(sender); // Force a hangup now
 
         let mut iter = FilterTimeoutIterator::new(&receiver, Duration::from_secs(0), |_| true);
 
-        assert_eq!(iter.next(), Some(Err(RecvError)));
+        assert_eq!(iter.next(), Some(Err(chan::RecvError)));
     }
 
     #[test]
     fn filter_takes_reasonable_time() {
-        let (sender, receiver) = channel::<usize>();
+        let (sender, receiver) = chan::unbounded::<usize>();
 
         let start = Instant::now();
 

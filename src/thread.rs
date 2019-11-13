@@ -7,13 +7,13 @@
 //! we don't block joining one thread while another thread has panicked
 //! already.
 
+use crossbeam_channel as chan;
 use std::collections::HashMap;
-use std::sync::mpsc;
 use std::thread;
 use std::thread::ThreadId;
 
 struct DeathCertificate {
-    tx: mpsc::Sender<ThreadId>,
+    tx: chan::Sender<ThreadId>,
 }
 
 impl Drop for DeathCertificate {
@@ -28,13 +28,13 @@ impl Drop for DeathCertificate {
 /// if any of the threads panicked.
 pub struct Pool {
     threads: HashMap<ThreadId, thread::JoinHandle<()>>,
-    tx: mpsc::Sender<ThreadId>,
-    rx: mpsc::Receiver<ThreadId>,
+    tx: chan::Sender<ThreadId>,
+    rx: chan::Receiver<ThreadId>,
 }
 
 impl Default for Pool {
     fn default() -> Self {
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = chan::unbounded();
         Pool {
             threads: HashMap::new(),
             tx,
