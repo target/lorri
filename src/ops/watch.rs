@@ -1,12 +1,13 @@
 //! Run a BuildLoop for `shell.nix`, watching for input file changes.
 //! Can be used together with `direnv`.
+
 use crate::build_loop::{BuildError, BuildLoop};
 use crate::cli::WatchOptions;
 use crate::ops::{ok, ExitError, OpResult};
 use crate::project::Project;
+use crossbeam_channel as chan;
 use std::fmt::Debug;
 use std::io::Write;
-use std::sync::mpsc::channel;
 use std::thread;
 
 /// See the documentation for lorri::cli::Command::Shell for more
@@ -34,7 +35,7 @@ fn main_run_once(project: Project) -> OpResult {
 }
 
 fn main_run_forever(project: Project) -> OpResult {
-    let (tx, rx) = channel();
+    let (tx, rx) = chan::unbounded();
     let build_thread = {
         thread::spawn(move || {
             let mut build_loop = BuildLoop::new(&project);

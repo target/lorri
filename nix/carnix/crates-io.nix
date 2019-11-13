@@ -127,17 +127,17 @@ rec {
 
 
 # end
-# autocfg-0.1.2
+# autocfg-0.1.7
 
-  crates.autocfg."0.1.2" = deps: { features?(features_.autocfg."0.1.2" deps {}) }: buildRustCrate {
+  crates.autocfg."0.1.7" = deps: { features?(features_.autocfg."0.1.7" deps {}) }: buildRustCrate {
     crateName = "autocfg";
-    version = "0.1.2";
+    version = "0.1.7";
     description = "Automatic cfg for Rust compiler features";
     authors = [ "Josh Stone <cuviper@gmail.com>" ];
-    sha256 = "0dv81dwnp1al3j4ffz007yrjv4w1c7hw09gnf0xs3icxiw6qqfs3";
+    sha256 = "01iq4rs9kanj88pbwjxzqp5k4bgdsvz3y398nljz441rfws11mi4";
   };
-  features_.autocfg."0.1.2" = deps: f: updateFeatures f (rec {
-    autocfg."0.1.2".default = (f.autocfg."0.1.2".default or true);
+  features_.autocfg."0.1.7" = deps: f: updateFeatures f (rec {
+    autocfg."0.1.7".default = (f.autocfg."0.1.7".default or true);
   }) [];
 
 
@@ -597,6 +597,68 @@ rec {
     ];
   }) [
     (features_.bitflags."${deps."cloudabi"."0.0.3"."bitflags"}" deps)
+  ];
+
+
+# end
+# crossbeam-channel-0.4.0
+
+  crates.crossbeam_channel."0.4.0" = deps: { features?(features_.crossbeam_channel."0.4.0" deps {}) }: buildRustCrate {
+    crateName = "crossbeam-channel";
+    version = "0.4.0";
+    description = "Multi-producer multi-consumer channels for message passing";
+    authors = [ "The Crossbeam Project Developers" ];
+    sha256 = "0aanh2c25vih9fqs8fdv98jz427dqljlhhy8c4yl8hh3n55k64sl";
+    dependencies = mapFeatures features ([
+      (crates."crossbeam_utils"."${deps."crossbeam_channel"."0.4.0"."crossbeam_utils"}" deps)
+    ]);
+  };
+  features_.crossbeam_channel."0.4.0" = deps: f: updateFeatures f (rec {
+    crossbeam_channel."0.4.0".default = (f.crossbeam_channel."0.4.0".default or true);
+    crossbeam_utils."${deps.crossbeam_channel."0.4.0".crossbeam_utils}".default = true;
+  }) [
+    (features_.crossbeam_utils."${deps."crossbeam_channel"."0.4.0"."crossbeam_utils"}" deps)
+  ];
+
+
+# end
+# crossbeam-utils-0.7.0
+
+  crates.crossbeam_utils."0.7.0" = deps: { features?(features_.crossbeam_utils."0.7.0" deps {}) }: buildRustCrate {
+    crateName = "crossbeam-utils";
+    version = "0.7.0";
+    description = "Utilities for concurrent programming";
+    authors = [ "The Crossbeam Project Developers" ];
+    sha256 = "04l90g00g59ahb2n01q64pvijwg1ms6q724x3a0dsapiq32ia8yb";
+    dependencies = mapFeatures features ([
+      (crates."cfg_if"."${deps."crossbeam_utils"."0.7.0"."cfg_if"}" deps)
+    ]
+      ++ (if features.crossbeam_utils."0.7.0".lazy_static or false then [ (crates.lazy_static."${deps."crossbeam_utils"."0.7.0".lazy_static}" deps) ] else []));
+
+    buildDependencies = mapFeatures features ([
+      (crates."autocfg"."${deps."crossbeam_utils"."0.7.0"."autocfg"}" deps)
+    ]);
+    features = mkFeatures (features."crossbeam_utils"."0.7.0" or {});
+  };
+  features_.crossbeam_utils."0.7.0" = deps: f: updateFeatures f (rec {
+    autocfg."${deps.crossbeam_utils."0.7.0".autocfg}".default = true;
+    cfg_if."${deps.crossbeam_utils."0.7.0".cfg_if}".default = true;
+    crossbeam_utils = fold recursiveUpdate {} [
+      { "0.7.0"."lazy_static" =
+        (f.crossbeam_utils."0.7.0"."lazy_static" or false) ||
+        (f.crossbeam_utils."0.7.0".std or false) ||
+        (crossbeam_utils."0.7.0"."std" or false); }
+      { "0.7.0"."std" =
+        (f.crossbeam_utils."0.7.0"."std" or false) ||
+        (f.crossbeam_utils."0.7.0".default or false) ||
+        (crossbeam_utils."0.7.0"."default" or false); }
+      { "0.7.0".default = (f.crossbeam_utils."0.7.0".default or true); }
+    ];
+    lazy_static."${deps.crossbeam_utils."0.7.0".lazy_static}".default = true;
+  }) [
+    (features_.cfg_if."${deps."crossbeam_utils"."0.7.0"."cfg_if"}" deps)
+    (features_.lazy_static."${deps."crossbeam_utils"."0.7.0"."lazy_static"}" deps)
+    (features_.autocfg."${deps."crossbeam_utils"."0.7.0"."autocfg"}" deps)
   ];
 
 

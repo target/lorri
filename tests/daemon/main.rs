@@ -1,6 +1,7 @@
 extern crate lorri;
 extern crate tempfile;
 
+use crossbeam_channel as chan;
 use lorri::build_loop;
 use lorri::cas::ContentAddressable;
 use lorri::project::Project;
@@ -11,7 +12,6 @@ use lorri::socket::{ReadWriter, Timeout};
 use lorri::NixFile;
 use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
-use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
@@ -27,7 +27,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     // nicely abstracted yet.
 
     // messages returned by the `daemon.accept()` handler
-    let (accept_messages_tx, accept_messages_rx) = mpsc::channel();
+    let (accept_messages_tx, accept_messages_rx) = chan::unbounded();
 
     let tempdir = tempfile::tempdir()?;
 

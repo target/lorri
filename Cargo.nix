@@ -61,10 +61,12 @@ rec {
       crateName = "lorri";
       version = "0.1.0";
       authors = [ "Graham Christensen <graham.christensen@target.com>" ];
+      edition = "2018";
       src = exclude [ ".git" "target" ] ./.;
       dependencies = mapFeatures features ([
         (cratesIO.crates."atomicwrites"."${deps."lorri"."0.1.0"."atomicwrites"}" deps)
         (cratesIO.crates."bincode"."${deps."lorri"."0.1.0"."bincode"}" deps)
+        (cratesIO.crates."crossbeam_channel"."${deps."lorri"."0.1.0"."crossbeam_channel"}" deps)
         (cratesIO.crates."directories"."${deps."lorri"."0.1.0"."directories"}" deps)
         (cratesIO.crates."env_logger"."${deps."lorri"."0.1.0"."env_logger"}" deps)
         (cratesIO.crates."futures"."${deps."lorri"."0.1.0"."futures"}" deps)
@@ -87,6 +89,7 @@ rec {
     features_.lorri."0.1.0" = deps: f: updateFeatures f (rec {
       atomicwrites."${deps.lorri."0.1.0".atomicwrites}".default = true;
       bincode."${deps.lorri."0.1.0".bincode}".default = true;
+      crossbeam_channel."${deps.lorri."0.1.0".crossbeam_channel}".default = true;
       directories."${deps.lorri."0.1.0".directories}".default = true;
       env_logger."${deps.lorri."0.1.0".env_logger}".default = true;
       futures."${deps.lorri."0.1.0".futures}".default = true;
@@ -108,6 +111,7 @@ rec {
     }) [
       (cratesIO.features_.atomicwrites."${deps."lorri"."0.1.0"."atomicwrites"}" deps)
       (cratesIO.features_.bincode."${deps."lorri"."0.1.0"."bincode"}" deps)
+      (cratesIO.features_.crossbeam_channel."${deps."lorri"."0.1.0"."crossbeam_channel"}" deps)
       (cratesIO.features_.directories."${deps."lorri"."0.1.0"."directories"}" deps)
       (cratesIO.features_.env_logger."${deps."lorri"."0.1.0"."env_logger"}" deps)
       (cratesIO.features_.futures."${deps."lorri"."0.1.0"."futures"}" deps)
@@ -150,7 +154,7 @@ rec {
     libc = "0.2.55";
     winapi = "0.3.6";
   };
-  deps.autocfg."0.1.2" = {};
+  deps.autocfg."0.1.7" = {};
   deps.backtrace."0.3.38" = {
     backtrace_sys = "0.1.31";
     cfg_if = "0.1.6";
@@ -164,7 +168,7 @@ rec {
   deps.bincode."1.1.3" = {
     byteorder = "1.3.1";
     serde = "1.0.88";
-    autocfg = "0.1.2";
+    autocfg = "0.1.7";
   };
   deps.bit_set."0.5.0" = {
     bit_vec = "0.5.0";
@@ -186,6 +190,14 @@ rec {
   };
   deps.cloudabi."0.0.3" = {
     bitflags = "1.0.4";
+  };
+  deps.crossbeam_channel."0.4.0" = {
+    crossbeam_utils = "0.7.0";
+  };
+  deps.crossbeam_utils."0.7.0" = {
+    cfg_if = "0.1.6";
+    lazy_static = "1.2.0";
+    autocfg = "0.1.7";
   };
   deps.directories."1.0.2" = {
     libc = "0.2.55";
@@ -262,6 +274,7 @@ rec {
   deps.lorri."0.1.0" = {
     atomicwrites = "0.2.3";
     bincode = "1.1.3";
+    crossbeam_channel = "0.4.0";
     directories = "1.0.2";
     env_logger = "0.6.0";
     futures = "0.1.25";
@@ -372,13 +385,13 @@ rec {
     rand_os = "0.1.2";
     rand_pcg = "0.1.1";
     rand_xorshift = "0.1.1";
-    autocfg = "0.1.2";
+    autocfg = "0.1.7";
     libc = "0.2.55";
     winapi = "0.3.6";
   };
   deps.rand_chacha."0.1.1" = {
     rand_core = "0.3.1";
-    autocfg = "0.1.2";
+    autocfg = "0.1.7";
   };
   deps.rand_core."0.3.1" = {
     rand_core = "0.4.0";

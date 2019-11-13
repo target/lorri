@@ -9,8 +9,8 @@ use crate::project::roots;
 use crate::project::roots::Roots;
 use crate::project::Project;
 use crate::watch::{DebugMessage, RawEventError, Reason, Watch};
+use crossbeam_channel as chan;
 use std::path::PathBuf;
-use std::sync::mpsc::{channel, Sender};
 
 /// Builder events sent back over `BuildLoop.tx`.
 #[derive(Clone, Debug)]
@@ -63,7 +63,7 @@ impl<'a> BuildLoop<'a> {
     /// Sends `Event`s over `Self.tx` once they happen.
     /// When new filesystem changes are detected while a build is
     /// still running, it is finished first before starting a new build.
-    pub fn forever(&mut self, tx: Sender<Event>) {
+    pub fn forever(&mut self, tx: chan::Sender<Event>) {
         let send = |msg| tx.send(msg).expect("Failed to send an event");
 
         send(Event::Started(Reason::ProjectAdded(
@@ -108,7 +108,7 @@ impl<'a> BuildLoop<'a> {
     /// This will create GC roots and expand the file watch list for
     /// the evaluation.
     pub fn once(&mut self) -> Result<BuildResults, BuildError> {
-        let (tx, rx) = channel();
+        let (tx, rx) = chan::unbounded();
         let run_result = builder::run(tx, &self.project.nix_file, &self.project.cas)?;
 
         self.register_paths(&run_result.referenced_paths)?;
