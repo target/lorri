@@ -3,7 +3,7 @@
 
 use crate::build_loop::{BuildError, BuildLoop};
 use crate::cli::WatchOptions;
-use crate::ops::{ok, ExitError, OpResult};
+use crate::ops::error::{ok, ExitError, OpResult};
 use crate::project::Project;
 use crossbeam_channel as chan;
 use std::fmt::Debug;
@@ -27,9 +27,9 @@ fn main_run_once(project: Project) -> OpResult {
             print_build_message(msg);
             ok()
         }
-        Err(BuildError::Unrecoverable(err)) => Err(ExitError::err(100, format!("{:?}", err))),
+        Err(BuildError::Unrecoverable(err)) => Err(ExitError::temporary(format!("{:?}", err))),
         Err(BuildError::Recoverable(exit_failure)) => {
-            Err(ExitError::errmsg(format!("{:#?}", exit_failure)))
+            Err(ExitError::expected_error(format!("{:#?}", exit_failure)))
         }
     }
 }

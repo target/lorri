@@ -1,6 +1,6 @@
 //! Run a BuildLoop for `shell.nix`, watching for input file changes.
 //! Can be used together with `direnv`.
-use crate::ops::{ok, OpResult};
+use crate::ops::error::{ok, OpResult};
 use crate::NixFile;
 
 use crate::socket::communicate::client;

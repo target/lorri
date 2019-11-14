@@ -1,6 +1,6 @@
 //! The info callable is for printing
 
-use crate::ops::{ok, OpResult};
+use crate::ops::error::{ok, OpResult};
 use crate::project;
 use crate::VERSION_BUILD_REV;
 
