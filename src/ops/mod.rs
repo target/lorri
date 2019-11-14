@@ -107,7 +107,6 @@ pub mod error {
             }
         }
 
-        // TODO: combine 126 and 127
         /// Exit 126 to signify an environment problem
         /// (the user has set up stuff incorrectly so lorri cannot work)
         pub fn environment_problem<T>(message: T) -> ExitError
