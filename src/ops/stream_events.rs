@@ -1,9 +1,14 @@
 //! Run to output a stream of build events in a machine-parseable form.
 use crate::build_loop::Event;
-use crate::ops::{err_msg, ok, OpResult};
-use crate::socket::communicate::client::{self, Error};
-use crate::socket::communicate::DEFAULT_READ_TIMEOUT;
-use crate::socket::{ReadError, ReadWriteError};
+use crate::ops::{self, err_msg, ok, ExitError, OpResult};
+use crate::socket::{
+    communicate::{
+        client::{self, Error},
+        DEFAULT_READ_TIMEOUT,
+    },
+    path::SocketPath,
+    ReadError, ReadWriteError,
+};
 use std::str::FromStr;
 
 /// Options for the kinds of events to report
@@ -34,10 +39,8 @@ impl FromStr for EventKind {
 /// details.
 pub fn main(kind: EventKind) -> OpResult {
     let events = client::stream_events(DEFAULT_READ_TIMEOUT)
-        .connect(&::socket::path::SocketPath::from(
-            ::ops::get_paths()?.daemon_socket_file(),
-        ))
-        .map_err(|e| ::ops::ExitError::errmsg(format!("connecting to daemon: {:?}", e)))?;
+        .connect(&SocketPath::from(ops::get_paths()?.daemon_socket_file()))
+        .map_err(|e| ExitError::errmsg(format!("connecting to daemon: {:?}", e)))?;
 
     let mut snapshot_done = false;
 

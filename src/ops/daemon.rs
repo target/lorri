@@ -6,11 +6,11 @@ use crate::ops::{ok, ExitError, OpResult};
 use crate::socket::communicate::{listener, CommunicationType, DEFAULT_READ_TIMEOUT};
 use crate::socket::{ReadWriter, Timeout};
 use crate::thread::Pool;
+use crate::NixFile;
 use std::collections::HashMap;
 use std::sync::mpsc::{channel, Sender};
 use std::thread::sleep;
 use std::time::Duration;
-use NixFile;
 
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.

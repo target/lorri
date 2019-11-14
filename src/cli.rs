@@ -1,6 +1,6 @@
 //! Defines the CLI interface using structopt.
 
-use ops::stream_events::EventKind;
+use crate::ops::stream_events::EventKind;
 use std::path::PathBuf;
 
 #[derive(StructOpt, Debug)]
