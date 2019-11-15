@@ -7,7 +7,7 @@ extern crate human_panic;
 
 use lorri::constants;
 use lorri::locate_file;
-use lorri::{AbsPathBuf, NixFile};
+use lorri::NixFile;
 
 use lorri::cli::{Arguments, Command};
 use lorri::ops::error::{ExitError, OpResult};
@@ -51,9 +51,8 @@ fn main() {
 /// that instructs the user how to write a minimal `shell.nix`.
 fn find_nix_file(shellfile: &PathBuf) -> Result<NixFile, ExitError> {
     // use shell.nix from cwd
-    Ok(NixFile::from(
-        // `::in_cwd` is guaranteed to return an absolute path
-        AbsPathBuf::new_unchecked(locate_file::in_cwd(&shellfile).map_err(|_| {
+    Ok(NixFile::from(locate_file::in_cwd(&shellfile).map_err(
+        |_| {
             ExitError::user_error(format!(
                 "`{}` does not exist\n\
                  You can use the following minimal `shell.nix` to get started:\n\n\
@@ -61,8 +60,8 @@ fn find_nix_file(shellfile: &PathBuf) -> Result<NixFile, ExitError> {
                 shellfile.display(),
                 TRIVIAL_SHELL_SRC
             ))
-        })?),
-    ))
+        },
+    )?))
 }
 
 fn create_project(paths: &constants::Paths, shell_nix: NixFile) -> Result<Project, ExitError> {
