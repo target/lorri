@@ -69,7 +69,6 @@ rec {
         (cratesIO.crates."crossbeam_channel"."${deps."lorri"."0.1.0"."crossbeam_channel"}" deps)
         (cratesIO.crates."directories"."${deps."lorri"."0.1.0"."directories"}" deps)
         (cratesIO.crates."env_logger"."${deps."lorri"."0.1.0"."env_logger"}" deps)
-        (cratesIO.crates."futures"."${deps."lorri"."0.1.0"."futures"}" deps)
         (crates."human_panic"."${deps."lorri"."0.1.0"."human_panic"}" deps)
         (cratesIO.crates."lazy_static"."${deps."lorri"."0.1.0"."lazy_static"}" deps)
         (cratesIO.crates."log"."${deps."lorri"."0.1.0"."log"}" deps)
@@ -92,7 +91,6 @@ rec {
       crossbeam_channel."${deps.lorri."0.1.0".crossbeam_channel}".default = true;
       directories."${deps.lorri."0.1.0".directories}".default = true;
       env_logger."${deps.lorri."0.1.0".env_logger}".default = true;
-      futures."${deps.lorri."0.1.0".futures}".default = true;
       human_panic."${deps.lorri."0.1.0".human_panic}".default = true;
       lazy_static."${deps.lorri."0.1.0".lazy_static}".default = true;
       log."${deps.lorri."0.1.0".log}".default = true;
@@ -114,7 +112,6 @@ rec {
       (cratesIO.features_.crossbeam_channel."${deps."lorri"."0.1.0"."crossbeam_channel"}" deps)
       (cratesIO.features_.directories."${deps."lorri"."0.1.0"."directories"}" deps)
       (cratesIO.features_.env_logger."${deps."lorri"."0.1.0"."env_logger"}" deps)
-      (cratesIO.features_.futures."${deps."lorri"."0.1.0"."futures"}" deps)
       (features_.human_panic."${deps."lorri"."0.1.0"."human_panic"}" deps)
       (cratesIO.features_.lazy_static."${deps."lorri"."0.1.0"."lazy_static"}" deps)
       (cratesIO.features_.log."${deps."lorri"."0.1.0"."log"}" deps)
@@ -233,7 +230,6 @@ rec {
     fuchsia_zircon_sys = "0.3.3";
   };
   deps.fuchsia_zircon_sys."0.3.3" = {};
-  deps.futures."0.1.25" = {};
   deps.heck."0.3.1" = {
     unicode_segmentation = "1.2.1";
   };
@@ -280,7 +276,6 @@ rec {
     crossbeam_channel = "0.3.9";
     directories = "1.0.2";
     env_logger = "0.6.0";
-    futures = "0.1.25";
     human_panic = "1.0.1";
     lazy_static = "1.2.0";
     log = "0.4.6";
