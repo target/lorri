@@ -62,6 +62,18 @@ pub struct NixFile(AbsPathBuf);
 pub struct AbsPathBuf(PathBuf);
 
 impl AbsPathBuf {
+    /// Convert from a path to an absolute path.
+    ///
+    /// If the path is not absolute, the original `PathBuf`
+    /// is returned (similar to `OsString.into_string()`)
+    pub fn new(path: PathBuf) -> Result<Self, PathBuf> {
+        if path.is_absolute() {
+            Ok(Self::new_unchecked(path))
+        } else {
+            Err(path)
+        }
+    }
+
     /// Convert from a known absolute path.
     ///
     /// Passing a relative path is a programming bug (unchecked).

@@ -32,7 +32,9 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     let tempdir = tempfile::tempdir()?;
 
     // create unix socket file
-    let p = AbsPathBuf::new_unchecked(tempdir.path().to_owned()).join("socket");
+    let p = AbsPathBuf::new(tempdir.path().to_owned())
+        .unwrap()
+        .join("socket");
     let socket_path = SocketPath::from(&p);
     let listener = listener::Listener::new(&socket_path).unwrap();
 
@@ -56,7 +58,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
         .connect(&socket_path)
         .unwrap()
         .write(&Ping {
-            nix_file: NixFile::from(AbsPathBuf::new_unchecked(PathBuf::from("/who/cares"))),
+            nix_file: NixFile::from(AbsPathBuf::new(PathBuf::from("/who/cares")).unwrap()),
         })
         .unwrap();
 
@@ -66,9 +68,12 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
         .recv_timeout(Duration::from_millis(100))
         .unwrap();
 
-    let cas =
-        ContentAddressable::new(AbsPathBuf::new_unchecked(tempdir.path().to_owned()).join("cas"))
-            .unwrap();
+    let cas = ContentAddressable::new(
+        AbsPathBuf::new(tempdir.path().to_owned())
+            .unwrap()
+            .join("cas"),
+    )
+    .unwrap();
     let project = Project::new(start_build.nix_file, &tempdir.path().join("gc_root"), cas).unwrap();
     daemon.add(project);
 
@@ -94,7 +99,9 @@ pub fn start_two_listeners_on_same_socket() -> std::io::Result<()> {
     let tempdir = tempfile::tempdir()?;
 
     // create unix socket file
-    let p = AbsPathBuf::new_unchecked(tempdir.path().to_owned()).join("socket");
+    let p = AbsPathBuf::new(tempdir.path().to_owned())
+        .unwrap()
+        .join("socket");
     let socket_path = SocketPath::from(&p);
     let listener = listener::Listener::new(&socket_path).unwrap();
 

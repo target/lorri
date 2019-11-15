@@ -46,13 +46,14 @@ impl Paths {
             std::fs::create_dir_all(&dir).and(Ok(dir))
         };
 
-        // TODO: return as good error value
-        assert!(
-            pd.cache_dir().is_absolute(),
-            "Your cache directory is not an absolute path! It is: {}",
-            pd.cache_dir().display()
-        );
-        let abs_cache_dir = AbsPathBuf::new_unchecked(pd.cache_dir().to_owned());
+        let abs_cache_dir =
+            crate::AbsPathBuf::new(pd.cache_dir().to_owned()).unwrap_or_else(|cd| {
+                panic!(
+                    "Your cache directory is not an absolute path! It is: {}",
+                    cd.display()
+                )
+            });
+
         let gc_root_dir = abs_cache_dir.join("gc_roots");
         let cas_dir = abs_cache_dir.join("cas");
         let runtime_dir = pd
@@ -60,16 +61,16 @@ impl Paths {
             // fall back to the cache dir on non-linux
             .unwrap_or_else(|| pd.cache_dir())
             .to_owned();
-        // TODO: return as good error value
-        assert!(
-            runtime_dir.is_absolute(),
-            "Your runtime directory is not an absolute path! It is: {}",
-            runtime_dir.display()
-        );
-        let abs_runtime_dir = AbsPathBuf::new_unchecked(runtime_dir);
+
+        let abs_runtime_dir = AbsPathBuf::new(runtime_dir).unwrap_or_else(|rd| {
+            panic!(
+                "Your runtime directory is not an absolute path! It is: {}",
+                rd.display()
+            )
+        });
 
         Ok(Paths {
-            gc_root_dir: create_dir(abs_cache_dir.join("gc_roots")).map_err(|err| {
+            gc_root_dir: create_dir(gc_root_dir.clone()).map_err(|err| {
                 PathsInitError::GcRootsDirectoryCantBeCreated { gc_root_dir, err }
             })?,
             daemon_socket_file: create_dir(abs_runtime_dir.clone())
@@ -78,7 +79,7 @@ impl Paths {
                     err,
                 })?
                 .join("daemon.socket"),
-            cas_store: ContentAddressable::new(abs_cache_dir.join("cas"))
+            cas_store: ContentAddressable::new(cas_dir.clone())
                 .map_err(|err| PathsInitError::CasCantBeCreated { cas_dir, err })?,
         })
     }

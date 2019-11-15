@@ -32,10 +32,11 @@ impl DirenvTestCase {
         let test_root =
             PathBuf::from_iter(&[env!("CARGO_MANIFEST_DIR"), "tests", "integration", name]);
 
-        let shell_file = NixFile::from(AbsPathBuf::new_unchecked(test_root.join("shell.nix")));
+        let shell_file = NixFile::from(AbsPathBuf::new(test_root.join("shell.nix")).unwrap());
 
         let cas = ContentAddressable::new(
-            AbsPathBuf::new_unchecked(cachedir.path().to_owned())
+            AbsPathBuf::new(cachedir.path().to_owned())
+                .unwrap()
                 .join("cas")
                 .to_owned(),
         )

@@ -86,7 +86,7 @@ mod tests {
     use AbsPathBuf;
 
     fn abs_path(td: &tempfile::TempDir) -> AbsPathBuf {
-        AbsPathBuf::new_unchecked(td.path().to_owned())
+        AbsPathBuf::new(td.path().to_owned()).unwrap()
     }
 
     /// Tests adding some content to the store and whether

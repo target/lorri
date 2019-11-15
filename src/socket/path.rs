@@ -57,7 +57,7 @@ impl<'a> SocketPath<'a> {
             .unwrap_or_else(|| panic!("Socket file ({:?}) must have a parent directory", self.0))
             .to_owned();
         new_file.push(name);
-        // We didn’t do anything to not make the path relative
+        // We didn’t do anything to make the path relative
         AbsPathBuf::new_unchecked(new_file)
     }
 

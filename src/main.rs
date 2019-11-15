@@ -68,7 +68,7 @@ fn find_nix_file(shellfile: &PathBuf) -> Result<NixFile, ExitError> {
 fn create_project(paths: &constants::Paths, shell_nix: NixFile) -> Result<Project, ExitError> {
     Project::new(
         shell_nix,
-        // TODO: pass the AbsPathDir
+        // TODO: pass the AbsPathBuf
         &paths.gc_root_dir().as_absolute_path(),
         paths.cas_store().clone(),
     )
