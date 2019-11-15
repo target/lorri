@@ -928,32 +928,6 @@ rec {
 
 
 # end
-# futures-0.1.25
-
-  crates.futures."0.1.25" = deps: { features?(features_.futures."0.1.25" deps {}) }: buildRustCrate {
-    crateName = "futures";
-    version = "0.1.25";
-    description = "An implementation of futures and streams featuring zero allocations,\ncomposability, and iterator-like interfaces.\n";
-    authors = [ "Alex Crichton <alex@alexcrichton.com>" ];
-    sha256 = "1gdn9z3mi3jjzbxgvawqh90895130c3ydks55rshja0ncpn985q3";
-    features = mkFeatures (features."futures"."0.1.25" or {});
-  };
-  features_.futures."0.1.25" = deps: f: updateFeatures f (rec {
-    futures = fold recursiveUpdate {} [
-      { "0.1.25"."use_std" =
-        (f.futures."0.1.25"."use_std" or false) ||
-        (f.futures."0.1.25".default or false) ||
-        (futures."0.1.25"."default" or false); }
-      { "0.1.25"."with-deprecated" =
-        (f.futures."0.1.25"."with-deprecated" or false) ||
-        (f.futures."0.1.25".default or false) ||
-        (futures."0.1.25"."default" or false); }
-      { "0.1.25".default = (f.futures."0.1.25".default or true); }
-    ];
-  }) [];
-
-
-# end
 # heck-0.3.1
 
   crates.heck."0.3.1" = deps: { features?(features_.heck."0.3.1" deps {}) }: buildRustCrate {
