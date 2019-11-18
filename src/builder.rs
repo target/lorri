@@ -38,7 +38,8 @@ pub struct RootedPath {
 }
 
 struct InstantiateOutput {
-    referenced_paths: Vec<PathBuf>,
+    referenced_files: Vec<PathBuf>,
+    referenced_dirs: Vec<PathBuf>,
     output: Option<RootedDrv>,
 }
 
@@ -148,38 +149,46 @@ fn instrumented_instantiation(
     // meaning we don’t have to keep the outputs in memory (fold directly)
 
     // iterate over all lines, parsing out the ones we are interested in
-    let (paths, _log_lines): (Vec<PathBuf>, Vec<OsString>) =
-        results
-            .into_iter()
-            .fold((vec![], vec![]), |(mut paths, mut log_lines), result| {
-                match result {
-                    LogDatum::CopiedSource(src) | LogDatum::ReadFileOrDir(src) => {
-                        paths.push(src);
-                    }
-                    LogDatum::NixSourceFile(mut src) => {
-                        // We need to emulate nix’s `default.nix` mechanism here.
-                        // That is, if the user uses something like
-                        // `import ./foo`
-                        // and `foo` is a directory, nix will actually import
-                        // `./foo/default.nix`
-                        // but still print `./foo`.
-                        // Since this is the only time directories are printed,
-                        // we can just manually re-implement that behavior.
-                        if src.is_dir() {
-                            src.push("default.nix");
-                        }
-                        paths.push(src);
-                    }
-                    LogDatum::Text(line) => log_lines.push(OsString::from(line)),
-                    LogDatum::NonUtf(line) => log_lines.push(line),
-                };
-
-                (paths, log_lines)
-            });
+    let (referenced_files, referenced_dirs) = {
+        let mut files: Vec<PathBuf> = vec![];
+        let mut dirs: Vec<PathBuf> = vec![];
+        results.into_iter().for_each(|result| match result {
+            LogDatum::CopiedSource(src) => {
+                if src.is_file() {
+                    files.push(src)
+                } else if src.is_dir() {
+                    dirs.push(src)
+                } else {
+                    // TODO
+                    panic!("{} is neither a file nor a directory", src.display())
+                }
+            }
+            LogDatum::ReadDir(src) => dirs.push(src),
+            LogDatum::ReadFile(src) => files.push(src),
+            LogDatum::NixSourceFile(mut src) => {
+                // We need to emulate nix’s `default.nix` mechanism here.
+                // That is, if the user uses something like
+                // `import ./foo`
+                // and `foo` is a directory, nix will actually import
+                // `./foo/default.nix`
+                // but still print `./foo`.
+                // Since this is the only time directories are printed,
+                // we can just manually re-implement that behavior.
+                if src.is_dir() {
+                    src.push("default.nix");
+                }
+                files.push(src);
+            }
+            LogDatum::Text(_line) => (),
+            LogDatum::NonUtf(_line) => (),
+        });
+        (files, dirs)
+    };
 
     if !exec_result.success() {
         return Ok(InstantiateOutput {
-            referenced_paths: paths,
+            referenced_files,
+            referenced_dirs,
             output: None,
         });
     }
@@ -192,7 +201,8 @@ fn instrumented_instantiation(
     let shell_gc_root = build_products.pop().unwrap();
 
     Ok(InstantiateOutput {
-        referenced_paths: paths,
+        referenced_files,
+        referenced_dirs,
         output: Some(RootedDrv {
             _gc_handle: GcRootTempDir(gc_root_dir),
             path: shell_gc_root,
@@ -249,8 +259,10 @@ struct GcRootTempDir(tempfile::TempDir);
 /// The result of a single instantiation and build.
 #[derive(Debug)]
 pub struct RunResult {
-    /// All the paths identified during the instantiation
-    pub referenced_paths: Vec<PathBuf>,
+    /// All the files identified during the instantiation
+    pub referenced_files: Vec<PathBuf>,
+    /// All the directories identified during the instantiation
+    pub referenced_dirs: Vec<PathBuf>,
     /// The status of the build attempt
     pub status: RunStatus,
 }
@@ -276,26 +288,22 @@ pub fn run(
     cas: &ContentAddressable,
 ) -> Result<RunResult, Error> {
     let inst_info = instrumented_instantiation(tx.clone(), root_nix_file, cas)?;
-    if let Some(inst_output) = inst_info.output {
-        let buildoutput = build(tx, inst_output.path)?;
-
-        if let Some(build_output) = buildoutput.output {
-            Ok(RunResult {
-                referenced_paths: inst_info.referenced_paths,
-                status: RunStatus::Complete(build_output),
-            })
-        } else {
-            Ok(RunResult {
-                referenced_paths: inst_info.referenced_paths,
-                status: RunStatus::FailedAtRealize,
-            })
-        }
-    } else {
-        Ok(RunResult {
-            referenced_paths: inst_info.referenced_paths,
-            status: RunStatus::FailedAtInstantiation,
-        })
-    }
+    Ok(RunResult {
+        referenced_files: inst_info.referenced_files,
+        referenced_dirs: inst_info.referenced_dirs,
+        status: {
+            if let Some(inst_output) = inst_info.output {
+                let build_output = build(tx, inst_output.path)?;
+                if let Some(build_output) = build_output.output {
+                    RunStatus::Complete(build_output)
+                } else {
+                    RunStatus::FailedAtRealize
+                }
+            } else {
+                RunStatus::FailedAtInstantiation
+            }
+        },
+    })
 }
 
 /// Classifies the output of nix-instantiate -vv.
@@ -305,8 +313,10 @@ enum LogDatum {
     NixSourceFile(PathBuf),
     /// A file/directory copied verbatim to the nix store
     CopiedSource(PathBuf),
-    /// A `builtins.readFile` or `builtins.readDir` invocation (at eval time)
-    ReadFileOrDir(PathBuf),
+    /// A `builtins.readFile` invocation (at eval time)
+    ReadFile(PathBuf),
+    /// A `builtins.readDir` invocation (at eval time)
+    ReadDir(PathBuf),
     /// Arbitrary text (which we couldn’t otherwise classify)
     Text(String),
     /// Text which we coudn’t decode from UTF-8
@@ -329,8 +339,10 @@ where
             Regex::new("^copied source '(?P<source>.*)' -> '(?:.*)'$").expect("invalid regex!");
         // These are printed for `builtins.readFile` and `builtins.readDir`,
         // by our instrumentation in `./logged-evaluation.nix`.
-        static ref LORRI_READ: Regex =
-            Regex::new("^trace: lorri read: '(?P<source>.*)'$").expect("invalid regex!");
+        static ref LORRI_READ_FILE: Regex =
+            Regex::new("^trace: lorri readFile: '(?P<source>.*)'$").expect("invalid regex!");
+        static ref LORRI_READ_DIR: Regex =
+            Regex::new("^trace: lorri readDir: '(?P<source>.*)'$").expect("invalid regex!");
     }
 
     // see the regexes above for explanations of the nix outputs
@@ -345,10 +357,10 @@ where
                 LogDatum::NixSourceFile(PathBuf::from(&matches["source"]))
             } else if let Some(matches) = COPIED_SOURCE.captures(&linestr) {
                 LogDatum::CopiedSource(PathBuf::from(&matches["source"]))
-            // TODO: parse files and dirs into different LogInfo cases
-            // to make sure we only watch directories if they were builtins.readDir’ed
-            } else if let Some(matches) = LORRI_READ.captures(&linestr) {
-                LogDatum::ReadFileOrDir(PathBuf::from(&matches["source"]))
+            } else if let Some(matches) = LORRI_READ_FILE.captures(&linestr) {
+                LogDatum::ReadFile(PathBuf::from(&matches["source"]))
+            } else if let Some(matches) = LORRI_READ_DIR.captures(&linestr) {
+                LogDatum::ReadDir(PathBuf::from(&matches["source"]))
             } else {
                 LogDatum::Text(linestr.to_owned())
             }
@@ -419,9 +431,9 @@ mod tests {
 
         assert_eq!(
             parse_evaluation_line(
-                "trace: lorri read: '/home/grahamc/projects/grahamc/lorri/nix/nixpkgs.json'"
+                "trace: lorri readFile: '/home/grahamc/projects/grahamc/lorri/nix/nixpkgs.json'"
             ),
-            LogDatum::ReadFileOrDir(PathBuf::from(
+            LogDatum::ReadFile(PathBuf::from(
                 "/home/grahamc/projects/grahamc/lorri/nix/nixpkgs.json"
             ))
         );
@@ -584,18 +596,19 @@ dir-as-source = ./dir;
 
         let (tx, rx) = chan::unbounded();
         let inst_info = instrumented_instantiation(tx, &NixFile::from(shell), &cas).unwrap();
-        let ends_with = |end| inst_info.referenced_paths.iter().any(|p| p.ends_with(end));
+        let file_ends_with = |end| inst_info.referenced_files.iter().any(|p| p.ends_with(end));
+        let dir_ends_with = |end| inst_info.referenced_dirs.iter().any(|p| p.ends_with(end));
         assert!(
-            ends_with("foo/default.nix"),
+            file_ends_with("foo/default.nix"),
             "foo/default.nix should be watched!"
         );
-        assert!(!ends_with("foo/bar"), "foo/bar should not be watched!");
-        assert!(ends_with("foo/baz"), "foo/baz should be watched!");
-        assert!(ends_with("dir"), "dir should be watched!");
+        assert!(!dir_ends_with("foo/bar"), "foo/bar should not be watched!");
+        assert!(file_ends_with("foo/baz"), "foo/baz should be watched!");
+        assert!(dir_ends_with("dir"), "dir should be watched!");
         assert!(
-            !ends_with("foo"),
+            !dir_ends_with("foo"),
             "No imported directories must exist in watched paths: {:#?}",
-            inst_info.referenced_paths
+            inst_info.referenced_dirs
         );
         // unused
         drop(rx);

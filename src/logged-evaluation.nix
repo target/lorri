@@ -8,8 +8,8 @@ let
     import = scopedImport overrides;
     scopedImport = x: builtins.scopedImport (overrides // x);
     builtins = builtins // {
-      readFile = file: builtins.trace "lorri read: '${toString file}'" (builtins.readFile file);
-      readDir = path: builtins.trace "lorri read: '${toString path}'" (builtins.readDir path);
+      readFile = file: builtins.trace "lorri readFile: '${toString file}'" (builtins.readFile file);
+      readDir = path: builtins.trace "lorri readDir: '${toString path}'" (builtins.readDir path);
     };
   };
 

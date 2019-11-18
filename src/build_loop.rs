@@ -10,6 +10,7 @@ use crate::project::roots::Roots;
 use crate::project::Project;
 use crate::watch::{DebugMessage, RawEventError, Reason, Watch};
 use crossbeam_channel as chan;
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 /// Builder events sent back over `BuildLoop.tx`.
@@ -111,7 +112,16 @@ impl<'a> BuildLoop<'a> {
         let (tx, rx) = chan::unbounded();
         let run_result = builder::run(tx, &self.project.nix_file, &self.project.cas)?;
 
-        self.register_paths(&run_result.referenced_paths)?;
+        let reduced_dirs: Vec<_> = self
+            .reduce_paths(&run_result.referenced_dirs)
+            .into_iter()
+            .collect();
+        let reduced_files: Vec<_> = self
+            .reduce_paths(&run_result.referenced_files)
+            .into_iter()
+            .collect();
+        self.watch.extend(&reduced_dirs)?;
+        self.watch.extend(&reduced_files)?;
 
         let lines = rx.iter().collect();
 
@@ -126,16 +136,12 @@ impl<'a> BuildLoop<'a> {
         }
     }
 
-    fn register_paths(&mut self, paths: &[PathBuf]) -> Result<(), notify::Error> {
-        debug!("original paths: {:?}", paths.len());
+    fn reduce_paths(&self, dirs: &[PathBuf]) -> HashSet<PathBuf> {
+        debug!("original dirs: {:?}", dirs.len());
 
-        let paths = reduce_paths(&paths);
-        debug!("  -> reduced to: {:?}", paths.len());
-
-        // add all new (reduced) nix sources to the input source watchlist
-        self.watch.extend(&paths.into_iter().collect::<Vec<_>>())?;
-
-        Ok(())
+        let dirs = reduce_paths(&dirs);
+        debug!("  -> reduced to: {:?}", dirs.len());
+        dirs
     }
 
     fn root_result(&mut self, build: builder::RootedPath) -> Result<BuildResults, BuildError> {
