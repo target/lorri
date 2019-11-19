@@ -25,10 +25,15 @@ pub struct IndicateActivity {
     pub nix_file: NixFile,
 }
 
+struct Handler {
+    tx: chan::Sender<()>,
+    _handle: std::thread::JoinHandle<()>,
+}
+
 /// Keeps all state of the running `lorri daemon` service, watches nix files and runs builds.
 pub struct Daemon {
     /// A thread for each `BuildLoop`, keyed by the nix files listened on.
-    handler_threads: HashMap<NixFile, std::thread::JoinHandle<()>>,
+    handler_threads: HashMap<NixFile, Handler>,
     /// Sending end that we pass to every `BuildLoop` the daemon controls.
     // TODO: this needs to transmit information to identify the builder with
     build_events_tx: chan::Sender<crate::build_loop::Event>,
@@ -64,19 +69,25 @@ impl Daemon {
     /// Add nix file to the set of files this daemon watches
     /// & build if they change.
     pub fn add(&mut self, project: Project) {
-        let tx = self.build_events_tx.clone();
+        let (tx, rx) = chan::unbounded();
+        let build_events_tx = self.build_events_tx.clone();
 
         self.handler_threads
             .entry(project.nix_file.clone())
-            .or_insert_with(|| {
-                std::thread::spawn(move || {
+            .or_insert_with(|| Handler {
+                tx,
+                _handle: std::thread::spawn(move || {
                     let mut build_loop = BuildLoop::new(&project);
 
                     // cloning the tx means the daemon’s rx gets all
                     // messages from all builders.
-                    build_loop.forever(tx);
-                })
-            });
+                    build_loop.forever(build_events_tx, rx);
+                }),
+            })
+            // Notify the handler, whether or not it was newly added
+            .tx
+            .send(())
+            .unwrap();
     }
 }
 

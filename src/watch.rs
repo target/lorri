@@ -1,7 +1,6 @@
 //! Recursively watch paths for changes, in an extensible and
 //! cross-platform way.
 
-use crate::mpsc::FilterTimeoutIterator;
 use crate::NixFile;
 use crossbeam_channel as chan;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
@@ -12,14 +11,11 @@ use std::time::Duration;
 /// A dynamic list of paths to watch for changes, and
 /// react to changes when they occur.
 pub struct Watch {
+    /// Event receiver. Process using `Watch::process`.
+    pub rx: chan::Receiver<notify::Result<notify::Event>>,
     notify: RecommendedWatcher,
-    rx: chan::Receiver<notify::RawEvent>,
     watches: HashSet<PathBuf>,
 }
-
-/// Count of extra events batched with this change.
-#[derive(Clone, Debug)]
-pub struct NumberOfBatchedEvents(u16);
 
 /// A debug message string that can only be displayed via `Debug`.
 #[derive(Clone, Debug)]
@@ -36,19 +32,21 @@ impl From<String> for DebugMessage {
 pub enum Reason {
     /// When a project is presented to Lorri to track, it's built for this reason.
     ProjectAdded(NixFile),
+    /// When a ping is received.
+    PingReceived,
     /// When there is a filesystem change, the first changed file is recorded,
     /// along with a count of other filesystem events.
-    FilesChanged(PathBuf, NumberOfBatchedEvents),
+    FilesChanged(Vec<PathBuf>),
     /// When the underlying notifier reports something strange.
     UnknownEvent(DebugMessage),
 }
 
-/// We weren’t able to understand a `notify::RawEvent`.
-pub enum RawEventError {
+/// We weren’t able to understand a `notify::Event`.
+pub enum EventError {
     /// No message was received from the raw event channel
     RxNoEventReceived,
     /// The changed file event had no file path
-    EventHasNoFilePath(notify::RawEvent),
+    EventHasNoFilePath(notify::Event),
 }
 
 impl Watch {
@@ -57,10 +55,37 @@ impl Watch {
         let (tx, rx) = chan::unbounded();
 
         Ok(Watch {
-            notify: Watcher::new_immediate(tx)?,
+            notify: Watcher::new(tx, Duration::from_millis(100))?,
             watches: HashSet::new(),
             rx,
         })
+    }
+
+    /// Process `notify::Event`s coming in via `Watch::rx`.
+    pub fn process(
+        &self,
+        event: notify::Result<notify::Event>,
+    ) -> Option<Result<Reason, EventError>> {
+        match event {
+            Err(err) => panic!("notify error: {}", err),
+            Ok(event) => {
+                self.log_event(&event);
+                if event.paths.is_empty() {
+                    Some(Err(EventError::EventHasNoFilePath(event)))
+                } else {
+                    let interesting_paths: Vec<PathBuf> = event
+                        .paths
+                        .into_iter()
+                        .filter(|p| self.path_is_interesting(p))
+                        .collect();
+                    if !interesting_paths.is_empty() {
+                        Some(Ok(Reason::FilesChanged(interesting_paths)))
+                    } else {
+                        None
+                    }
+                }
+            }
+        }
     }
 
     /// Extend the watch list with an additional list of paths.
@@ -77,92 +102,14 @@ impl Watch {
         Ok(())
     }
 
-    /// Wait for a batch of changes to arrive, returning when they do.
-    pub fn wait_for_change(&mut self) -> Result<Reason, RawEventError> {
-        self.block()
-    }
-
-    /// Block until we have at least one event
-    pub fn block(&mut self) -> Result<Reason, RawEventError> {
-        match self.blocking_iter().next() {
-            Some(event) => {
-                let count_of_changes = self.process_ready();
-                let path = event.path.clone();
-                path.map(|p| Reason::FilesChanged(p, count_of_changes))
-                    .ok_or_else(|| RawEventError::EventHasNoFilePath(event))
-            }
-            None => {
-                debug!("No event received!");
-                Err(RawEventError::RxNoEventReceived)
-            }
-        }
-    }
-
-    /// Block until we have at least one event
-    pub fn block_timeout(&self, timeout: Duration) -> Result<NumberOfBatchedEvents, ()> {
-        if let Some(Ok(_)) = self.timeout_iter(timeout).next() {
-            Ok(self.process_ready())
-        } else {
-            Err(())
-        }
-    }
-
-    fn blocking_iter<'a>(&'a self) -> impl 'a + Iterator<Item = notify::RawEvent> {
-        self.rx
-            .iter()
-            .filter(move |event| self.event_is_interesting(event))
-            .inspect(move |event| self.handle_event(event))
-    }
-
-    fn timeout_iter<'a>(
-        &'a self,
-        timeout: Duration,
-    ) -> impl 'a + Iterator<Item = Result<notify::RawEvent, chan::RecvError>> {
-        FilterTimeoutIterator::new(&self.rx, timeout, move |event| {
-            self.event_is_interesting(event)
-        })
-        .inspect(move |event| {
-            if let Ok(event) = event {
-                self.handle_event(event)
-            }
-        })
-    }
-
-    fn try_iter<'a>(&'a self) -> impl 'a + Iterator<Item = notify::RawEvent> {
-        self.rx
-            .try_iter()
-            .filter(move |event| self.event_is_interesting(event))
-            .inspect(move |event| self.handle_event(event))
-    }
-
-    /// Non-blocking, read all the events already received -- draining
-    /// the event queue.
-    fn process_ready(&self) -> NumberOfBatchedEvents {
-        let mut events = 0;
-        let mut iter = self.try_iter();
-
-        loop {
-            match iter.next() {
-                Some(event) => {
-                    debug!("Received event: {:#?}", event);
-                    events += 1;
-                }
-                None => {
-                    info!("Found {} events", events);
-                    return NumberOfBatchedEvents(events);
-                }
-            }
-        }
-    }
-
-    fn handle_event(&self, event: &notify::RawEvent) {
+    fn log_event(&self, event: &notify::Event) {
         debug!("Watch Event: {:#?}", event);
-        match (&event.op, &event.path) {
-            (Ok(notify::op::REMOVE), Some(path)) => {
-                info!("identified file removal: {:?}", path);
+        match &event.kind {
+            notify::event::EventKind::Remove(_) if !event.paths.is_empty() => {
+                info!("identified removal: {:?}", &event.paths);
             }
-            otherwise => {
-                debug!("watch event: {:#?}", otherwise);
+            _ => {
+                debug!("watch event: {:#?}", event);
             }
         }
     }
@@ -204,11 +151,8 @@ impl Watch {
         Ok(())
     }
 
-    fn event_is_interesting(&self, event: &notify::RawEvent) -> bool {
-        match event.path {
-            Some(ref path) => path_match(&self.watches, path),
-            None => false,
-        }
+    fn path_is_interesting(&self, path: &PathBuf) -> bool {
+        path_match(&self.watches, path)
     }
 }
 
@@ -266,14 +210,42 @@ fn path_match(watched_paths: &HashSet<PathBuf>, event_path: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::Watch;
+    use super::{EventError, Reason, Watch};
     use crate::bash::expect_bash;
+    use std::thread::sleep;
     use std::time::Duration;
     use tempfile::tempdir;
 
     /// upper bound of watcher (if it’s hit, something is broken)
     fn upper_watcher_timeout() -> Duration {
         Duration::from_millis(500)
+    }
+
+    /// Collect all notifications
+    fn process_all(watch: &Watch) -> Vec<Option<Result<Reason, EventError>>> {
+        watch.rx.try_iter().map(|e| watch.process(e)).collect()
+    }
+
+    /// Returns true iff the given file has changed
+    fn file_changed(watch: &Watch, file_name: &str) -> bool {
+        let mut changed = false;
+        for event in process_all(watch) {
+            if let Some(Ok(Reason::FilesChanged(files))) = event {
+                changed = changed
+                    || files
+                        .iter()
+                        .map(|p| p.file_name())
+                        .filter(|f| f.is_some())
+                        .map(|f| f.unwrap())
+                        .any(|f| f == file_name)
+            }
+        }
+        changed
+    }
+
+    /// Returns true iff there were no changes
+    fn no_changes(watch: &Watch) -> bool {
+        process_all(watch).iter().filter(|e| e.is_some()).count() == 0
     }
 
     #[cfg(target_os = "macos")]
@@ -287,8 +259,9 @@ mod tests {
         // them.
         //
         // Note, this is racey in the kernel. Otherwise I'd assert
-        // this is_ok().
-        watcher.block_timeout(Duration::from_millis(250)).is_ok();
+        // this is empty.
+        sleep(upper_watcher_timeout());
+        process_all(watcher).is_empty();
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -298,7 +271,8 @@ mod tests {
         // platforms.
         //
         // If we do receive any notifications, our test is broken.
-        assert!(watcher.block_timeout(Duration::from_millis(250)).is_err());
+        sleep(upper_watcher_timeout());
+        assert!(process_all(watcher).is_empty());
     }
 
     #[test]
@@ -308,11 +282,14 @@ mod tests {
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
         watcher.extend(&[temp.path().to_path_buf()]).unwrap();
+
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(upper_watcher_timeout()).is_ok());
+        sleep(upper_watcher_timeout());
+        assert!(file_changed(&watcher, "foo"));
 
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(upper_watcher_timeout()).is_ok());
+        sleep(upper_watcher_timeout());
+        assert!(file_changed(&watcher, "foo"));
     }
 
     #[test]
@@ -326,7 +303,8 @@ mod tests {
         macos_eat_late_notifications(&mut watcher);
 
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(upper_watcher_timeout()).is_ok());
+        sleep(upper_watcher_timeout());
+        assert!(file_changed(&watcher, "foo"));
     }
 
     #[test]
@@ -342,18 +320,22 @@ mod tests {
 
         // bar is not watched, expect error
         expect_bash(r#"echo 1 > "$1/bar""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(upper_watcher_timeout()).is_err());
+        sleep(upper_watcher_timeout());
+        assert!(no_changes(&watcher));
 
         // Rename bar to foo, expect a notification
         expect_bash(r#"mv "$1/bar" "$1/foo""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(upper_watcher_timeout()).is_ok());
+        sleep(upper_watcher_timeout());
+        assert!(file_changed(&watcher, "foo"));
 
         // Do it a second time
         expect_bash(r#"echo 1 > "$1/bar""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(upper_watcher_timeout()).is_err());
+        sleep(upper_watcher_timeout());
+        assert!(no_changes(&watcher));
 
         // Rename bar to foo, expect a notification
         expect_bash(r#"mv "$1/bar" "$1/foo""#, &[temp.path().as_os_str()]);
-        assert!(watcher.block_timeout(upper_watcher_timeout()).is_ok());
+        sleep(upper_watcher_timeout());
+        assert!(file_changed(&watcher, "foo"));
     }
 }

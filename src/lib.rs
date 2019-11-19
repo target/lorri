@@ -36,7 +36,6 @@ pub mod constants;
 pub mod daemon;
 pub mod locate_file;
 pub mod logging;
-pub mod mpsc;
 pub mod nix;
 pub mod ops;
 pub mod osstrlines;
