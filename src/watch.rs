@@ -69,9 +69,6 @@ impl Watch {
     pub fn extend(&mut self, paths: &[PathBuf]) -> Result<(), notify::Error> {
         for path in paths {
             self.add_path(&path)?;
-            if path.is_dir() {
-                self.add_path_recursively(&path)?;
-            }
         }
 
         Ok(())
@@ -165,24 +162,6 @@ impl Watch {
                 debug!("watch event: {:#?}", otherwise);
             }
         }
-    }
-
-    fn add_path_recursively(&mut self, path: &PathBuf) -> Result<(), notify::Error> {
-        if path.canonicalize()?.starts_with(Path::new("/nix/store")) {
-            return Ok(());
-        }
-
-        for entry in path.read_dir()? {
-            let subpath = entry?.path();
-
-            if subpath.is_dir() {
-                self.add_path(&subpath)?;
-                self.add_path_recursively(&subpath)?;
-            }
-
-            // Skip adding files, watching in the dir will handle it.
-        }
-        Ok(())
     }
 
     fn add_path(&mut self, path: &PathBuf) -> Result<(), notify::Error> {
