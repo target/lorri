@@ -87,7 +87,7 @@ the following instructions will help you get started with lorri.
 2. **Start the daemon.** For testing, you can start the daemon in a separate
    terminal by running `lorri daemon`.
 
-   See the [`contrib`][contrib] directory for ways to start the daemon
+   See [`contrib/DAEMON.md`](contrib/DAEMON.md) for ways to start the daemon
    automatically in the background.
 
 3. **Install direnv v2.19.2 or later.** If you are using a Nixpkgs channel at
