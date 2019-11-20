@@ -1,42 +1,18 @@
 # How to start the lorri daemon as a service
 
-This guide shows you how to run `lorri daemon` as a service. The exact steps
-depend on your operating system and general setup. Currently, we have
-instructions for these setups:
+This guide shows you how to run `lorri daemon` as a service.
 
-- [Run `lorri daemon` on NixOS](#run-lorri-daemon-on-nixos)
-- [Run `lorri daemon` on Linux with
-  home-manager](#run-lorri-daemon-on-linux-with-home-manager)
+If you are using NixOS or `home-manager` on Linux with a Nixpkgs channel at
+least as recent as `nixos-19.09`, you have it easy: see [Setup on NixOS or with
+`home-manager` on Linux][setup-nixos-or-home-manager]. Otherwise, read on.
+
+The exact steps depend on your operating system and general setup. Currently,
+we have instructions for these setups:
+
 - [Run `lorri daemon` on Linux with just
   systemd](#run-lorri-daemon-on-linux-with-just-systemd)
 - [Run `lorri daemon` on macOS with
   Nix](#run-lorri-daemon-on-macOS-with-nix)
-
-## Run `lorri daemon` on NixOS
-
-Add [`services.lorri.enable =
-true;`](https://nixos.org/nixos/options.html#services.lorri.enable) to your
-`configuration.nix`, then rebuild your system:
-
-```console
-$ sudo nixos-rebuild switch
-```
-
-The lorri daemon will now be started on demand by systemd. See [Verify the
-setup](#verify-the-setup) to check that everything works as expected.
-
-## Run `lorri daemon` on Linux with home-manager
-
-Add [`services.lorri.enable =
-true;`](https://rycee.gitlab.io/home-manager/options.html#opt-services.lorri.enable)
-to your `home.nix`, then switch to the new configuration:
-
-```console
-$ home-manager switch
-```
-
-The lorri daemon will now be started on demand by systemd. See [Verify the
-setup](#verify-the-setup) to check that everything works as expected.
 
 ## Run `lorri daemon` on Linux with just systemd
 
@@ -96,7 +72,8 @@ On macOS, use this command to check the status of the lorri daemon:
 $ launchctl list | grep lorri
 ```
 
-[systemd]: https://www.freedesktop.org/wiki/Software/systemd/
 [`lorri.socket`]: ./lorri.socket
 [`lorri.service`]: ./lorri.service
 [@pawlowsklalaex]: https://github.com/pawlowskialex
+[setup-nixos-or-home-manager]: ../README.md#setup-on-nixos-or-with-home-manager-on-linux
+[systemd]: https://www.freedesktop.org/wiki/Software/systemd/
