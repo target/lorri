@@ -18,6 +18,17 @@ external dependencies, editor integration, and quick feedback.
 
 lorri supports Linux and macOS.
 
+## Demo
+
+This screencast shows lorri and direnv working together to reload the
+development environment as `shell.nix` is updated:
+
+<p align="center">
+  <a href="https://www.tweag.io/posts/2019-03-28-introducing-lorri.html">
+    <img width="600" src="./assets/2019-04-01-lorri-demo.gif?raw=true" alt="lorri screencast" />
+  </a>
+</p>
+
 ## Tutorial
 
 You can find the **lorri tutorial** [in the `./example`
