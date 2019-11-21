@@ -8,6 +8,10 @@ lorri is a `nix-shell` replacement for project development. lorri is
 based around fast direnv integration for robust CLI and editor
 integration.
 
+:point_right: **[Check out our blog post][lorri-blog-post] to see how lorri
+improves on the `nix-shell` experience during everyday development as well as
+in common scenarios like channel updates and Nix garbage collection.**
+
 The project is about experimenting with and improving the developer's
 experience with Nix. A particular focus is managing your project's
 external dependencies, editor integration, and quick feedback.
@@ -231,3 +235,4 @@ _([Nix as observed by LORRI on 2015-07-13](https://www.nasa.gov/newhorizons/lorr
 
 [direnv-2-19-2]: https://github.com/direnv/direnv/releases/tag/v2.19.2
 [direnv-setup]: https://direnv.net/index.html#setup
+[lorri-blog-post]: https://www.tweag.io/posts/2019-03-28-introducing-lorri.html
