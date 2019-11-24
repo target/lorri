@@ -74,6 +74,12 @@ Enable direnv according to [its setup instructions][direnv-setup].
 
 ### Installing lorri
 
+Use cache
+
+```
+$ cachix use lorri-test
+```
+
 Install with nix-env:
 
 ```
