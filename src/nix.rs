@@ -357,7 +357,7 @@ impl<'a> CallOpts<'a> {
             })?;
 
         if status.success() {
-            if let Ok(vec1) = Vec1::from_vec(paths?) {
+            if let Ok(vec1) = Vec1::try_from_vec(paths?) {
                 Ok((vec1, GcRootTempDir(gc_root_dir)))
             } else {
                 Err(BuildError::NoResult)
