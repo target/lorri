@@ -46,15 +46,11 @@ platforms](#setup-on-other-platforms).
 2. **Set up the direnv hook for your shell.** See [this section][direnv-hook]
    of the direnv documentation.
 
-3. **Activate the lorri integration.** Create a file called
-   [`.envrc`][direnv-usage] in your project directory next to your `shell.nix`
-   with the following contents:
+3. **Activate the lorri integration.** Run `lorri init` in your project
+   directory to create a `shell.nix` and [`.envrc`][direnv-usage] file. This
+   will not overwrite existing files.
 
-   ```bash
-   eval "$(lorri direnv)"
-   ```
-
-   In your shell, you'll now see the following message from direnv:
+   In your shell, you will now see the following message from direnv:
 
    ```console
    direnv: error .envrc is blocked. Run `direnv allow` to approve its content.
@@ -104,13 +100,9 @@ the following instructions will help you get started with lorri.
 4. **Set up the direnv hook for your shell.** See [this section][direnv-hook]
    of the direnv documentation.
 
-5. **Activate the lorri integration.** Create a file called
-   [`.envrc`][direnv-usage] in your project directory with the following
-   contents:
-
-   ```bash
-   eval "$(lorri direnv)"
-   ```
+5. **Activate the lorri integration.** Run `lorri init` in your project
+   directory to create a `shell.nix` and [`.envrc`][direnv-usage] file. This
+   will not overwrite existing files.
 
    In your shell, you will see the following message from direnv:
 
