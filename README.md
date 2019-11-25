@@ -43,10 +43,14 @@ platforms](#setup-on-other-platforms).
    This will automatically install both the `lorri` command and `direnv`
    (both required for the next steps).
 
-2. **Set up the direnv hook for your shell.** See [this section][direnv-hook]
+2. **Install direnv.** Add `pkgs.direnv` to `environment.systemPackages` in
+   your NixOS `configuration.nix` or to `home.packages` in your home-manager
+   `home.nix`.
+
+3. **Set up the direnv hook for your shell.** See [this section][direnv-hook]
    of the direnv documentation.
 
-3. **Activate the lorri integration.** Run `lorri init` in your project
+4. **Activate the lorri integration.** Run `lorri init` in your project
    directory to create a `shell.nix` and [`.envrc`][direnv-usage] file. This
    will not overwrite existing files.
 
