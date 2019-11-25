@@ -44,9 +44,7 @@ platforms](#setup-on-other-platforms).
    (both required for the next steps).
 
 2. **Set up the direnv hook for your shell.** See [this section][direnv-hook]
-   of the direnv documentation. Note that at this point, we have only tested
-   lorri with Bash. Please open a feature request if you want to use lorri from
-   a shell other than Bash and are experiencing issues.
+   of the direnv documentation.
 
 3. **Activate the lorri integration.** Create a file called
    [`.envrc`][direnv-usage] in your project directory next to your `shell.nix`
@@ -104,9 +102,7 @@ the following instructions will help you get started with lorri.
    ```
 
 4. **Set up the direnv hook for your shell.** See [this section][direnv-hook]
-   of the direnv documentation. Note that at this point, we have only tested
-   lorri with Bash. Please open a feature request if you want to use lorri from
-   a shell other than Bash and are experiencing issues.
+   of the direnv documentation.
 
 5. **Activate the lorri integration.** Create a file called
    [`.envrc`][direnv-usage] in your project directory with the following
