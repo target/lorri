@@ -212,3 +212,10 @@ Wait until the evaluation finishes and refresh your direnv environment
 `MYVARIABLE` was added to the environment.
 Comment out `MYVARIABLE` and refresh, it is removed from the
 environment again.
+
+Note: If you are developing rust in emacs and would like to use
+emacs-racer, you can do so in a lorri direnv by setting
+```elisp
+    (setq racer-rust-src-path nil) ;; read from shell-nix
+    (setq racer-cmd "racer")
+```
