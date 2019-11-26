@@ -1,6 +1,7 @@
 //! Bootstrap a new lorri project
 
 use crate::ops::error::{ok_msg, ExitError, OpResult};
+use slog_scope::info;
 use std::fs::File;
 use std::io;
 use std::io::Write;
@@ -8,12 +9,12 @@ use std::path::Path;
 
 fn create_if_missing(path: &Path, contents: &str, msg: &str) -> Result<(), io::Error> {
     if path.exists() {
-        println!("- {} {}", msg, path.display());
+        info!("skipped file"; "path" => path.to_str(), "message" => msg);
         Ok(())
     } else {
         let mut f = File::create(path)?;
         f.write_all(contents.as_bytes())?;
-        println!("- Writing {}", path.display());
+        info!("wrote file"; "path" => path.to_str());
         Ok(())
     }
 }
@@ -24,15 +25,16 @@ pub fn main(default_shell: &str, default_envrc: &str) -> OpResult {
     create_if_missing(
         Path::new("./shell.nix"),
         default_shell,
-        "shell.nix exists, skipping. Make sure it is of a form that works with nix-shell.",
+        "Make sure shell.nix is of a form that works with nix-shell.",
     )
     .map_err(|e| ExitError::user_error(format!("{}", e)))?;
 
     create_if_missing(
         Path::new("./.envrc"),
         default_envrc,
-        ".envrc exists, skipping. Please add 'eval \"$(lorri direnv)\" to it to set up lorri support."
-    ).map_err(|e| ExitError::user_error(format!("{}", e)))?;
+        "Please add 'eval \"$(lorri direnv)\"' to .envrc to set up lorri support.",
+    )
+    .map_err(|e| ExitError::user_error(format!("{}", e)))?;
 
-    ok_msg(String::from("\nSetup done."))
+    ok_msg(String::from("done"))
 }

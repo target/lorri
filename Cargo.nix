@@ -68,10 +68,8 @@ rec {
         (cratesIO.crates."bincode"."${deps."lorri"."0.1.0"."bincode"}" deps)
         (cratesIO.crates."crossbeam_channel"."${deps."lorri"."0.1.0"."crossbeam_channel"}" deps)
         (cratesIO.crates."directories"."${deps."lorri"."0.1.0"."directories"}" deps)
-        (cratesIO.crates."env_logger"."${deps."lorri"."0.1.0"."env_logger"}" deps)
         (crates."human_panic"."${deps."lorri"."0.1.0"."human_panic"}" deps)
         (cratesIO.crates."lazy_static"."${deps."lorri"."0.1.0"."lazy_static"}" deps)
-        (cratesIO.crates."log"."${deps."lorri"."0.1.0"."log"}" deps)
         (cratesIO.crates."md5"."${deps."lorri"."0.1.0"."md5"}" deps)
         (cratesIO.crates."nix"."${deps."lorri"."0.1.0"."nix"}" deps)
         (cratesIO.crates."notify"."${deps."lorri"."0.1.0"."notify"}" deps)
@@ -80,6 +78,10 @@ rec {
         (cratesIO.crates."serde"."${deps."lorri"."0.1.0"."serde"}" deps)
         (cratesIO.crates."serde_derive"."${deps."lorri"."0.1.0"."serde_derive"}" deps)
         (cratesIO.crates."serde_json"."${deps."lorri"."0.1.0"."serde_json"}" deps)
+        (cratesIO.crates."slog"."${deps."lorri"."0.1.0"."slog"}" deps)
+        (cratesIO.crates."slog_async"."${deps."lorri"."0.1.0"."slog_async"}" deps)
+        (cratesIO.crates."slog_scope"."${deps."lorri"."0.1.0"."slog_scope"}" deps)
+        (cratesIO.crates."slog_term"."${deps."lorri"."0.1.0"."slog_term"}" deps)
         (cratesIO.crates."structopt"."${deps."lorri"."0.1.0"."structopt"}" deps)
         (cratesIO.crates."tempfile"."${deps."lorri"."0.1.0"."tempfile"}" deps)
         (cratesIO.crates."vec1"."${deps."lorri"."0.1.0"."vec1"}" deps)
@@ -90,10 +92,8 @@ rec {
       bincode."${deps.lorri."0.1.0".bincode}".default = true;
       crossbeam_channel."${deps.lorri."0.1.0".crossbeam_channel}".default = true;
       directories."${deps.lorri."0.1.0".directories}".default = true;
-      env_logger."${deps.lorri."0.1.0".env_logger}".default = true;
       human_panic."${deps.lorri."0.1.0".human_panic}".default = true;
       lazy_static."${deps.lorri."0.1.0".lazy_static}".default = true;
-      log."${deps.lorri."0.1.0".log}".default = true;
       lorri."0.1.0".default = (f.lorri."0.1.0".default or true);
       md5."${deps.lorri."0.1.0".md5}".default = true;
       nix."${deps.lorri."0.1.0".nix}".default = true;
@@ -103,6 +103,10 @@ rec {
       serde."${deps.lorri."0.1.0".serde}".default = true;
       serde_derive."${deps.lorri."0.1.0".serde_derive}".default = true;
       serde_json."${deps.lorri."0.1.0".serde_json}".default = true;
+      slog."${deps.lorri."0.1.0".slog}".default = true;
+      slog_async."${deps.lorri."0.1.0".slog_async}".default = true;
+      slog_scope."${deps.lorri."0.1.0".slog_scope}".default = true;
+      slog_term."${deps.lorri."0.1.0".slog_term}".default = true;
       structopt."${deps.lorri."0.1.0".structopt}".default = true;
       tempfile."${deps.lorri."0.1.0".tempfile}".default = true;
       vec1."${deps.lorri."0.1.0".vec1}".default = true;
@@ -111,10 +115,8 @@ rec {
       (cratesIO.features_.bincode."${deps."lorri"."0.1.0"."bincode"}" deps)
       (cratesIO.features_.crossbeam_channel."${deps."lorri"."0.1.0"."crossbeam_channel"}" deps)
       (cratesIO.features_.directories."${deps."lorri"."0.1.0"."directories"}" deps)
-      (cratesIO.features_.env_logger."${deps."lorri"."0.1.0"."env_logger"}" deps)
       (features_.human_panic."${deps."lorri"."0.1.0"."human_panic"}" deps)
       (cratesIO.features_.lazy_static."${deps."lorri"."0.1.0"."lazy_static"}" deps)
-      (cratesIO.features_.log."${deps."lorri"."0.1.0"."log"}" deps)
       (cratesIO.features_.md5."${deps."lorri"."0.1.0"."md5"}" deps)
       (cratesIO.features_.nix."${deps."lorri"."0.1.0"."nix"}" deps)
       (cratesIO.features_.notify."${deps."lorri"."0.1.0"."notify"}" deps)
@@ -123,6 +125,10 @@ rec {
       (cratesIO.features_.serde."${deps."lorri"."0.1.0"."serde"}" deps)
       (cratesIO.features_.serde_derive."${deps."lorri"."0.1.0"."serde_derive"}" deps)
       (cratesIO.features_.serde_json."${deps."lorri"."0.1.0"."serde_json"}" deps)
+      (cratesIO.features_.slog."${deps."lorri"."0.1.0"."slog"}" deps)
+      (cratesIO.features_.slog_async."${deps."lorri"."0.1.0"."slog_async"}" deps)
+      (cratesIO.features_.slog_scope."${deps."lorri"."0.1.0"."slog_scope"}" deps)
+      (cratesIO.features_.slog_term."${deps."lorri"."0.1.0"."slog_term"}" deps)
       (cratesIO.features_.structopt."${deps."lorri"."0.1.0"."structopt"}" deps)
       (cratesIO.features_.tempfile."${deps."lorri"."0.1.0"."tempfile"}" deps)
       (cratesIO.features_.vec1."${deps."lorri"."0.1.0"."vec1"}" deps)
@@ -142,6 +148,9 @@ rec {
     winapi = "0.3.8";
   };
   deps.anymap."0.12.1" = {};
+  deps.arc_swap."0.4.4" = {};
+  deps.arrayref."0.3.5" = {};
+  deps.arrayvec."0.5.1" = {};
   deps.atomicwrites."0.2.5" = {
     tempdir = "0.3.7";
     nix = "0.14.1";
@@ -162,6 +171,9 @@ rec {
     libc = "0.2.65";
     cc = "1.0.47";
   };
+  deps.base64."0.10.1" = {
+    byteorder = "1.3.2";
+  };
   deps.bincode."1.2.0" = {
     byteorder = "1.3.2";
     serde = "1.0.103";
@@ -172,6 +184,11 @@ rec {
   };
   deps.bit_vec."0.5.1" = {};
   deps.bitflags."1.2.1" = {};
+  deps.blake2b_simd."0.5.9" = {
+    arrayref = "0.3.5";
+    arrayvec = "0.5.1";
+    constant_time_eq = "0.1.4";
+  };
   deps.byteorder."1.3.2" = {};
   deps.c2_chacha."0.2.3" = {
     ppv_lite86 = "0.2.6";
@@ -181,6 +198,11 @@ rec {
   deps.chashmap."2.2.2" = {
     owning_ref = "0.3.3";
     parking_lot = "0.4.8";
+  };
+  deps.chrono."0.4.10" = {
+    num_integer = "0.1.41";
+    num_traits = "0.2.10";
+    time = "0.1.42";
   };
   deps.clap."2.33.0" = {
     atty = "0.2.13";
@@ -194,6 +216,7 @@ rec {
   deps.cloudabi."0.0.3" = {
     bitflags = "1.2.1";
   };
+  deps.constant_time_eq."0.1.4" = {};
   deps.crossbeam_channel."0.3.9" = {
     crossbeam_utils = "0.6.6";
   };
@@ -205,12 +228,25 @@ rec {
     libc = "0.2.65";
     winapi = "0.3.8";
   };
-  deps.env_logger."0.6.2" = {
-    atty = "0.2.13";
-    humantime = "1.3.0";
-    log = "0.4.8";
-    regex = "1.3.1";
-    termcolor = "1.0.5";
+  deps.dirs."2.0.2" = {
+    cfg_if = "0.1.10";
+    dirs_sys = "0.3.4";
+  };
+  deps.dirs_sys."0.3.4" = {
+    cfg_if = "0.1.10";
+    redox_users = "0.3.1";
+    libc = "0.2.65";
+    winapi = "0.3.8";
+  };
+  deps.failure."0.1.6" = {
+    backtrace = "0.3.40";
+    failure_derive = "0.1.6";
+  };
+  deps.failure_derive."0.1.6" = {
+    proc_macro2 = "1.0.6";
+    quote = "1.0.2";
+    syn = "1.0.8";
+    synstructure = "0.12.3";
   };
   deps.filetime."0.2.8" = {
     cfg_if = "0.1.10";
@@ -249,9 +285,6 @@ rec {
     toml = "0.4.10";
     uuid = "0.7.4";
   };
-  deps.humantime."1.3.0" = {
-    quick_error = "1.2.2";
-  };
   deps.inotify."0.7.0" = {
     bitflags = "1.2.1";
     inotify_sys = "0.1.3";
@@ -279,10 +312,8 @@ rec {
     bincode = "1.2.0";
     crossbeam_channel = "0.3.9";
     directories = "1.0.2";
-    env_logger = "0.6.2";
     human_panic = "1.0.1";
     lazy_static = "1.4.0";
-    log = "0.4.8";
     md5 = "0.6.1";
     nix = "0.14.1";
     notify = "5.0.0-pre.1";
@@ -291,6 +322,10 @@ rec {
     serde = "1.0.103";
     serde_derive = "1.0.103";
     serde_json = "1.0.42";
+    slog = "2.5.2";
+    slog_async = "2.3.0";
+    slog_scope = "4.3.0";
+    slog_term = "2.4.2";
     structopt = "0.2.18";
     tempfile = "3.1.0";
     vec1 = "1.4.0";
@@ -348,6 +383,10 @@ rec {
     fsevent_sys = "2.0.1";
     kernel32_sys = "0.2.2";
     winapi = "0.3.8";
+  };
+  deps.num_integer."0.1.41" = {
+    num_traits = "0.2.10";
+    autocfg = "0.1.7";
   };
   deps.num_traits."0.2.10" = {
     autocfg = "0.1.7";
@@ -470,6 +509,12 @@ rec {
     rand_core = "0.3.1";
   };
   deps.redox_syscall."0.1.56" = {};
+  deps.redox_users."0.3.1" = {
+    failure = "0.1.6";
+    rand_os = "0.1.3";
+    redox_syscall = "0.1.56";
+    rust_argon2 = "0.5.1";
+  };
   deps.regex."1.3.1" = {
     aho_corasick = "0.7.6";
     memchr = "2.2.1";
@@ -479,6 +524,11 @@ rec {
   deps.regex_syntax."0.6.12" = {};
   deps.remove_dir_all."0.5.2" = {
     winapi = "0.3.8";
+  };
+  deps.rust_argon2."0.5.1" = {
+    base64 = "0.10.1";
+    blake2b_simd = "0.5.9";
+    crossbeam_utils = "0.6.6";
   };
   deps.rustc_demangle."0.1.16" = {};
   deps.rusty_fork."0.2.2" = {
@@ -503,6 +553,24 @@ rec {
     serde = "1.0.103";
   };
   deps.slab."0.4.2" = {};
+  deps.slog."2.5.2" = {};
+  deps.slog_async."2.3.0" = {
+    slog = "2.5.2";
+    take_mut = "0.2.2";
+    thread_local = "0.3.6";
+  };
+  deps.slog_scope."4.3.0" = {
+    arc_swap = "0.4.4";
+    lazy_static = "1.4.0";
+    slog = "2.5.2";
+  };
+  deps.slog_term."2.4.2" = {
+    atty = "0.2.13";
+    chrono = "0.4.10";
+    slog = "2.5.2";
+    term = "0.6.1";
+    thread_local = "0.3.6";
+  };
   deps.smallvec."0.6.13" = {
     maybe_uninit = "2.0.0";
   };
@@ -528,6 +596,13 @@ rec {
     quote = "1.0.2";
     unicode_xid = "0.2.0";
   };
+  deps.synstructure."0.12.3" = {
+    proc_macro2 = "1.0.6";
+    quote = "1.0.2";
+    syn = "1.0.8";
+    unicode_xid = "0.2.0";
+  };
+  deps.take_mut."0.2.2" = {};
   deps.tempdir."0.3.7" = {
     rand = "0.4.6";
     remove_dir_all = "0.5.2";
@@ -540,6 +615,10 @@ rec {
     libc = "0.2.65";
     winapi = "0.3.8";
   };
+  deps.term."0.6.1" = {
+    dirs = "2.0.2";
+    winapi = "0.3.8";
+  };
   deps.termcolor."1.0.5" = {
     wincolor = "1.0.2";
   };
@@ -548,6 +627,11 @@ rec {
   };
   deps.thread_local."0.3.6" = {
     lazy_static = "1.4.0";
+  };
+  deps.time."0.1.42" = {
+    libc = "0.2.65";
+    redox_syscall = "0.1.56";
+    winapi = "0.3.8";
   };
   deps.toml."0.4.10" = {
     serde = "1.0.103";

@@ -7,10 +7,6 @@
 #[macro_use]
 extern crate structopt;
 
-#[macro_use]
-extern crate log;
-extern crate env_logger;
-
 extern crate regex;
 #[macro_use]
 extern crate lazy_static;
@@ -77,6 +73,17 @@ impl From<&std::ffi::OsStr> for NixFile {
 impl From<PathBuf> for NixFile {
     fn from(p: PathBuf) -> NixFile {
         NixFile(p)
+    }
+}
+
+impl slog::Value for NixFile {
+    fn serialize(
+        &self,
+        _record: &slog::Record,
+        key: slog::Key,
+        serializer: &mut slog::Serializer,
+    ) -> slog::Result {
+        serializer.emit_str(key, &self.as_os_str().to_string_lossy())
     }
 }
 

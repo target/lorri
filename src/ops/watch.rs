@@ -6,8 +6,8 @@ use crate::cli::WatchOptions;
 use crate::ops::error::{ok, ExitError, OpResult};
 use crate::project::Project;
 use crossbeam_channel as chan;
+use slog_scope::info;
 use std::fmt::Debug;
-use std::io::Write;
 use std::thread;
 
 /// See the documentation for lorri::cli::Command::Shell for more
@@ -59,6 +59,5 @@ fn print_build_message<A>(msg: A)
 where
     A: Debug,
 {
-    println!("{:#?}", msg);
-    let _ = std::io::stdout().flush();
+    info!("build message"; "message" => format!("{:#?}", msg));
 }

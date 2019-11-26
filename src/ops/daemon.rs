@@ -8,6 +8,7 @@ use crate::socket::communicate::CommunicationType;
 use crate::socket::ReadWriter;
 use crate::thread::Pool;
 use crossbeam_channel as chan;
+use slog_scope::info;
 
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
@@ -51,12 +52,12 @@ pub fn main() -> OpResult {
 
     pool.spawn("build-loop", || {
         for msg in build_messages_rx {
-            println!("{:#?}", msg);
+            info!("build status"; "message" => format!("{:?}", msg));
         }
     })
     .expect("Failed to spawn build-loop");
 
-    println!("lorri: ready");
+    info!("ready");
 
     pool.spawn("build-instruction-handler", move || {
         // For each build instruction, add the corresponding file
