@@ -130,6 +130,18 @@ direnv will continue to load the *cached environment* when the daemon is not
 running. However, the daemon must be running for direnv to reload the
 environment based on the current `shell.nix` and its dependencies.
 
+
+## Editor integration
+
+With the right setup, you can use lorri and direnv to customize your
+development environment for each project.
+
+If you use Emacs, our [`direnv-mode` tutorial](./contrib/emacs.md) is there to
+help you get started.
+
+This section needs to be fleshed out more
+([#244](https://github.com/target/lorri/issues/244)).
+
 ---
 
 ## Support & Questions
