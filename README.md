@@ -29,12 +29,120 @@ development environment as `shell.nix` is updated:
   </a>
 </p>
 
-## Tutorial
+## Setup on NixOS or with `home-manager` on Linux
 
-You can find the **lorri tutorial** [in the `./example`
-directory](./example). After following this tutorial, you will have
-a working setup of `lorri`, `direnv`, and working basic editor
-integration into Emacs.
+If you are using [NixOS][nixos] or [`home-manager`][home-manager] on Linux and
+a Nixpkgs channel at least as recent as `nixos-19.09`, you can get started with
+lorri as follows. Otherwise see the next section, [Setup on other
+platforms](#setup-on-other-platforms).
+
+1. **Enable the daemon service.** Set `services.lorri.enable = true;` in your
+   NixOS [`configuration.nix`][nixos-service] or your home-manager
+   [`home.nix`][home-manager-service].
+
+   This will automatically install both the `lorri` command and `direnv`
+   (both required for the next steps).
+
+2. **Install direnv.** Add `pkgs.direnv` to `environment.systemPackages` in
+   your NixOS `configuration.nix` or to `home.packages` in your home-manager
+   `home.nix`.
+
+3. **Set up the direnv hook for your shell.** See [this section][direnv-hook]
+   of the direnv documentation.
+
+4. **Activate the lorri integration.** Run `lorri init` in your project
+   directory to create a `shell.nix` and [`.envrc`][direnv-usage] file. This
+   will not overwrite existing files.
+
+   In your shell, you will now see the following message from direnv:
+
+   ```console
+   direnv: error .envrc is blocked. Run `direnv allow` to approve its content.
+   ```
+
+   Activate the integration by running [`direnv allow`][direnv-usage].
+
+From this point on, lorri monitors your `shell.nix` and its dependencies and
+triggers builds as required. Whenever a build succeeds, direnv automatically
+reloads your environment.
+
+See [Usage](#usage) for more details.
+
+## Setup on other platforms
+
+If you are running Nix on a Linux distribution other than NixOS or on macOS,
+the following instructions will help you get started with lorri.
+
+1. **Install lorri.** If you are using a Nixpkgs channel at least as recent
+   as `nixos-19.09`, you can install lorri using `nix-env -i lorri`.
+
+   Otherwise, install lorri from the repository as follows:
+
+   ```console
+   $ nix-env -if https://github.com/target/lorri/archive/rolling-release.tar.gz
+   ```
+
+2. **Start the daemon.** For testing, you can start the daemon in a separate
+   terminal by running `lorri daemon`.
+
+   See [`contrib/daemon.md`](contrib/daemon.md) for ways to start the daemon
+   automatically in the background.
+
+3. **Install direnv v2.19.2 or later.** If you are using a Nixpkgs channel at
+   least as recent as `nixos-19.03`, you can install a compatible version of
+   direnv using `nix-env -i direnv`.
+
+   Otherwise, you can install direnv from source as follows:
+
+   ```console
+   $ nix-env -if https://github.com/direnv/direnv/archive/master.tar.gz
+   ```
+
+4. **Set up the direnv hook for your shell.** See [this section][direnv-hook]
+   of the direnv documentation.
+
+5. **Activate the lorri integration.** Run `lorri init` in your project
+   directory to create a `shell.nix` and [`.envrc`][direnv-usage] file. This
+   will not overwrite existing files.
+
+   In your shell, you will see the following message from direnv:
+
+   ```console
+   direnv: error .envrc is blocked. Run `direnv allow` to approve its content.
+   ```
+
+   Activate the integration by running [`direnv allow`][direnv-usage].
+
+From this point on, lorri monitors your `shell.nix` and its dependencies and
+triggers builds as required. Whenever a build succeeds, direnv automatically
+reloads your environment.
+
+See [Usage](#usage) for more details.
+
+## Usage
+
+Once the daemon is running and direnv is set up, the daemon process will
+continue monitoring and evaluating the Nix expressions in your project's
+`shell.nix`, and direnv will automatically reload the environment as it
+changes.
+
+direnv will continue to load the *cached environment* when the daemon is not
+running. However, the daemon must be running for direnv to reload the
+environment based on the current `shell.nix` and its dependencies.
+
+
+## Editor integration
+
+With the right setup, you can use lorri and direnv to customize your
+development environment for each project.
+
+If you use Emacs, our [`direnv-mode` tutorial](./contrib/emacs.md) is there to
+help you get started.
+
+This section needs to be fleshed out more
+([#244](https://github.com/target/lorri/issues/244)).
+
+---
 
 ## Support & Questions
 
@@ -53,73 +161,6 @@ after some discussion. Some issues are marked with the “good first
 issue” label, those are a good place to start. Just remember to leave
 a comment when you start working on something.
 
-## Install
-
-### Install direnv
-
-You will need [direnv v2.19.2 or later][direnv-2-19-2].
-
-#### NixOS
-
-On NixOS, we have a simple service for installing and enabling the
-needed direnv version at [./direnv/nixos.nix](./direnv/nixos.nix).
-
-- Download the file into `/etc/nixos/`:
-   ```
-   cd /etc/nixos/
-   wget https://raw.githubusercontent.com/target/lorri/rolling-release/direnv/nixos.nix
-   ```
-
-- Add `imports = [ ./nixos.nix ];` to your
-system's `configuration.nix`. Then run `nixos-rebuild switch` to install and enable it.
-
-#### Nix on Linux (non-NixOS) or macOS
-
-For Nix on Linux or macOS, you can install the needed version of
-direnv with:
-
-```
-$ curl -o direnv.nix -L https://github.com/target/lorri/raw/master/direnv/nix.nix
-$ nix-env -if ./direnv.nix
-```
-
-### Enable direnv
-
-Enable direnv according to [its setup instructions][direnv-setup].
-
-### Installing lorri
-
-Install with nix-env:
-
-```
-$ nix-env -if https://github.com/target/lorri/archive/rolling-release.tar.gz
-```
-
-## Usage
-
-Create a file named `.envrc` in your project's root with the contents:
-
-```
-# content of `.envrc` file:
-eval "$(lorri direnv)"
-```
-
-Then, run `lorri daemon`. The first time you run `lorri daemon` on a
-project, wait for it to print `Completed` before continuing. Leave
-this terminal open.
-
-In a new terminal:
-
-1. enter the project directory
-2. run `direnv allow`
-3. watch as direnv loads the environment
-
-The `lorri daemon` process will continue monitoring and evaluating
-the Nix expressions, and direnv will automatically reload the
-environment as it changes. If you close `lorri daemon`, direnv will
-still load the cached environment when you enter the directory,
-but the environment will not reload.
-
 ## Debugging
 
 Set these environment variables when debugging:
@@ -128,16 +169,16 @@ Set these environment variables when debugging:
 RUST_LOG=lorri=debug RUST_BACKTRACE=1 lorri watch
 ```
 
-### `lorri` reevaluates more than expected
+### lorri reevaluates more than expected
 
-`lorri` sometimes recursively watches a directory that the user did
+lorri sometimes recursively watches a directory that the user did
 not expect. This can happen for a number of reasons:
 
 1. When using a local checkout instead of a channel for `nixpkgs`,
-   `lorri` watches that directory recursively, and will trigger on
+   lorri watches that directory recursively, and will trigger on
    any file change.
 2. When specifying `src` via a path, (like the much-used `src = ./.;`)
-   `lorri` watches that path recursively (see 
+   lorri watches that path recursively (see
    https://github.com/target/lorri/issues/6 for details).
    To get around this, use a `builtins.filterSource`-based function
    to filter `src`, e.g., use
@@ -146,7 +187,7 @@ not expect. This can happen for a number of reasons:
    functions in
    [`nixpkgs/lib/sources.nix`](https://github.com/NixOS/nixpkgs/blob/8c1f1b2324bb90f8e1ea33db3253eb30c330ed99/lib/sources.nix)
 3. When using a construct like `import ./.` to import a `default.nix`
-   file, `lorri` watches the current directory recursively. To get
+   file, lorri watches the current directory recursively. To get
    around it, use `import ./default.nix`.
 
 ---
@@ -244,6 +285,12 @@ License: Apache 2.0 (see [`LICENSE` file](./LICENSE))
 
 _([Nix as observed by LORRI on 2015-07-13](https://www.nasa.gov/newhorizons/lorri-gallery))_
 
-[direnv-2-19-2]: https://github.com/direnv/direnv/releases/tag/v2.19.2
+[contrib]: ./contrib
+[direnv-hook]: https://direnv.net/docs/hook.html
 [direnv-setup]: https://direnv.net/index.html#setup
+[direnv-usage]: https://direnv.net/man/direnv.1.html#usage
+[home-manager-service]: https://rycee.gitlab.io/home-manager/options.html#opt-services.lorri.enable
+[home-manager]: https://rycee.gitlab.io/home-manager/
 [lorri-blog-post]: https://www.tweag.io/posts/2019-03-28-introducing-lorri.html
+[nixos-service]: https://nixos.org/nixos/options.html#services.lorri.enable
+[nixos]: https://nixos.org/
