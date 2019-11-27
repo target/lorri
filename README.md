@@ -92,13 +92,10 @@ the following instructions will help you get started with lorri.
    least as recent as `nixos-19.03`, you can install a compatible version of
    direnv using `nix-env -i direnv`.
 
-   Otherwise, we provide [`direnv/nix.nix`][direnv-nix] as a convenient way to
-   install a compatible version of direnv, no matter which Nixpkgs channel
-   you are on:
+   Otherwise, you can install direnv from source as follows:
 
    ```console
-   $ curl -o direnv.nix -L https://github.com/target/lorri/raw/master/direnv/nix.nix
-   $ nix-env -if ./direnv.nix
+   $ nix-env -if https://github.com/direnv/direnv/archive/master.tar.gz
    ```
 
 4. **Set up the direnv hook for your shell.** See [this section][direnv-hook]
@@ -277,7 +274,6 @@ _([Nix as observed by LORRI on 2015-07-13](https://www.nasa.gov/newhorizons/lorr
 
 [contrib]: ./contrib
 [direnv-hook]: https://direnv.net/docs/hook.html
-[direnv-nix]: ./direnv/nix.nix
 [direnv-setup]: https://direnv.net/index.html#setup
 [direnv-usage]: https://direnv.net/man/direnv.1.html#usage
 [home-manager-service]: https://rycee.gitlab.io/home-manager/options.html#opt-services.lorri.enable
