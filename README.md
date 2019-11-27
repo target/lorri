@@ -126,8 +126,9 @@ continue monitoring and evaluating the Nix expressions in your project's
 `shell.nix`, and direnv will automatically reload the environment as it
 changes.
 
-When you stop the daemon, direnv will still load the cached environment when
-you enter the directory, but the environment will not reload.
+direnv will continue to load the *cached environment* when the daemon is not
+running. However, the daemon must be running for direnv to reload the
+environment based on the current `shell.nix` and its dependencies.
 
 ---
 
