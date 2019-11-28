@@ -3,14 +3,12 @@
 use crate::build_loop::Event;
 use crate::daemon::{Daemon, LoopHandlerEvent};
 use crate::ops::{ok, ExitError, OpResult};
-use crate::socket::communicate::{listener, CommunicationType, DEFAULT_READ_TIMEOUT};
-use crate::socket::{ReadWriter, Timeout};
+use crate::socket::communicate::{listener, CommunicationType};
+use crate::socket::ReadWriter;
 use crate::thread::Pool;
 use crate::NixFile;
 use std::collections::HashMap;
 use std::sync::mpsc::{channel, Sender};
-use std::thread::sleep;
-use std::time::Duration;
 
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
@@ -61,31 +59,15 @@ pub fn main() -> OpResult {
     })
     .expect("Failed to spawn accept-loop");
 
-    if let Timeout::D(millis) = DEFAULT_READ_TIMEOUT {
-        let tx = daemon.build_events_tx();
-
-        pool.spawn("heartbeat", move || loop {
-            tx.send(Event::Heartbeat.into())
-                .expect("couldn't send heartbeat");
-
-            sleep(Duration::from(millis) / 2);
-        })
-        .expect("Failed to spawn heartbeat loop");
-    }
-
     pool.spawn("build-loop", || {
         let mut project_states: HashMap<NixFile, Event> = HashMap::new();
         let mut event_listeners: Vec<Sender<Event>> = Vec::new();
 
         for msg in build_messages_rx {
-            match &msg {
-                LoopHandlerEvent::BuildEvent(Event::Heartbeat) => (),
-                m => println!("{:#?}", m),
-            }
+            println!("{:#?}", msg);
             match &msg {
                 LoopHandlerEvent::BuildEvent(ev) => match ev {
                     Event::SectionEnd => (),
-                    Event::Heartbeat => event_listeners.retain(|tx| tx.send(ev.clone()).is_ok()),
                     Event::Started { nix_file, .. }
                     | Event::Completed { nix_file, .. }
                     | Event::Failure { nix_file, .. } => {

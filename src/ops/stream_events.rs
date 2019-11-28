@@ -2,9 +2,9 @@
 use crate::build_loop::Event;
 use crate::ops::{self, err_msg, ok, ExitError, OpResult};
 use crate::socket::{
+    Timeout,
     communicate::{
         client::{self, Error},
-        DEFAULT_READ_TIMEOUT,
     },
     path::SocketPath,
     ReadError, ReadWriteError,
@@ -38,7 +38,7 @@ impl FromStr for EventKind {
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
 pub fn main(kind: EventKind) -> OpResult {
-    let events = client::stream_events(DEFAULT_READ_TIMEOUT)
+    let events = client::stream_events(Timeout::Infinite)
         .connect(&SocketPath::from(ops::get_paths()?.daemon_socket_file()))
         .map_err(|e| ExitError::errmsg(format!("connecting to daemon: {:?}", e)))?;
 
@@ -46,7 +46,6 @@ pub fn main(kind: EventKind) -> OpResult {
 
     loop {
         match events.read() {
-            Ok(Event::Heartbeat) => debug!("heartbeat received"),
             Ok(Event::SectionEnd) => {
                 debug!("SectionEnd");
                 if let EventKind::Snapshot = kind {

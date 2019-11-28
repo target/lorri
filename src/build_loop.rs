@@ -21,8 +21,6 @@ use std::sync::mpsc::{channel, Sender};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Event {
-    /// A heartbeat to send over sockets to keep them alive
-    Heartbeat,
     /// Demarks a stream of events from recent history becoming live
     SectionEnd,
     /// A build has started
