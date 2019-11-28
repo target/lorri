@@ -3,14 +3,15 @@
 
 use crate::builder;
 use crate::builder::RunStatus;
+use crate::daemon::LoopHandlerEvent;
 use crate::notify;
 use crate::pathreduction::reduce_paths;
 use crate::project::roots;
 use crate::project::roots::Roots;
 use crate::project::Project;
 use crate::watch::{DebugMessage, EventError, Reason, Watch};
-use crossbeam_channel as chan; 
 use crate::NixFile;
+use crossbeam_channel as chan;
 use serde::{
     de::{self, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
@@ -187,7 +188,7 @@ impl<'a> BuildLoop<'a> {
     /// When new filesystem changes are detected while a build is
     /// still running, it is finished first before starting a new build.
     #[allow(clippy::drop_copy, clippy::zero_ptr)] // triggered by `select!`
-    pub fn forever(&mut self, tx: chan::Sender<Event>, rx_ping: chan::Receiver<()>) {
+    pub fn forever(&mut self, tx: chan::Sender<LoopHandlerEvent>, rx_ping: chan::Receiver<()>) {
         let send = |msg| tx.send(msg).expect("Failed to send an event");
         let translate_reason = |rsn| match rsn {
             Ok(rsn) => rsn,
@@ -206,9 +207,10 @@ impl<'a> BuildLoop<'a> {
         };
 
         // The project has just been added, so run the builder in the first iteration
-        let mut reason = Some(Event::Started(Reason::ProjectAdded(
-            self.project.nix_file.clone(),
-        )));
+        let mut reason = Some(Event::Started{
+            nix_file:  self.project.nix_file.clone(),
+            reason: Reason::ProjectAdded(self.project.nix_file.clone()),
+        });
         let mut output_paths = None;
 
         // Drain pings initially: we're going to trigger a first build anyway
@@ -219,19 +221,19 @@ impl<'a> BuildLoop<'a> {
         loop {
             // If there is some reason to build, run the build!
             if let Some(rsn) = reason {
-                send(rsn);
+                send(rsn.into());
                 match self.once() {
                     Ok(result) => {
                         output_paths = Some(result.output_paths.clone());
                         send(Event::Completed {
-                    nix_file: self.project.nix_file.clone(),
-                    result,
-                });
+                            nix_file: self.project.nix_file.clone(),
+                            result,
+                        }.into());
                     }
                     Err(BuildError::Recoverable(failure)) => send(Event::Failure {
-                    nix_file: self.project.nix_file.clone(),
-                    failure,
-                }}),
+                        nix_file: self.project.nix_file.clone(),
+                        failure,
+                    }.into()),
                     Err(BuildError::Unrecoverable(err)) => {
                         panic!("Unrecoverable error:\n{:#?}", err);
                     }
@@ -240,22 +242,22 @@ impl<'a> BuildLoop<'a> {
             }
 
             chan::select! {
-                recv(rx_notify) -> msg => if let Ok(msg) = msg {
-                    if let Some(rsn) = self.watch.process(msg) {
-                        reason = Some(Event::Started{
-nix_file: self.project.nix_file.clone(),
-reason: translate_reason(rsn)
-});
-                    }
-                },
-                recv(rx_ping) -> msg => if let (Ok(()), Some(output_paths)) = (msg, &output_paths) {
-                    if !output_paths.shell_gc_root_is_dir() {
-                        reason = Some(Event::Started{
-nix_file: self.project.nix_file.clone(),
-reason: Reason::PingReceived});
-                    }
-                },
-            }
+                            recv(rx_notify) -> msg => if let Ok(msg) = msg {
+                                if let Some(rsn) = self.watch.process(msg) {
+                                    reason = Some(Event::Started{
+            nix_file: self.project.nix_file.clone(),
+            reason: translate_reason(rsn)
+            });
+                                }
+                            },
+                            recv(rx_ping) -> msg => if let (Ok(()), Some(output_paths)) = (msg, &output_paths) {
+                                if !output_paths.shell_gc_root_is_dir() {
+                                    reason = Some(Event::Started{
+            nix_file: self.project.nix_file.clone(),
+            reason: Reason::PingReceived});
+                                }
+                            },
+                        }
         }
     }
 

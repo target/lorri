@@ -7,8 +7,8 @@ use crate::ops::error::{ok, ExitError, OpResult};
 use crate::socket::communicate::{listener, CommunicationType};
 use crate::socket::ReadWriter;
 use crate::thread::Pool;
-use crossbeam_channel as chan;
 use crate::NixFile;
+use crossbeam_channel as chan;
 use std::collections::HashMap;
 
 /// See the documentation for lorri::cli::Command::Shell for more
@@ -48,7 +48,7 @@ pub fn main() -> OpResult {
                     handlers.ping(ReadWriter::new(&unix_stream), accept_messages_tx)
                 }
                 CommunicationType::StreamEvents => {
-                    let (tx, rx) = channel();
+                    let (tx, rx) = chan::unbounded();
 
                     build_events_tx
                         .send(LoopHandlerEvent::NewListener(tx))
@@ -64,7 +64,7 @@ pub fn main() -> OpResult {
 
     pool.spawn("build-loop", || {
         let mut project_states: HashMap<NixFile, Event> = HashMap::new();
-        let mut event_listeners: Vec<Sender<Event>> = Vec::new();
+        let mut event_listeners: Vec<chan::Sender<Event>> = Vec::new();
 
         for msg in build_messages_rx {
             println!("{:#?}", msg);

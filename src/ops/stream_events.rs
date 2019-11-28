@@ -1,13 +1,11 @@
 //! Run to output a stream of build events in a machine-parseable form.
 use crate::build_loop::Event;
-use crate::ops::{self, err_msg, ok, ExitError, OpResult};
+use crate::ops;
+use crate::ops::error::{ok, ExitError, OpResult};
 use crate::socket::{
-    Timeout,
-    communicate::{
-        client::{self, Error},
-    },
+    communicate::client::{self, Error},
     path::SocketPath,
-    ReadError, ReadWriteError,
+    ReadError, ReadWriteError, Timeout,
 };
 use std::str::FromStr;
 
@@ -40,7 +38,7 @@ impl FromStr for EventKind {
 pub fn main(kind: EventKind) -> OpResult {
     let events = client::stream_events(Timeout::Infinite)
         .connect(&SocketPath::from(ops::get_paths()?.daemon_socket_file()))
-        .map_err(|e| ExitError::errmsg(format!("connecting to daemon: {:?}", e)))?;
+        .map_err(|e| ExitError::temporary(format!("connecting to daemon: {:?}", e)))?;
 
     let mut snapshot_done = false;
 
@@ -64,14 +62,14 @@ pub fn main(kind: EventKind) -> OpResult {
                 _ => (),
             },
             Err(Error::Message(ReadWriteError::R(ReadError::Timeout))) => {
-                return err_msg("Server appears to have quit");
+                return Err(ExitError::temporary("Server appears to have quit"));
             }
             Err(Error::Message(ReadWriteError::R(ReadError::Deserialize(_)))) => {
-                return err_msg("Socket closed unexpectedly");
+                return Err(ExitError::temporary("Socket closed unexpectedly"));
             }
             otherwise => {
                 debug!("some other error!");
-                return err_msg(format!("{:?}", otherwise));
+                return Err(ExitError::panic(format!("{:?}", otherwise)));
             }
         }
     }

@@ -12,7 +12,7 @@ use std::collections::HashMap;
 /// Union of build_loop::Event and NewListener for internal use.
 pub enum LoopHandlerEvent {
     /// A new listener has joined for event streaming
-    NewListener(mpsc::Sender<Event>),
+    NewListener(chan::Sender<Event>),
     /// Events from a BuildLoop
     BuildEvent(Event),
 }
@@ -51,7 +51,7 @@ pub struct Daemon {
     handler_threads: HashMap<NixFile, Handler>,
     /// Sending end that we pass to every `BuildLoop` the daemon controls.
     // TODO: this needs to transmit information to identify the builder with
-    build_events_tx: chan::Sender<crate::build_loop::Event>,
+    build_events_tx: chan::Sender<LoopHandlerEvent>,
     /// The handlers functions for incoming requests
     handler_fns: HandlerFns,
 }
@@ -62,7 +62,7 @@ impl Daemon {
     /// Create a new daemon. Also return an `chan::Receiver` that
     /// receives `build_loop::Event`s for all builders this daemon
     /// supervises.
-    pub fn new() -> (Daemon, chan::Receiver<crate::build_loop::Event>) {
+    pub fn new() -> (Daemon, chan::Receiver<LoopHandlerEvent>) {
         let (tx, rx) = chan::unbounded();
         (
             Daemon {
@@ -82,7 +82,7 @@ impl Daemon {
     }
 
     /// The deamon's transmission channel for build events
-    pub fn build_events_tx(&self) -> mpsc::Sender<LoopHandlerEvent> {
+    pub fn build_events_tx(&self) -> chan::Sender<LoopHandlerEvent> {
         self.build_events_tx.clone()
     }
 
