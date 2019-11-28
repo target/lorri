@@ -207,8 +207,8 @@ impl<'a> BuildLoop<'a> {
         };
 
         // The project has just been added, so run the builder in the first iteration
-        let mut reason = Some(Event::Started{
-            nix_file:  self.project.nix_file.clone(),
+        let mut reason = Some(Event::Started {
+            nix_file: self.project.nix_file.clone(),
             reason: Reason::ProjectAdded(self.project.nix_file.clone()),
         });
         let mut output_paths = None;
@@ -225,15 +225,21 @@ impl<'a> BuildLoop<'a> {
                 match self.once() {
                     Ok(result) => {
                         output_paths = Some(result.output_paths.clone());
-                        send(Event::Completed {
-                            nix_file: self.project.nix_file.clone(),
-                            result,
-                        }.into());
+                        send(
+                            Event::Completed {
+                                nix_file: self.project.nix_file.clone(),
+                                result,
+                            }
+                            .into(),
+                        );
                     }
-                    Err(BuildError::Recoverable(failure)) => send(Event::Failure {
-                        nix_file: self.project.nix_file.clone(),
-                        failure,
-                    }.into()),
+                    Err(BuildError::Recoverable(failure)) => send(
+                        Event::Failure {
+                            nix_file: self.project.nix_file.clone(),
+                            failure,
+                        }
+                        .into(),
+                    ),
                     Err(BuildError::Unrecoverable(err)) => {
                         panic!("Unrecoverable error:\n{:#?}", err);
                     }
