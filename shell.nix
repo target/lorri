@@ -47,9 +47,6 @@ let
   CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
 
   buildInputs = [
-      # This rust comes from the Mozilla rust overlay so we can
-      # get Clippy. Not suitable for production builds. See
-      # ./nix/nixpkgs.nix for more details.
       rustChannels.stable.rust
       pkgs.bashInteractive
       pkgs.git
