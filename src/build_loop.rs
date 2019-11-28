@@ -8,14 +8,14 @@ use crate::pathreduction::reduce_paths;
 use crate::project::roots;
 use crate::project::roots::Roots;
 use crate::project::Project;
-use crate::watch::{DebugMessage, RawEventError, Reason, Watch};
+use crate::watch::{DebugMessage, EventError, Reason, Watch};
+use crossbeam_channel as chan; 
 use crate::NixFile;
 use serde::{
     de::{self, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
 };
 use std::path::PathBuf;
-use std::sync::mpsc::{channel, Sender};
 
 /// Builder events sent back over `BuildLoop.tx`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -186,53 +186,76 @@ impl<'a> BuildLoop<'a> {
     /// Sends `Event`s over `Self.tx` once they happen.
     /// When new filesystem changes are detected while a build is
     /// still running, it is finished first before starting a new build.
-    pub fn forever<T: From<Event>>(&mut self, tx: Sender<T>) {
-        let send = |msg| tx.send(T::from(msg)).expect("Failed to send an event");
+    #[allow(clippy::drop_copy, clippy::zero_ptr)] // triggered by `select!`
+    pub fn forever(&mut self, tx: chan::Sender<Event>, rx_ping: chan::Receiver<()>) {
+        let send = |msg| tx.send(msg).expect("Failed to send an event");
+        let translate_reason = |rsn| match rsn {
+            Ok(rsn) => rsn,
+            // we should continue and just cite an unknown reason
+            Err(EventError::EventHasNoFilePath(msg)) => {
+                warn!(
+                    "Event has no file path; possible issue with the watcher?: {:#?}",
+                    msg
+                );
+                // can’t Clone `Event`s, so we return the Debug output here
+                Reason::UnknownEvent(DebugMessage::from(format!("{:#?}", msg)))
+            }
+            Err(EventError::RxNoEventReceived) => {
+                panic!("The file watcher died!");
+            }
+        };
 
-        send(Event::Started {
-            nix_file: self.project.nix_file.clone(),
-            reason: Reason::ProjectAdded(self.project.nix_file.clone()),
-        });
+        // The project has just been added, so run the builder in the first iteration
+        let mut reason = Some(Event::Started(Reason::ProjectAdded(
+            self.project.nix_file.clone(),
+        )));
+        let mut output_paths = None;
+
+        // Drain pings initially: we're going to trigger a first build anyway
+        rx_ping.try_iter().for_each(drop);
+
+        let rx_notify = self.watch.rx.clone();
 
         loop {
-            match self.once() {
-                Ok(result) => send(Event::Completed {
+            // If there is some reason to build, run the build!
+            if let Some(rsn) = reason {
+                send(rsn);
+                match self.once() {
+                    Ok(result) => {
+                        output_paths = Some(result.output_paths.clone());
+                        send(Event::Completed {
                     nix_file: self.project.nix_file.clone(),
                     result,
-                }),
-                Err(BuildError::Recoverable(failure)) => send(Event::Failure {
+                });
+                    }
+                    Err(BuildError::Recoverable(failure)) => send(Event::Failure {
                     nix_file: self.project.nix_file.clone(),
                     failure,
-                }),
-                Err(BuildError::Unrecoverable(err)) => {
-                    panic!("Unrecoverable error:\n{:#?}", err);
+                }}),
+                    Err(BuildError::Unrecoverable(err)) => {
+                        panic!("Unrecoverable error:\n{:#?}", err);
+                    }
                 }
+                reason = None;
             }
 
-            let reason = match self.watch.wait_for_change() {
-                Ok(r) => r,
-                // we should continue and just cite an unknown reason
-                Err(RawEventError::EventHasNoFilePath(msg)) => {
-                    warn!(
-                        "Event has no file path; possible issue with the watcher?: {:#?}",
-                        msg
-                    );
-                    // can’t Clone RawEvents, so we return the Debug output here
-                    Reason::UnknownEvent(DebugMessage::from(format!("{:#?}", msg)))
-                }
-                Err(RawEventError::RxNoEventReceived) => {
-                    panic!("The file watcher died!");
-                }
-            };
-
-            // TODO: Make err use Display instead of Debug.
-            // Otherwise user errors (especially for IO errors)
-            // are pretty hard to debug. Might need to review
-            // whether we can handle some errors earlier than here.
-            send(Event::Started {
-                nix_file: self.project.nix_file.clone(),
-                reason,
-            });
+            chan::select! {
+                recv(rx_notify) -> msg => if let Ok(msg) = msg {
+                    if let Some(rsn) = self.watch.process(msg) {
+                        reason = Some(Event::Started{
+nix_file: self.project.nix_file.clone(),
+reason: translate_reason(rsn)
+});
+                    }
+                },
+                recv(rx_ping) -> msg => if let (Ok(()), Some(output_paths)) = (msg, &output_paths) {
+                    if !output_paths.shell_gc_root_is_dir() {
+                        reason = Some(Event::Started{
+nix_file: self.project.nix_file.clone(),
+reason: Reason::PingReceived});
+                    }
+                },
+            }
         }
     }
 
@@ -241,7 +264,7 @@ impl<'a> BuildLoop<'a> {
     /// This will create GC roots and expand the file watch list for
     /// the evaluation.
     pub fn once(&mut self) -> Result<BuildResults, BuildError> {
-        let (tx, rx) = channel();
+        let (tx, rx) = chan::unbounded();
         let run_result = builder::run(tx, &self.project.nix_file, &self.project.cas)?;
 
         self.register_paths(&run_result.referenced_paths)?;

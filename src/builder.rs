@@ -11,13 +11,13 @@ use crate::cas::ContentAddressable;
 use crate::nix::StorePath;
 use crate::osstrlines;
 use crate::{DrvFile, NixFile};
+use crossbeam_channel as chan;
 use regex::Regex;
 use std::any::Any;
 use std::ffi::{OsStr, OsString};
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use std::sync::mpsc::Sender;
 use std::thread;
 
 struct RootedDrv {
@@ -57,7 +57,7 @@ impl From<std::io::Error> for NixNotFoundError {
 }
 
 fn instrumented_instantiation(
-    tx: Sender<OsString>,
+    tx: chan::Sender<OsString>,
     root_nix_file: &NixFile,
     cas: &ContentAddressable,
 ) -> Result<InstantiateOutput, NixNotFoundError> {
@@ -208,7 +208,7 @@ struct BuildOutput {
 ///
 /// Instruments the nix file to gain extra information,
 /// which is valuable even if the build fails.
-fn build(tx: Sender<OsString>, drv_path: DrvFile) -> Result<BuildOutput, NixNotFoundError> {
+fn build(tx: chan::Sender<OsString>, drv_path: DrvFile) -> Result<BuildOutput, NixNotFoundError> {
     //let drv_path = s.path.clone();
     match crate::nix::CallOpts::file(drv_path.as_path())
         .set_stderr_sender(tx)
@@ -271,7 +271,7 @@ pub enum RunStatus {
 /// Instruments the nix file to gain extra information,
 /// which is valuable even if the build fails.
 pub fn run(
-    tx: Sender<OsString>,
+    tx: chan::Sender<OsString>,
     root_nix_file: &NixFile,
     cas: &ContentAddressable,
 ) -> Result<RunResult, Error> {
@@ -487,7 +487,7 @@ in {}
         print!("{}", nix_drv);
 
         // build, because instantiate doesn’t return the build output (obviously …)
-        let (tx, rx) = std::sync::mpsc::channel();
+        let (tx, rx) = chan::unbounded();
         let info = run(
             tx,
             &crate::NixFile::from(cas.file_from_string(&nix_drv)?),
@@ -530,7 +530,7 @@ in {}
             &format!("dep = {};", drv("dep", r##"args = [ "-c" "exit 1" ];"##)),
         ))?);
 
-        let (tx, _rx) = std::sync::mpsc::channel();
+        let (tx, _rx) = chan::unbounded();
         run(tx, &d, &cas).expect("build can fail, but must not panic");
         Ok(())
     }
@@ -582,7 +582,7 @@ dir-as-source = ./dir;
 
         let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
 
-        let (tx, rx) = std::sync::mpsc::channel();
+        let (tx, rx) = chan::unbounded();
         let inst_info = instrumented_instantiation(tx, &NixFile::from(shell), &cas).unwrap();
         let ends_with = |end| inst_info.referenced_paths.iter().any(|p| p.ends_with(end));
         assert!(

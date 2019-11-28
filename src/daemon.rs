@@ -5,8 +5,8 @@ use crate::project::Project;
 use crate::socket::communicate::{NoMessage, Ping, DEFAULT_READ_TIMEOUT};
 use crate::socket::{ReadError, ReadWriter, Timeout};
 use crate::NixFile;
+use crossbeam_channel as chan;
 use std::collections::HashMap;
-use std::sync::mpsc;
 
 #[derive(Debug, Clone)]
 /// Union of build_loop::Event and NewListener for internal use.
@@ -40,13 +40,18 @@ pub struct IndicateActivity {
     pub nix_file: NixFile,
 }
 
+struct Handler {
+    tx: chan::Sender<()>,
+    _handle: std::thread::JoinHandle<()>,
+}
+
 /// Keeps all state of the running `lorri daemon` service, watches nix files and runs builds.
 pub struct Daemon {
     /// A thread for each `BuildLoop`, keyed by the nix files listened on.
-    handler_threads: HashMap<NixFile, std::thread::JoinHandle<()>>,
+    handler_threads: HashMap<NixFile, Handler>,
     /// Sending end that we pass to every `BuildLoop` the daemon controls.
     // TODO: this needs to transmit information to identify the builder with
-    build_events_tx: mpsc::Sender<LoopHandlerEvent>,
+    build_events_tx: chan::Sender<crate::build_loop::Event>,
     /// The handlers functions for incoming requests
     handler_fns: HandlerFns,
 }
@@ -54,11 +59,11 @@ pub struct Daemon {
 // TODO: set a `Listener` up in the daemon instead of manually outside
 
 impl Daemon {
-    /// Create a new daemon. Also return an `mpsc::Receiver` that
+    /// Create a new daemon. Also return an `chan::Receiver` that
     /// receives `build_loop::Event`s for all builders this daemon
     /// supervises.
-    pub fn new() -> (Daemon, mpsc::Receiver<LoopHandlerEvent>) {
-        let (tx, rx) = mpsc::channel();
+    pub fn new() -> (Daemon, chan::Receiver<crate::build_loop::Event>) {
+        let (tx, rx) = chan::unbounded();
         (
             Daemon {
                 handler_threads: HashMap::new(),
@@ -84,19 +89,25 @@ impl Daemon {
     /// Add nix file to the set of files this daemon watches
     /// & build if they change.
     pub fn add(&mut self, project: Project) {
-        let tx = self.build_events_tx.clone();
+        let (tx, rx) = chan::unbounded();
+        let build_events_tx = self.build_events_tx.clone();
 
         self.handler_threads
             .entry(project.nix_file.clone())
-            .or_insert_with(|| {
-                std::thread::spawn(move || {
+            .or_insert_with(|| Handler {
+                tx,
+                _handle: std::thread::spawn(move || {
                     let mut build_loop = BuildLoop::new(&project);
 
                     // cloning the tx means the daemon’s rx gets all
                     // messages from all builders.
-                    build_loop.forever(tx);
-                })
-            });
+                    build_loop.forever(build_events_tx, rx);
+                }),
+            })
+            // Notify the handler, whether or not it was newly added
+            .tx
+            .send(())
+            .unwrap();
     }
 }
 
@@ -116,7 +127,7 @@ impl HandlerFns {
     pub fn ping(
         &self,
         rw: ReadWriter<Ping, NoMessage>,
-        build_chan: mpsc::Sender<IndicateActivity>,
+        build_chan: chan::Sender<IndicateActivity>,
     ) {
         let ping: Result<Ping, ReadError> = rw.read(&self.read_timeout);
         match ping {
@@ -143,7 +154,7 @@ impl HandlerFns {
     pub fn stream_events(
         &self,
         mut rw: ReadWriter<NoMessage, Event>,
-        build_chan: mpsc::Receiver<Event>,
+        build_chan: chan::Receiver<Event>,
     ) {
         for event in build_chan {
             match rw.write(&self.read_timeout, &event) {

@@ -1,8 +1,13 @@
-{ pkgs ? import ./nix/nixpkgs.nix { enableMozillaOverlay = true; }
-, isDevelopmentShell ? true }:
+{
+  # Pull in tools & environment variables that are only
+  # required for interactive development (i.e. not necessary
+  # on CI). Only when this is enabled, Rust nighly is used.
+  isDevelopmentShell ? true
+, pkgs ? import ./nix/nixpkgs.nix { enableMozillaOverlay = true; }
+}:
 
 # Must have the stable rust overlay (enableMozillaOverlay)
-assert isDevelopmentShell -> pkgs ? latest;
+assert isDevelopmentShell -> pkgs ? rustChannels;
 
 let
   rustChannels =
@@ -11,33 +16,6 @@ let
       (import ./nix/rust-channels.nix {
         stableVersion = "1.35.0";
       });
-in
-pkgs.mkShell rec {
-  name = "lorri";
-  buildInputs = [
-    # This rust comes from the Mozilla rust overlay so we can
-    # get Clippy. Not suitable for production builds. See
-    # ./nix/nixpkgs.nix for more details.
-    rustChannels.stable.rust
-    pkgs.bashInteractive
-    pkgs.git
-    pkgs.direnv
-    pkgs.shellcheck
-    pkgs.carnix
-    pkgs.nix-prefetch-git
-
-    # To ensure we always have a compatible nix in our shells.
-    # Travis doesn’t know `nix-env` otherwise.
-    pkgs.nix
-  ] ++
-  pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
-    pkgs.darwin.Security
-    pkgs.darwin.apple_sdk.frameworks.CoreServices
-    pkgs.darwin.apple_sdk.frameworks.CoreFoundation
-  ] ++
-  pkgs.stdenv.lib.optionals isDevelopmentShell [
-    (pkgs.callPackage ./nix/racer.nix { rustNightly = rustChannels.nightly; })
-  ];
 
   # Keep project-specific shell commands local
   HISTFILE = "${toString ./.}/.bash_history";
@@ -57,6 +35,9 @@ pkgs.mkShell rec {
 
   # Enable printing backtraces for rust binaries
   RUST_BACKTRACE = 1;
+
+  # Only in development shell
+
   # Needed for racer “jump to definition” editor support
   # In Emacs with `racer-mode`, you need to set
   # `racer-rust-src-path` to `nil` for it to pick
@@ -65,6 +46,44 @@ pkgs.mkShell rec {
   # Set up a local directory to install binaries in
   CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
 
+  buildInputs = [
+      # This rust comes from the Mozilla rust overlay so we can
+      # get Clippy. Not suitable for production builds. See
+      # ./nix/nixpkgs.nix for more details.
+      rustChannels.stable.rust
+      pkgs.bashInteractive
+      pkgs.git
+      pkgs.direnv
+      pkgs.shellcheck
+      pkgs.carnix
+      pkgs.nix-prefetch-git
+
+      # To ensure we always have a compatible nix in our shells.
+      # Travis doesn’t know `nix-env` otherwise.
+      pkgs.nix
+    ] ++
+    pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
+      pkgs.darwin.Security
+      pkgs.darwin.apple_sdk.frameworks.CoreServices
+      pkgs.darwin.apple_sdk.frameworks.CoreFoundation
+    ];
+
+    # we manually collect all build inputs,
+    # because `mkShell` derivations cannot be built
+    # and we want to cachix them.
+    allBuildInputs = buildInputs;
+
+in
+pkgs.mkShell ({
+  name = "lorri";
+  buildInputs = buildInputs
+    ++ pkgs.stdenv.lib.optionals isDevelopmentShell [
+      (pkgs.callPackage ./nix/racer.nix { rustNightly = rustChannels.nightly; })
+    ];
+
+  inherit BUILD_REV_COUNT RUN_TIME_CLOSURE;
+
+  inherit RUST_BACKTRACE;
 
   # Executed when entering `nix-shell`
   shellHook = ''
@@ -145,6 +164,12 @@ pkgs.mkShell rec {
     export NIX_LDFLAGS="-F${pkgs.darwin.apple_sdk.frameworks.CoreFoundation}/Library/Frameworks -framework CoreFoundation $NIX_LDFLAGS"
   '');
 
+  passthru.allBuildInputs = allBuildInputs;
+
   preferLocalBuild = true;
   allowSubstitutes = false;
 }
+//
+(if isDevelopmentShell then {
+  inherit RUST_SRC_PATH CARGO_INSTALL_ROOT HISTFILE;
+} else {}))

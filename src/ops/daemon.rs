@@ -1,14 +1,15 @@
 //! Run a BuildLoop for `shell.nix`, watching for input file changes.
 //! Can be used together with `direnv`.
+
 use crate::build_loop::Event;
 use crate::daemon::{Daemon, LoopHandlerEvent};
-use crate::ops::{ok, ExitError, OpResult};
+use crate::ops::error::{ok, ExitError, OpResult};
 use crate::socket::communicate::{listener, CommunicationType};
 use crate::socket::ReadWriter;
 use crate::thread::Pool;
+use crossbeam_channel as chan;
 use crate::NixFile;
 use std::collections::HashMap;
-use std::sync::mpsc::{channel, Sender};
 
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
@@ -18,7 +19,7 @@ pub fn main() -> OpResult {
     let socket_path = crate::socket::path::SocketPath::from(&daemon_socket_file);
     // TODO: move listener into Daemon struct?
     let listener = listener::Listener::new(&socket_path).map_err(|e| match e {
-        crate::socket::path::BindError::OtherProcessListening => ExitError::errmsg(format!(
+        crate::socket::path::BindError::OtherProcessListening => ExitError::user_error(format!(
             "Another daemon is already listening on the socket at {}. \
              We are currently only allowing one daemon to be running at the same time.",
             socket_path.display()
@@ -29,7 +30,7 @@ pub fn main() -> OpResult {
     let (mut daemon, build_messages_rx) = Daemon::new();
 
     // messages sent from accept handlers
-    let (accept_messages_tx, accept_messages_rx) = channel();
+    let (accept_messages_tx, accept_messages_rx) = chan::unbounded();
 
     let handlers = daemon.handlers();
     let build_events_tx = daemon.build_events_tx();
@@ -37,6 +38,8 @@ pub fn main() -> OpResult {
     let mut pool = Pool::new();
     pool.spawn("accept-loop", move || loop {
         let accept_messages_tx = accept_messages_tx.clone();
+        // has to clone handlers once per accept loop,
+        // because accept spawns a thread each time.
         let handlers = handlers.clone();
         let build_events_tx = build_events_tx.clone();
         let _handle = listener

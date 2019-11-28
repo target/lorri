@@ -6,10 +6,6 @@
 "matrix":
   "include":
   - "before_cache":
-    - >
-      if [ -n "$CACHIX_SIGNING_KEY" ]; then
-        cachix push lorri-test < $HOME/push-to-cachix
-      fi
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
     - >-
@@ -55,24 +51,26 @@
     "os": >-
       linux
     "script":
-    - >
+    - >-
       set -e
-
-      source ./.travis_fold.sh
-
-
-      lorri_travis_fold ci_check \
-        nix-shell --quiet --arg isDevelopmentShell false --run ci_check
-      lorri_travis_fold travis-yml-gen \
-        cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
-      lorri_travis_fold travis-yml-idempotent \
-        git diff -q ./.travis.yml
-      lorri_travis_fold carnix-idempotent \
-        git diff -q ./Cargo.nix
+    - >-
+      nix-build -A allBuildInputs shell.nix > ./shell-inputs
+    - >-
+      echo "pushing these paths to cachix:"
+    - >-
+      cat ./shell-inputs
     - >
-      nix-build -E '(import ./shell.nix { isDevelopmentShell = false; }).buildInputs'
-      \
-        >> $HOME/push-to-cachix
+      if [ -n "$CACHIX_SIGNING_KEY" ]; then
+        cachix push lorri-test < ./shell-inputs
+      fi
+    - >-
+      nix-shell --quiet --arg isDevelopmentShell false --run ci_check
+    - >-
+      cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
+    - >-
+      git diff -q ./.travis.yml
+    - >-
+      git diff -q ./Cargo.nix
   - "before_cache":
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
@@ -97,11 +95,11 @@
     - >-
       rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/direnv-*"
     "before_install":
-    - >
+    - >-
       wget --retry-connrefused --waitretry=1 -O /tmp/nix-install https://nixos.org/releases/nix/nix-2.3.1/install
-
+    - >-
       yes | sh /tmp/nix-install --daemon
-
+    - >
       if [ -f /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then
         source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       elif [ -f ${TRAVIS_HOME}/.nix-profile/etc/profile.d/nix.sh ]; then
@@ -121,30 +119,19 @@
     "os": >-
       osx
     "script":
-    - >
+    - >-
       set -e
-
-      source ./.travis_fold.sh
-
-
-      lorri_travis_fold ci_check \
-        nix-shell --quiet --arg isDevelopmentShell false --run ci_check
-      lorri_travis_fold travis-yml-gen \
-        cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
-      lorri_travis_fold travis-yml-idempotent \
-        git diff -q ./.travis.yml
-      lorri_travis_fold carnix-idempotent \
-        git diff -q ./Cargo.nix
-    - >
-      nix-build -E '(import ./shell.nix { isDevelopmentShell = false; }).buildInputs'
-      \
-        >> $HOME/push-to-cachix
-  - "before_cache":
-    - >
-      if [ -n "$CACHIX_SIGNING_KEY" ]; then
-        cachix push lorri-test < $HOME/push-to-cachix
-      fi
-    "install":
+    - >-
+      nix-build -A allBuildInputs shell.nix > ./shell-inputs
+    - >-
+      nix-shell --quiet --arg isDevelopmentShell false --run ci_check
+    - >-
+      cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
+    - >-
+      git diff -q ./.travis.yml
+    - >-
+      git diff -q ./Cargo.nix
+  - "install":
     - >-
       nix-env -iA cachix -f https://cachix.org/api/v1/install
     - >-
@@ -158,25 +145,30 @@
     "os": >-
       linux
     "script":
-    - >
-      set -e
-
-      source ./.travis_fold.sh
-
-      lorri_travis_fold lorri-nix-build \
-        nix-build
-      lorri_travis_fold lorri-install \
-        nix-env -i ./result
-      lorri_travis_fold lorri-self-upgrade \
-        lorri self-upgrade local $(pwd)
     - >-
-      readlink ./result >> $HOME/push-to-cachix
-  - "before_install":
+      set -e
+    - >-
+      nix-build
+    - >-
+      nix-env -i ./result
+    - >-
+      readlink ./result > ./cachix-file
+    - >-
+      echo "pushing these paths to cachix:"
+    - >-
+      cat ./cachix-file
     - >
+      if [ -n "$CACHIX_SIGNING_KEY" ]; then
+        cachix push lorri-test < ./cachix-file
+      fi
+    - >-
+      lorri self-upgrade local $(pwd)
+  - "before_install":
+    - >-
       wget --retry-connrefused --waitretry=1 -O /tmp/nix-install https://nixos.org/releases/nix/nix-2.3.1/install
-
+    - >-
       yes | sh /tmp/nix-install --daemon
-
+    - >
       if [ -f /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then
         source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       elif [ -f ${TRAVIS_HOME}/.nix-profile/etc/profile.d/nix.sh ]; then
@@ -187,16 +179,13 @@
     "os": >-
       osx
     "script":
-    - >
-      set -e
-
-      source ./.travis_fold.sh
-
-      lorri_travis_fold lorri-nix-build \
-        nix-build
-      lorri_travis_fold lorri-install \
-        nix-env -i ./result
-      lorri_travis_fold lorri-self-upgrade \
-        lorri self-upgrade local $(pwd)
     - >-
-      readlink ./result >> $HOME/push-to-cachix
+      set -e
+    - >-
+      nix-build
+    - >-
+      nix-env -i ./result
+    - >-
+      readlink ./result > ./cachix-file
+    - >-
+      lorri self-upgrade local $(pwd)

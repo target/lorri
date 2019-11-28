@@ -1,13 +1,14 @@
 //! Run a BuildLoop for `shell.nix`, watching for input file changes.
 //! Can be used together with `direnv`.
+
 use crate::build_loop::{BuildError, BuildLoop};
 use crate::cli::WatchOptions;
 use crate::daemon::LoopHandlerEvent;
-use crate::ops::{ok, ExitError, OpResult};
+use crate::ops::error::{ok, ExitError, OpResult};
 use crate::project::Project;
+use crossbeam_channel as chan;
 use std::fmt::Debug;
 use std::io::Write;
-use std::sync::mpsc::channel;
 use std::thread;
 
 /// See the documentation for lorri::cli::Command::Shell for more
@@ -27,19 +28,21 @@ fn main_run_once(project: Project) -> OpResult {
             print_build_message(msg);
             ok()
         }
-        Err(BuildError::Unrecoverable(err)) => Err(ExitError::err(100, format!("{:?}", err))),
+        Err(BuildError::Unrecoverable(err)) => Err(ExitError::temporary(format!("{:?}", err))),
         Err(BuildError::Recoverable(exit_failure)) => {
-            Err(ExitError::errmsg(format!("{:#?}", exit_failure)))
+            Err(ExitError::expected_error(format!("{:#?}", exit_failure)))
         }
     }
 }
 
 fn main_run_forever(project: Project) -> OpResult {
-    let (tx, rx) = channel::<LoopHandlerEvent>();
+    let (tx, rx) = chan::unbounded();
     let build_thread = {
         thread::spawn(move || {
             let mut build_loop = BuildLoop::new(&project);
-            build_loop.forever(tx);
+
+            // The `watch` command does not currently react to pings, hence the `chan::never()`
+            build_loop.forever(tx, chan::never());
         })
     };
 

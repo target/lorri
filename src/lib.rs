@@ -20,7 +20,6 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 
-extern crate futures;
 extern crate notify;
 extern crate tempfile;
 extern crate vec1;
@@ -37,7 +36,6 @@ pub mod constants;
 pub mod daemon;
 pub mod locate_file;
 pub mod logging;
-pub mod mpsc;
 pub mod nix;
 pub mod ops;
 pub mod osstrlines;
