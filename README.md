@@ -186,9 +186,6 @@ not expect. This can happen for a number of reasons:
    `src = pkgs.nix-gitignore.gitignoreSource [] ./.`, or one of the
    functions in
    [`nixpkgs/lib/sources.nix`](https://github.com/NixOS/nixpkgs/blob/8c1f1b2324bb90f8e1ea33db3253eb30c330ed99/lib/sources.nix)
-3. When using a construct like `import ./.` to import a `default.nix`
-   file, lorri watches the current directory recursively. To get
-   around it, use `import ./default.nix`.
 
 ---
 
