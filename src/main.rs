@@ -11,7 +11,7 @@ use lorri::ops::error::{ExitError, OpResult};
 use lorri::ops::{daemon, direnv, info, init, ping, upgrade, watch};
 use lorri::project::Project;
 use lorri::NixFile;
-use slog::{debug, error, info};
+use slog::{debug, error};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -36,11 +36,7 @@ fn main() {
                 error!(log, "{}", err.message());
                 err.exitcode()
             }
-            Ok(Some(msg)) => {
-                info!(log, "{}", msg);
-                0
-            }
-            Ok(None) => 0,
+            Ok(()) => 0,
         }
     };
 

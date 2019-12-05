@@ -1,6 +1,6 @@
 //! Bootstrap a new lorri project
 
-use crate::ops::error::{ok_msg, ExitError, OpResult};
+use crate::ops::error::{ok, ExitError, OpResult};
 use slog_scope::info;
 use std::fs::File;
 use std::io;
@@ -36,5 +36,6 @@ pub fn main(default_shell: &str, default_envrc: &str) -> OpResult {
     )
     .map_err(|e| ExitError::user_error(format!("{}", e)))?;
 
-    ok_msg(String::from("done"))
+    info!("done");
+    ok()
 }
