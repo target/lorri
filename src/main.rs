@@ -92,7 +92,7 @@ fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
         .map_or(log.clone(), |root| log.new(slog::o!("root" => root)));
     let _guard = slog_scope::set_global_logger(log);
     match opts.command {
-        Command::Info(_opts) => info::main(),
+        Command::Info(_opts) => info::main(project.unwrap()),
         Command::Direnv(_opts) => {
             direnv::main(project.unwrap(), /* shell_output */ std::io::stdout())
         }
