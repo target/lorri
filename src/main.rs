@@ -11,7 +11,7 @@ use lorri::ops::error::{ExitError, OpResult};
 use lorri::ops::{daemon, direnv, info, init, ping, upgrade, watch};
 use lorri::project::Project;
 use lorri::NixFile;
-use slog::{debug, error};
+use slog::{debug, error, o};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -75,29 +75,46 @@ fn create_project(paths: &constants::Paths, shell_nix: NixFile) -> Result<Projec
 /// Run the main function of the relevant command.
 fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
     let paths = lorri::ops::get_paths()?;
-    let project = opts
-        .command
-        .nix_file()
-        .map(get_shell_nix)
-        .transpose()?
-        .map(|nix_file| create_project(&paths, nix_file))
-        .transpose()?;
-    let log = project
-        .as_ref()
-        .map(|p| p.nix_file.clone())
-        .map_or(log.clone(), |root| log.new(slog::o!("root" => root)));
-    let _guard = slog_scope::set_global_logger(log);
+
+    // `without_project` and `with_project` set up the slog_scope global logger. Make sure to use
+    // one of them so the logger gets set up correctly.
+    let without_project = || slog_scope::set_global_logger(log.clone());
+    let with_project = |nix_file| {
+        let project = create_project(&lorri::ops::get_paths()?, get_shell_nix(nix_file)?)?;
+        let guard = slog_scope::set_global_logger(log.new(o!("root" => project.nix_file.clone())));
+        Ok((project, guard))
+    };
+
     match opts.command {
-        Command::Info(_opts) => info::main(project.unwrap()),
-        Command::Direnv(_opts) => {
-            direnv::main(project.unwrap(), /* shell_output */ std::io::stdout())
+        Command::Info(opts) => {
+            let (project, _guard) = with_project(&opts.nix_file)?;
+            info::main(project)
         }
-        Command::Watch(opts) => watch::main(project.unwrap(), opts),
-        Command::Daemon => daemon::main(),
-        Command::Upgrade(opts) => upgrade::main(opts, paths.cas_store()),
+        Command::Direnv(opts) => {
+            let (project, _guard) = with_project(&opts.nix_file)?;
+            direnv::main(project, /* shell_output */ std::io::stdout())
+        }
+        Command::Watch(opts) => {
+            let (project, _guard) = with_project(&opts.nix_file)?;
+            watch::main(project, opts)
+        }
+        Command::Daemon => {
+            let _guard = without_project();
+            daemon::main()
+        }
+        Command::Upgrade(opts) => {
+            let _guard = without_project();
+            upgrade::main(opts, paths.cas_store())
+        }
         // TODO: remove
-        Command::Ping_(opts) => get_shell_nix(&opts.nix_file).and_then(ping::main),
-        Command::Init => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
+        Command::Ping_(opts) => {
+            let _guard = without_project();
+            get_shell_nix(&opts.nix_file).and_then(ping::main)
+        }
+        Command::Init => {
+            let _guard = without_project();
+            init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC)
+        }
     }
 }
 
