@@ -79,20 +79,17 @@ fn create_project(paths: &constants::Paths, shell_nix: NixFile) -> Result<Projec
 /// Run the main function of the relevant command.
 fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
     let paths = lorri::ops::get_paths()?;
-    let nix_file = match &opts.command {
-        Command::Info(opts) => Some(&opts.nix_file),
-        Command::Direnv(opts) => Some(&opts.nix_file),
-        Command::Watch(opts) => Some(&opts.nix_file),
-        Command::Ping_(opts) => Some(&opts.nix_file),
-        _ => None,
-    };
-    let (log, project) = if nix_file.is_none() {
-        (log, None)
-    } else {
-        let project = get_shell_nix(nix_file.unwrap()).and_then(|sn| create_project(&paths, sn))?;
-        let log = log.new(slog::o!("root" => project.nix_file.clone()));
-        (log, Some(project))
-    };
+    let project = opts
+        .command
+        .nix_file()
+        .map(get_shell_nix)
+        .transpose()?
+        .map(|nix_file| create_project(&paths, nix_file))
+        .transpose()?;
+    let log = project
+        .as_ref()
+        .map(|p| p.nix_file.clone())
+        .map_or(log.clone(), |root| log.new(slog::o!("root" => root)));
     let _guard = slog_scope::set_global_logger(log);
     match opts.command {
         Command::Info(_opts) => info::main(),

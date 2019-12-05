@@ -50,6 +50,19 @@ pub enum Command {
     Init,
 }
 
+impl Command {
+    /// Extract Nix file from the command line options, if present
+    pub fn nix_file(&self) -> Option<&PathBuf> {
+        match self {
+            Command::Info(opts) => Some(&opts.nix_file),
+            Command::Direnv(opts) => Some(&opts.nix_file),
+            Command::Watch(opts) => Some(&opts.nix_file),
+            Command::Ping_(opts) => Some(&opts.nix_file),
+            _ => None,
+        }
+    }
+}
+
 /// Options for `watch` subcommand.
 #[derive(StructOpt, Debug)]
 pub struct DirenvOptions {
