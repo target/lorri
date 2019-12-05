@@ -9,7 +9,7 @@ use std::path::Path;
 
 fn create_if_missing(path: &Path, contents: &str, msg: &str) -> Result<(), io::Error> {
     if path.exists() {
-        info!("skipped file"; "path" => path.to_str(), "message" => msg);
+        info!("file already exists, skipping"; "path" => path.to_str(), "message" => msg);
         Ok(())
     } else {
         let mut f = File::create(path)?;
