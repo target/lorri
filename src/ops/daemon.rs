@@ -52,7 +52,7 @@ pub fn main() -> OpResult {
 
     pool.spawn("build-loop", || {
         for msg in build_messages_rx {
-            info!("build status"; "message" => format!("{:?}", msg));
+            info!("build status"; "message" => ?msg);
         }
     })
     .expect("Failed to spawn build-loop");

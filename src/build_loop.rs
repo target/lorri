@@ -73,7 +73,7 @@ impl<'a> BuildLoop<'a> {
             Err(EventError::EventHasNoFilePath(msg)) => {
                 warn!(
                     "event has no file path; possible issue with the watcher?";
-                    "message" => format!("{:#?}", msg)
+                    "message" => ?msg
                 );
                 // can’t Clone `Event`s, so we return the Debug output here
                 Reason::UnknownEvent(DebugMessage::from(format!("{:#?}", msg)))

@@ -110,7 +110,7 @@ impl Watch {
                 info!("identified removal: {:?}", &event.paths);
             }
             _ => {
-                debug!("watch event"; "event" => format!("{:?}", event));
+                debug!("watch event"; "event" => ?event);
             }
         }
     }

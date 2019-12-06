@@ -29,7 +29,7 @@ fn main() {
         // its lifetime to this smaller scope, we ensure that it is destroyed before
         // 'std::process::exit' gets called.
         let log = logging::root(opts.verbosity, &opts.command);
-        debug!(log, "input options"; "options" => format!("{:?}", opts));
+        debug!(log, "input options"; "options" => ?opts);
 
         match run_command(log.clone(), opts) {
             Err(err) => {

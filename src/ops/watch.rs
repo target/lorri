@@ -59,5 +59,5 @@ fn print_build_message<A>(msg: A)
 where
     A: Debug,
 {
-    info!("build message"; "message" => format!("{:#?}", msg));
+    info!("build message"; "message" => ?msg);
 }

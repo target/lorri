@@ -114,9 +114,9 @@ impl HandlerFns {
         match ping {
             Err(ReadError::Timeout) => debug!(
                 "client didn’t send a `Ping` message after waiting";
-                "timeout" => format!("{}", &self.read_timeout)),
+                "timeout" => %&self.read_timeout),
             Err(ReadError::Deserialize(e)) => {
-                debug!("client `Ping` message could not be decoded"; "error" => format!("{:?}", e))
+                debug!("client `Ping` message could not be decoded"; "error" => %e)
             }
             Ok(p) => {
                 info!("received ping"; "nix_file" => &p.nix_file);

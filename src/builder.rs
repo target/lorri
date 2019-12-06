@@ -100,7 +100,7 @@ fn instrumented_instantiation(
     .stdout(Stdio::piped())
     .stderr(Stdio::piped());
 
-    debug!("nix-instantiate"; "command" => format!("{:?}", cmd));
+    debug!("nix-instantiate"; "command" => ?cmd);
 
     let mut child = cmd.spawn().map_err(|e| match e.kind() {
         std::io::ErrorKind::NotFound => NixNotFoundError::NixNotFound,
