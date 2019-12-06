@@ -100,13 +100,23 @@ fn run_command(opts: Arguments) -> OpResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     /// Try instantiating the trivial shell file we provide the user.
     #[test]
     fn trivial_shell_nix() -> std::io::Result<()> {
+        let nixpkgs = "./nix/bogus-nixpkgs/";
+
+        // Sanity check the test environment
+        assert!(Path::new(nixpkgs).is_dir(), "nixpkgs must be a directory");
+        assert!(
+            Path::new(nixpkgs).join("default.nix").is_file(),
+            "nixpkgs/default.nix must be a file"
+        );
+
         let out = std::process::Command::new("nix-instantiate")
             // we can’t assume to have a <nixpkgs>, so use bogus-nixpkgs
-            .args(&["-I", "nixpkgs=./nix/bogus-nixpkgs/"])
+            .args(&["-I", &format!("nixpkgs={}", nixpkgs)])
             .args(&["--expr", TRIVIAL_SHELL_SRC])
             .output()?;
         assert!(
