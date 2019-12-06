@@ -42,6 +42,7 @@ pub enum Reason {
 }
 
 /// We weren’t able to understand a `notify::Event`.
+#[derive(Clone, Debug)]
 pub enum EventError {
     /// No message was received from the raw event channel
     RxNoEventReceived,
@@ -227,20 +228,33 @@ mod tests {
     }
 
     /// Returns true iff the given file has changed
-    fn file_changed(watch: &Watch, file_name: &str) -> bool {
+    fn file_changed(watch: &Watch, file_name: &str) -> (bool, Vec<Reason>) {
+        let mut reasons = Vec::new();
         let mut changed = false;
         for event in process_all(watch) {
-            if let Some(Ok(Reason::FilesChanged(files))) = event {
-                changed = changed
-                    || files
-                        .iter()
-                        .map(|p| p.file_name())
-                        .filter(|f| f.is_some())
-                        .map(|f| f.unwrap())
-                        .any(|f| f == file_name)
+            if let Some(Ok(reason)) = event {
+                reasons.push(reason.clone());
+                if let Reason::FilesChanged(files) = reason {
+                    changed = changed
+                        || files
+                            .iter()
+                            .map(|p| p.file_name())
+                            .filter(|f| f.is_some())
+                            .map(|f| f.unwrap())
+                            .any(|f| f == file_name)
+                }
             }
         }
-        changed
+        (changed, reasons)
+    }
+
+    fn assert_file_changed(watch: &Watch, file_name: &str) {
+        let (file_changed, events) = file_changed(watch, file_name);
+        assert!(
+            file_changed,
+            "no file change notification for '{}'; these events occurred instead: {:?}",
+            file_name, events
+        );
     }
 
     /// Returns true iff there were no changes
@@ -285,11 +299,11 @@ mod tests {
 
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
         sleep(upper_watcher_timeout());
-        assert!(file_changed(&watcher, "foo"));
+        assert_file_changed(&watcher, "foo");
 
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
         sleep(upper_watcher_timeout());
-        assert!(file_changed(&watcher, "foo"));
+        assert_file_changed(&watcher, "foo");
     }
 
     #[test]
@@ -304,7 +318,7 @@ mod tests {
 
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
         sleep(upper_watcher_timeout());
-        assert!(file_changed(&watcher, "foo"));
+        assert_file_changed(&watcher, "foo");
     }
 
     #[test]
@@ -326,7 +340,7 @@ mod tests {
         // Rename bar to foo, expect a notification
         expect_bash(r#"mv "$1/bar" "$1/foo""#, &[temp.path().as_os_str()]);
         sleep(upper_watcher_timeout());
-        assert!(file_changed(&watcher, "foo"));
+        assert_file_changed(&watcher, "foo");
 
         // Do it a second time
         expect_bash(r#"echo 1 > "$1/bar""#, &[temp.path().as_os_str()]);
@@ -336,6 +350,6 @@ mod tests {
         // Rename bar to foo, expect a notification
         expect_bash(r#"mv "$1/bar" "$1/foo""#, &[temp.path().as_os_str()]);
         sleep(upper_watcher_timeout());
-        assert!(file_changed(&watcher, "foo"));
+        assert_file_changed(&watcher, "foo");
     }
 }
