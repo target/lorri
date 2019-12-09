@@ -6,8 +6,7 @@ use self::version::{DirenvVersion, MIN_DIRENV_VERSION};
 use crate::ops::error::{ok, ExitError, OpResult};
 use crate::project::roots::Roots;
 use crate::project::Project;
-use crate::socket::communicate::client;
-use crate::socket::communicate::{Ping, DEFAULT_READ_TIMEOUT};
+use crate::rpc;
 use slog_scope::{error, info, warn};
 use std::process::Command;
 
@@ -16,20 +15,19 @@ use std::process::Command;
 pub fn main<W: std::io::Write>(project: Project, mut shell_output: W) -> OpResult {
     check_direnv_version()?;
 
-    let socket_path = crate::ops::get_paths()?.daemon_socket_file().to_owned();
-
     let root_paths = Roots::from_project(&project).paths();
     let paths_are_cached: bool = root_paths.all_exist();
+    let address = crate::ops::get_paths()?.daemon_socket_address();
+    let shell_nix = rpc::ShellNix {
+        path: project.nix_file.to_string(),
+    };
 
-    let ping_sent: bool = if let Ok(client) = client::ping(DEFAULT_READ_TIMEOUT).connect(
-        &crate::socket::path::SocketPath::from(crate::ops::get_paths()?.daemon_socket_file()),
-    ) {
-        client
-            .write(&Ping {
-                nix_file: project.nix_file.clone(),
-            })
-            .unwrap();
-        true
+    let ping_sent = if let Ok(connection) = varlink::Connection::with_address(&address) {
+        use rpc::VarlinkClientInterface;
+        rpc::VarlinkClient::new(connection)
+            .watch_shell(shell_nix)
+            .call()
+            .is_ok()
     } else {
         false
     };
@@ -78,9 +76,9 @@ watch_file "$EVALUATION_ROOT"
 
 {}"#,
         root_paths.shell_gc_root,
-        socket_path
-            .into_os_string()
-            .into_string()
+        crate::ops::get_paths()?
+            .daemon_socket_file()
+            .to_str()
             .expect("Socket path is not UTF-8 clean!"),
         include_str!("envrc.bash")
     )

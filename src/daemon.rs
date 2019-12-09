@@ -1,13 +1,14 @@
 //! The lorri daemon, watches multiple projects in the background.
 
 use crate::build_loop::BuildLoop;
+use crate::ops::error::ExitError;
 use crate::project::Project;
-use crate::socket::communicate::{NoMessage, Ping, DEFAULT_READ_TIMEOUT};
-use crate::socket::{ReadError, ReadWriter, Timeout};
+use crate::socket::SocketPath;
 use crate::NixFile;
 use crossbeam_channel as chan;
-use slog_scope::{debug, info};
 use std::collections::HashMap;
+
+mod rpc;
 
 /// Indicate that the user is interested in a specific nix file.
 /// Usually a nix file describes the environment of a project,
@@ -37,41 +38,42 @@ pub struct Daemon {
     handler_threads: HashMap<NixFile, Handler>,
     /// Sending end that we pass to every `BuildLoop` the daemon controls.
     // TODO: this needs to transmit information to identify the builder with
-    build_events_tx: chan::Sender<crate::build_loop::Event>,
-    /// The handlers functions for incoming requests
-    handler_fns: HandlerFns,
+    build_tx: chan::Sender<crate::build_loop::Event>,
 }
-
-// TODO: set a `Listener` up in the daemon instead of manually outside
 
 impl Daemon {
     /// Create a new daemon. Also return an `chan::Receiver` that
     /// receives `build_loop::Event`s for all builders this daemon
     /// supervises.
-    pub fn new() -> (Daemon, chan::Receiver<crate::build_loop::Event>) {
-        let (tx, rx) = chan::unbounded();
+    pub fn try_new(
+        socket_path: SocketPath,
+    ) -> Result<
         (
+            Daemon,
+            rpc::Server,
+            chan::Receiver<crate::build_loop::Event>,
+            chan::Receiver<IndicateActivity>,
+        ),
+        ExitError,
+    > {
+        let (build_tx, build_rx) = chan::unbounded();
+        let (activity_tx, activity_rx) = chan::unbounded();
+        Ok((
             Daemon {
                 handler_threads: HashMap::new(),
-                build_events_tx: tx,
-                handler_fns: HandlerFns {
-                    read_timeout: DEFAULT_READ_TIMEOUT,
-                },
+                build_tx,
             },
-            rx,
-        )
-    }
-
-    /// The handler daemon message handler functions
-    pub fn handlers(&self) -> HandlerFns {
-        self.handler_fns.clone()
+            rpc::Server::new(socket_path, activity_tx)?,
+            build_rx,
+            activity_rx,
+        ))
     }
 
     /// Add nix file to the set of files this daemon watches
     /// & build if they change.
     pub fn add(&mut self, project: Project) {
         let (tx, rx) = chan::unbounded();
-        let build_events_tx = self.build_events_tx.clone();
+        let build_tx = self.build_tx.clone();
 
         self.handler_threads
             .entry(project.nix_file.clone())
@@ -82,50 +84,12 @@ impl Daemon {
 
                     // cloning the tx means the daemon’s rx gets all
                     // messages from all builders.
-                    build_loop.forever(build_events_tx, rx);
+                    build_loop.forever(build_tx, rx);
                 }),
             })
             // Notify the handler, whether or not it was newly added
             .tx
             .send(())
             .unwrap();
-    }
-}
-
-/// Holds handler functions the daemon uses to react to messages.
-#[derive(Clone)]
-pub struct HandlerFns {
-    /// How long the daemon waits for messages to arrive after accept()
-    read_timeout: Timeout,
-}
-
-impl HandlerFns {
-    /// Accept handler for `socket::communicate::Ping` messages.
-    /// For a valid ping message, it sends an instruction to start
-    /// the build to `build_chan`.
-    // TODO: make private again
-    // the ReadWriter here has to be the inverse of the `Client.ping()`, which is `ReadWriter<!, Ping>`
-    pub fn ping(
-        &self,
-        rw: ReadWriter<Ping, NoMessage>,
-        build_chan: chan::Sender<IndicateActivity>,
-    ) {
-        let ping: Result<Ping, ReadError> = rw.read(&self.read_timeout);
-        match ping {
-            Err(ReadError::Timeout) => debug!(
-                "client didn’t send a `Ping` message after waiting";
-                "timeout" => %&self.read_timeout),
-            Err(ReadError::Deserialize(e)) => {
-                debug!("client `Ping` message could not be decoded"; "error" => %e)
-            }
-            Ok(p) => {
-                info!("received ping"; "nix_file" => &p.nix_file);
-                build_chan
-                    .send(IndicateActivity {
-                        nix_file: p.nix_file,
-                    })
-                    .expect("StartBuild channel closed")
-            }
-        }
     }
 }
