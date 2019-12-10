@@ -81,7 +81,7 @@ impl slog::Value for NixFile {
         &self,
         _record: &slog::Record,
         key: slog::Key,
-        serializer: &mut slog::Serializer,
+        serializer: &mut dyn slog::Serializer,
     ) -> slog::Result {
         serializer.emit_str(key, &self.as_os_str().to_string_lossy())
     }

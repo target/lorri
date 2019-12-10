@@ -1,22 +1,12 @@
 {
   # Pull in tools & environment variables that are only
   # required for interactive development (i.e. not necessary
-  # on CI). Only when this is enabled, Rust nighly is used.
+  # on CI). Only when this is enabled, Rust nightly is used.
   isDevelopmentShell ? true
-, pkgs ? import ./nix/nixpkgs.nix { enableMozillaOverlay = true; }
+, pkgs ? import ./nix/nixpkgs.nix
 }:
 
-# Must have the stable rust overlay (enableMozillaOverlay)
-assert isDevelopmentShell -> pkgs ? rustChannels;
-
 let
-  rustChannels =
-    pkgs.lib.mapAttrs
-      (_: v: pkgs.rustChannelOf v)
-      (import ./nix/rust-channels.nix {
-        stableVersion = "1.35.0";
-      });
-
   # Keep project-specific shell commands local
   HISTFILE = "${toString ./.}/.bash_history";
 
@@ -42,12 +32,12 @@ let
   # In Emacs with `racer-mode`, you need to set
   # `racer-rust-src-path` to `nil` for it to pick
   # up the environment variable with `direnv`.
-  RUST_SRC_PATH = "${rustChannels.stable.rust-src}/lib/rustlib/src/rust/src/";
+  RUST_SRC_PATH = "${pkgs.rustc.src}/lib/rustlib/src/rust/src/";
   # Set up a local directory to install binaries in
   CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
 
   buildInputs = [
-      rustChannels.stable.rust
+      pkgs.cargo
       pkgs.bashInteractive
       pkgs.git
       pkgs.direnv
@@ -75,7 +65,7 @@ pkgs.mkShell ({
   name = "lorri";
   buildInputs = buildInputs
     ++ pkgs.stdenv.lib.optionals isDevelopmentShell [
-      (pkgs.callPackage ./nix/racer.nix { rustNightly = rustChannels.nightly; })
+      (pkgs.callPackage ./nix/racer.nix { rustNightly = pkgs.rust-nightly; })
     ];
 
   inherit BUILD_REV_COUNT RUN_TIME_CLOSURE;

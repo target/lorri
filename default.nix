@@ -1,5 +1,5 @@
 {
-  pkgs ? import ./nix/nixpkgs.nix { },
+  pkgs ? import ./nix/nixpkgs.nix,
   src ? pkgs.nix-gitignore.gitignoreSource [".git/"] ./.
 }:
 ((pkgs.callPackage ./Cargo.nix {
