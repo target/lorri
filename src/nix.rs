@@ -35,6 +35,7 @@
 use crate::osstrlines;
 use crossbeam_channel as chan;
 use serde_json;
+use slog_scope::debug;
 use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
 use std::io::BufReader;
@@ -347,7 +348,7 @@ impl<'a> CallOpts<'a> {
 
         cmd.args(self.command_arguments());
 
-        debug!("{:?}", cmd);
+        debug!("nix-build"; "command" => ?cmd);
 
         let (paths, status): (Result<Vec<StorePath>, std::io::Error>, ExitStatus) =
             self.execute(cmd, move |stdout_handle| {
@@ -657,5 +658,4 @@ mod tests {
             "looking for a line like 'building \'/nix/store...'"
         );
     }
-
 }

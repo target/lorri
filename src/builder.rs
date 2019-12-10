@@ -13,6 +13,7 @@ use crate::osstrlines;
 use crate::{DrvFile, NixFile};
 use crossbeam_channel as chan;
 use regex::Regex;
+use slog_scope::debug;
 use std::any::Any;
 use std::ffi::{OsStr, OsString};
 use std::io::BufReader;
@@ -99,7 +100,7 @@ fn instrumented_instantiation(
     .stdout(Stdio::piped())
     .stderr(Stdio::piped());
 
-    debug!("$ {:?}", cmd);
+    debug!("nix-instantiate"; "command" => ?cmd);
 
     let mut child = cmd.spawn().map_err(|e| match e.kind() {
         std::io::ErrorKind::NotFound => NixNotFoundError::NixNotFound,
@@ -109,11 +110,11 @@ fn instrumented_instantiation(
     let stdout = child
         .stdout
         .take()
-        .expect("we must be able to access the stdout of nix-build");
+        .expect("we must be able to access the stdout of nix-instantiate");
     let stderr = child
         .stderr
         .take()
-        .expect("we must be able to access the stderr of nix-build");
+        .expect("we must be able to access the stderr of nix-instantiate");
 
     let stderr_results: thread::JoinHandle<std::io::Result<Vec<LogDatum>>> =
         thread::spawn(move || {

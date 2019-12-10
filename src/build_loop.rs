@@ -10,6 +10,7 @@ use crate::project::roots::Roots;
 use crate::project::Project;
 use crate::watch::{DebugMessage, EventError, Reason, Watch};
 use crossbeam_channel as chan;
+use slog_scope::{debug, warn};
 use std::path::PathBuf;
 
 /// Builder events sent back over `BuildLoop.tx`.
@@ -55,7 +56,7 @@ impl<'a> BuildLoop<'a> {
     pub fn new(project: &'a Project) -> BuildLoop<'a> {
         BuildLoop {
             project,
-            watch: Watch::init().expect("Failed to initialize watch"),
+            watch: Watch::try_new().expect("Failed to initialize watch"),
         }
     }
 
@@ -71,8 +72,8 @@ impl<'a> BuildLoop<'a> {
             // we should continue and just cite an unknown reason
             Err(EventError::EventHasNoFilePath(msg)) => {
                 warn!(
-                    "Event has no file path; possible issue with the watcher?: {:#?}",
-                    msg
+                    "event has no file path; possible issue with the watcher?";
+                    "message" => ?msg
                 );
                 // can’t Clone `Event`s, so we return the Debug output here
                 Reason::UnknownEvent(DebugMessage::from(format!("{:#?}", msg)))
@@ -149,10 +150,9 @@ impl<'a> BuildLoop<'a> {
     }
 
     fn register_paths(&mut self, paths: &[PathBuf]) -> Result<(), notify::Error> {
-        debug!("original paths: {:?}", paths.len());
-
+        let original_paths_len = paths.len();
         let paths = reduce_paths(&paths);
-        debug!("  -> reduced to: {:?}", paths.len());
+        debug!("paths reduced"; "from" => original_paths_len, "to" => paths.len());
 
         // add all new (reduced) nix sources to the input source watchlist
         self.watch.extend(&paths.into_iter().collect::<Vec<_>>())?;

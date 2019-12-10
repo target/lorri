@@ -1,49 +1,26 @@
-//! Utilities for configuring env_logger based on the number of -v
-//! arguments passed at the CLI
-//!
-//! Note this is only a default, and the environment variable
-//! RUST_LOG will override it.
+//! Helps instantiate a root slog logger
 
-use env_logger;
-use std::env;
+use crate::cli::Command;
+use slog::Drain;
 
-/// Potentially set the RUST_LOG environment, and configure env_logger
-/// based on if RUST_LOG is set already.
-///
-/// If RUST_LOG is set already, assume the setter is trying to
-/// investigate something specific. However, we also want a useful
-/// `-v` option as a quick shortcut.
-pub fn init_with_default_log_level(verbosity: u8) {
-    let requested_level = level_from_verbosity(verbosity);
-
-    if env::var_os("RUST_LOG").is_none() {
-        env::set_var("RUST_LOG", requested_level);
-        env_logger::init();
-        info!("Setting RUST_LOG to {}", requested_level);
-    } else {
-        warn!("RUST_LOG is already set, ignoring -v options");
-        env_logger::init();
-    }
-}
-
-/// Convert a number of -v flags in to a default RUST_LOG value
-fn level_from_verbosity(verbosity: u8) -> &'static str {
-    match verbosity {
-        0 => "error",
-        1 => "warn",
-        2 => "info",
-        _ => "debug",
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::level_from_verbosity;
-
-    #[test]
-    fn test_level_from_verbosity() {
-        assert_eq!(level_from_verbosity(0), "error");
-        assert_eq!(level_from_verbosity(3), "debug");
-        assert_eq!(level_from_verbosity(19), "debug");
-    }
+/// Instantiate a root logger appropriate for the subcommand
+pub fn root(verbosity: u8, command: &Command) -> slog::Logger {
+    let level = match verbosity {
+        0 => slog::Level::Info,
+        _ => slog::Level::Debug,
+    };
+    let decorator = match command {
+        // direnv swallows stdout, so we must log to stderr
+        Command::Direnv(_) => slog_term::TermDecorator::new().stderr().build(),
+        _ => slog_term::TermDecorator::new().stdout().build(),
+    };
+    let drain = slog_term::FullFormat::new(decorator)
+        .build()
+        .filter_level(level)
+        .fuse();
+    let drain = slog_async::Async::new(drain)
+        .overflow_strategy(slog_async::OverflowStrategy::Block)
+        .build()
+        .fuse();
+    slog::Logger::root(drain, slog::o!("lorri_version" => crate::VERSION_BUILD_REV))
 }

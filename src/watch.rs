@@ -4,6 +4,7 @@
 use crate::NixFile;
 use crossbeam_channel as chan;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use slog_scope::{debug, info};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -51,7 +52,7 @@ pub enum EventError {
 
 impl Watch {
     /// Instantiate a new Watch.
-    pub fn init() -> Result<Watch, notify::Error> {
+    pub fn try_new() -> Result<Watch, notify::Error> {
         let (tx, rx) = chan::unbounded();
 
         Ok(Watch {
@@ -109,7 +110,7 @@ impl Watch {
                 info!("identified removal: {:?}", &event.paths);
             }
             _ => {
-                debug!("watch event: {:#?}", event);
+                debug!("watch event"; "event" => ?event);
             }
         }
     }
@@ -134,7 +135,7 @@ impl Watch {
 
     fn add_path(&mut self, path: &PathBuf) -> Result<(), notify::Error> {
         if !self.watches.contains(path) {
-            debug!("Watching path {:?}", path);
+            debug!("watching path"; "path" => path.to_str());
 
             self.notify.watch(path, RecursiveMode::NonRecursive)?;
             self.watches.insert(path.clone());
@@ -142,7 +143,7 @@ impl Watch {
 
         if let Some(parent) = path.parent() {
             if !self.watches.contains(parent) {
-                debug!("Watching parent path {:?}", parent);
+                debug!("watching parent path"; "parent_path" => parent.to_str());
 
                 self.notify.watch(&parent, RecursiveMode::NonRecursive)?;
             }
@@ -173,9 +174,8 @@ fn path_match(watched_paths: &HashSet<PathBuf>, event_path: &Path) -> bool {
     let matches = |watched: &Path| {
         if event_path == watched {
             debug!(
-                "Event path ({:?}) directly matches watched path",
-                event_path
-            );
+                "event path directly matches watched path";
+                "event_path" => event_path.to_str());
 
             return true;
         }
@@ -183,9 +183,8 @@ fn path_match(watched_paths: &HashSet<PathBuf>, event_path: &Path) -> bool {
         if let Some(parent) = event_parent {
             if parent == watched {
                 debug!(
-                    "Event path ({:?}) parent ({:?}) matches watched path",
-                    event_path, parent
-                );
+                    "event path parent matches watched path";
+                    "event_path" => event_path.to_str(), "parent_path" => parent.to_str());
                 return true;
             }
         }
@@ -277,7 +276,7 @@ mod tests {
 
     #[test]
     fn trivial_watch_whole_directory() {
-        let mut watcher = Watch::init().expect("failed creating Watch");
+        let mut watcher = Watch::try_new().expect("failed creating Watch");
         let temp = tempdir().unwrap();
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
@@ -294,7 +293,7 @@ mod tests {
 
     #[test]
     fn trivial_watch_specific_file() {
-        let mut watcher = Watch::init().expect("failed creating Watch");
+        let mut watcher = Watch::try_new().expect("failed creating Watch");
         let temp = tempdir().unwrap();
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
@@ -310,7 +309,7 @@ mod tests {
     #[test]
     fn rename_over_vim() {
         // Vim renames files in to place for atomic writes
-        let mut watcher = Watch::init().expect("failed creating Watch");
+        let mut watcher = Watch::try_new().expect("failed creating Watch");
         let temp = tempdir().unwrap();
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);

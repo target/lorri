@@ -10,7 +10,6 @@ use lorri::{
     NixFile,
 };
 use std::fs::File;
-use std::io::Write;
 use std::iter::FromIterator;
 use std::path::PathBuf;
 use std::process::Command;
@@ -57,14 +56,8 @@ impl DirenvTestCase {
     /// Run `direnv allow` and then `direnv export json`, and return
     /// the environment DirEnv would produce.
     pub fn get_direnv_variables(&self) -> DirenvEnv {
-        let shell = direnv::main(self.project.clone())
-            .unwrap()
-            .expect("direnv::main should return a string of shell");
-
-        File::create(self.projectdir.path().join(".envrc"))
-            .unwrap()
-            .write_all(shell.as_bytes())
-            .unwrap();
+        let envrc = File::create(self.projectdir.path().join(".envrc")).unwrap();
+        direnv::main(self.project.clone(), envrc).unwrap();
 
         {
             let mut allow = self.direnv_cmd();

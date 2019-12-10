@@ -6,6 +6,7 @@ use crate::socket::communicate::{NoMessage, Ping, DEFAULT_READ_TIMEOUT};
 use crate::socket::{ReadError, ReadWriter, Timeout};
 use crate::NixFile;
 use crossbeam_channel as chan;
+use slog_scope::{debug, info};
 use std::collections::HashMap;
 
 /// Indicate that the user is interested in a specific nix file.
@@ -112,14 +113,13 @@ impl HandlerFns {
         let ping: Result<Ping, ReadError> = rw.read(&self.read_timeout);
         match ping {
             Err(ReadError::Timeout) => debug!(
-                "Client didn’t send a `Ping` message after waiting for {}",
-                &self.read_timeout
-            ),
+                "client didn’t send a `Ping` message after waiting";
+                "timeout" => %&self.read_timeout),
             Err(ReadError::Deserialize(e)) => {
-                debug!("Client `Ping` message could not be decoded: {}", e)
+                debug!("client `Ping` message could not be decoded"; "error" => %e)
             }
             Ok(p) => {
-                info!("pinged with {}", p.nix_file);
+                info!("received ping"; "nix_file" => &p.nix_file);
                 build_chan
                     .send(IndicateActivity {
                         nix_file: p.nix_file,

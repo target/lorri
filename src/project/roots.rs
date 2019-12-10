@@ -4,6 +4,7 @@
 use crate::builder::{OutputPaths, RootedPath};
 use crate::nix::StorePath;
 use crate::project::Project;
+use slog_scope::debug;
 use std::env;
 use std::path::{Path, PathBuf};
 
@@ -89,7 +90,7 @@ where {
         let mut path = self.gc_root_path.clone();
         path.push(name);
 
-        debug!("Adding root from {:?} to {:?}", store_path.as_path(), path,);
+        debug!("adding root"; "from" => store_path.as_path().to_str(), "to" => path.to_str());
         std::fs::remove_file(&path).or_else(|e| AddRootError::remove(e, &path))?;
 
         std::fs::remove_file(&path).or_else(|e| AddRootError::remove(e, &path))?;
@@ -118,7 +119,7 @@ where {
 
         root.push(format!("{}-{}", self.id, name));
 
-        debug!("Connecting root from {:?} to {:?}", path, root,);
+        debug!("connecting root"; "from" => path.to_str(), "to" => root.to_str());
         std::fs::remove_file(&root).or_else(|e| AddRootError::remove(e, &root))?;
 
         std::os::unix::fs::symlink(&path, &root)
