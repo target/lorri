@@ -6,16 +6,3 @@ set -euo pipefail
 nix-prefetch-git https://github.com/nixos/nixpkgs-channels.git \
                  --rev refs/heads/nixos-unstable > ./nix/nixpkgs.json
 
-cat > ./nix/rust-channels.nix <<EOF
-{ stableVersion }:
-{
-  nightly = {
-    channel = "nightly";
-    date = "$(date --date yesterday +%Y-%m-%d)";
-  };
-  stable = {
-    channel = stableVersion;
-  };
-}
-EOF
-
