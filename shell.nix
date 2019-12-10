@@ -38,6 +38,9 @@ let
 
   buildInputs = [
       pkgs.cargo
+      pkgs.rustPackages.clippy
+      pkgs.rustc
+      pkgs.rustfmt
       pkgs.bashInteractive
       pkgs.git
       pkgs.direnv
@@ -64,9 +67,7 @@ in
 pkgs.mkShell ({
   name = "lorri";
   buildInputs = buildInputs
-    ++ pkgs.stdenv.lib.optionals isDevelopmentShell [
-      (pkgs.callPackage ./nix/racer.nix { rustNightly = pkgs.rust-nightly; })
-    ];
+    ++ pkgs.stdenv.lib.optionals isDevelopmentShell [ pkgs.rustracer ];
 
   inherit BUILD_REV_COUNT RUN_TIME_CLOSURE;
 
