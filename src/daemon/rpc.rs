@@ -6,6 +6,7 @@ use crate::rpc;
 use crate::socket::{BindLock, SocketPath};
 use crate::NixFile;
 use crossbeam_channel as chan;
+use std::convert::TryFrom;
 use std::path::PathBuf;
 
 /// The daemon server.
@@ -40,9 +41,15 @@ impl Server {
             /* url */ "https://github.com/target/lorri",
             vec![Box::new(rpc::new(Box::new(self)))],
         );
+        let initial_worker_threads = 1;
+        let max_worker_threads = 1;
+        let idle_timeout = 0;
         varlink::listen(
-            service, address, /* initial_worker_threads */ 1, /* max_worker_threads */ 1,
-            /* idle_timeout */ 0,
+            service,
+            address,
+            initial_worker_threads,
+            max_worker_threads,
+            idle_timeout,
         )
         .map_err(|e| ExitError::temporary(format!("{}", e)))
     }
@@ -56,15 +63,40 @@ impl rpc::VarlinkInterface for Server {
         call: &mut dyn rpc::Call_WatchShell,
         shell_nix: rpc::ShellNix,
     ) -> varlink::Result<()> {
-        let path = PathBuf::from(shell_nix.path);
-        if !path.as_path().is_file() {
-            return call.reply_invalid_parameter(format!("'{}' is not a file", path.display()));
+        match NixFile::try_from(shell_nix) {
+            Ok(nix_file) => {
+                self.activity_tx
+                    .send(IndicateActivity { nix_file })
+                    .expect("failed to indicate activity via channel");
+                call.reply()
+            }
+            Err(e) => call.reply_invalid_parameter(e),
         }
-        self.activity_tx
-            .send(IndicateActivity {
-                nix_file: NixFile::from(path),
-            })
-            .expect("failed to indicate activity via channel");
-        call.reply()
+    }
+}
+
+impl std::convert::TryFrom<NixFile> for rpc::ShellNix {
+    type Error = &'static str;
+
+    fn try_from(nix_file: NixFile) -> Result<Self, Self::Error> {
+        match nix_file.as_os_str().to_str() {
+            Some(s) => Ok(rpc::ShellNix {
+                path: s.to_string(),
+            }),
+            None => Err("nix file path is not UTF-8 clean"),
+        }
+    }
+}
+
+impl std::convert::TryFrom<rpc::ShellNix> for NixFile {
+    type Error = String;
+
+    fn try_from(shell_nix: rpc::ShellNix) -> Result<Self, Self::Error> {
+        let path = PathBuf::from(shell_nix.path);
+        if path.as_path().is_file() {
+            Ok(NixFile::from(path))
+        } else {
+            Err(format!("nix file {} does not exist", path.display()))
+        }
     }
 }
