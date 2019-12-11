@@ -41,11 +41,15 @@ pub mod socket;
 pub mod thread;
 pub mod watch;
 
-// Populate the "rpc" module with code generated from this Varlink file.
+// This and the following module declaration together publicly export the contents of
+// the generated module "com_target_lorri" as "rpc", which is a much nicer module name.
+#[allow(missing_docs, clippy::all)]
+mod com_target_lorri;
+
 #[allow(missing_docs)]
 pub mod rpc {
-    varlink_derive::varlink_file!(rpc_inner, "src/com.target.lorri.varlink");
-    pub use rpc_inner::*;
+    // Code generated from com.target.lorri.varlink
+    pub use super::com_target_lorri::*;
 }
 
 use std::path::{Path, PathBuf};

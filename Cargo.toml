@@ -35,11 +35,5 @@ vec1 = "1.1.0"
 # see: https://github.com/rust-cli/human-panic/issues/46
 human-panic = { git = "https://github.com/rust-cli/human-panic.git", rev = "70db9489" }
 
-# As of 2019-12-11, varlink_derive sets "proc_macro = true" in its Cargo.toml [1].
-# Carnix does not understand this directive, it only supports "proc-macro = true" [2].
-# So we use a fork with "proc-macro = true" in place of "proc_macro = true" until either
-# Carnix is fixed [2] or this PR is merged into varlink_derive proper [3].
-# [1] https://github.com/varlink/rust/blob/04b2a5a4/varlink_derive/Cargo.toml#L13
-# [2] https://nest.pijul.com/pmeunier/carnix/discussions/41
-# [3] https://github.com/varlink/rust/pull/32
-varlink_derive = { git = "https://github.com/curiousleo/varlink-rust.git", rev = "88bffab5" }
+[build-dependencies]
+varlink_generator = "9.0.0"

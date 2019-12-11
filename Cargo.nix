@@ -85,8 +85,11 @@ rec {
         (cratesIO.crates."structopt"."${deps."lorri"."0.1.0"."structopt"}" deps)
         (cratesIO.crates."tempfile"."${deps."lorri"."0.1.0"."tempfile"}" deps)
         (cratesIO.crates."varlink"."${deps."lorri"."0.1.0"."varlink"}" deps)
-        (crates."varlink_derive"."${deps."lorri"."0.1.0"."varlink_derive"}" deps)
         (cratesIO.crates."vec1"."${deps."lorri"."0.1.0"."vec1"}" deps)
+      ]);
+
+      buildDependencies = mapFeatures features ([
+        (cratesIO.crates."varlink_generator"."${deps."lorri"."0.1.0"."varlink_generator"}" deps)
       ]);
     };
     features_.lorri."0.1.0" = deps: f: updateFeatures f (rec {
@@ -112,7 +115,7 @@ rec {
       structopt."${deps.lorri."0.1.0".structopt}".default = true;
       tempfile."${deps.lorri."0.1.0".tempfile}".default = true;
       varlink."${deps.lorri."0.1.0".varlink}".default = true;
-      varlink_derive."${deps.lorri."0.1.0".varlink_derive}".default = true;
+      varlink_generator."${deps.lorri."0.1.0".varlink_generator}".default = true;
       vec1."${deps.lorri."0.1.0".vec1}".default = true;
     }) [
       (cratesIO.features_.atomicwrites."${deps."lorri"."0.1.0"."atomicwrites"}" deps)
@@ -136,66 +139,9 @@ rec {
       (cratesIO.features_.structopt."${deps."lorri"."0.1.0"."structopt"}" deps)
       (cratesIO.features_.tempfile."${deps."lorri"."0.1.0"."tempfile"}" deps)
       (cratesIO.features_.varlink."${deps."lorri"."0.1.0"."varlink"}" deps)
-      (features_.varlink_derive."${deps."lorri"."0.1.0"."varlink_derive"}" deps)
       (cratesIO.features_.vec1."${deps."lorri"."0.1.0"."vec1"}" deps)
+      (cratesIO.features_.varlink_generator."${deps."lorri"."0.1.0"."varlink_generator"}" deps)
     ];
-
-
-# end
-# varlink_derive-9.0.0
-
-    crates.varlink_derive."9.0.0" = deps: { features?(features_.varlink_derive."9.0.0" deps {}) }: buildRustCrate {
-      crateName = "varlink_derive";
-      version = "9.0.0";
-      authors = [  ];
-      src = fetchgit {
-         url = "https://github.com/curiousleo/varlink-rust.git";
-         rev = "88bffab506711d469b08548f8c42f14207c9e14d";
-         sha256 = "12p6k5bhh9jnc4mqb5pral7bypvblhx1f1wvnk74k735kz254b1y";
-         fetchSubmodules = false;
-      };
-    };
-    features_.varlink_derive."9.0.0" = deps: f: updateFeatures f (rec {
-      varlink_derive."9.0.0".default = (f.varlink_derive."9.0.0".default or true);
-    }) [];
-
-
-# end
-# varlink_generator-9.0.0
-
-    crates.varlink_generator."9.0.0" = deps: { features?(features_.varlink_generator."9.0.0" deps {}) }: buildRustCrate {
-      crateName = "varlink_generator";
-      version = "9.0.0";
-      authors = [  ];
-      src = fetchgit {
-         url = "https://github.com/curiousleo/varlink-rust.git";
-         rev = "88bffab506711d469b08548f8c42f14207c9e14d";
-         sha256 = "12p6k5bhh9jnc4mqb5pral7bypvblhx1f1wvnk74k735kz254b1y";
-         fetchSubmodules = false;
-      };
-    };
-    features_.varlink_generator."9.0.0" = deps: f: updateFeatures f (rec {
-      varlink_generator."9.0.0".default = (f.varlink_generator."9.0.0".default or true);
-    }) [];
-
-
-# end
-# varlink_parser-4.0.3
-
-    crates.varlink_parser."4.0.3" = deps: { features?(features_.varlink_parser."4.0.3" deps {}) }: buildRustCrate {
-      crateName = "varlink_parser";
-      version = "4.0.3";
-      authors = [  ];
-      src = fetchgit {
-         url = "https://github.com/curiousleo/varlink-rust.git";
-         rev = "88bffab506711d469b08548f8c42f14207c9e14d";
-         sha256 = "12p6k5bhh9jnc4mqb5pral7bypvblhx1f1wvnk74k735kz254b1y";
-         fetchSubmodules = false;
-      };
-    };
-    features_.varlink_parser."4.0.3" = deps: f: updateFeatures f (rec {
-      varlink_parser."4.0.3".default = (f.varlink_parser."4.0.3".default or true);
-    }) [];
 
 
 # end
@@ -399,8 +345,8 @@ rec {
     structopt = "0.2.18";
     tempfile = "3.1.0";
     varlink = "10.0.0";
-    varlink_derive = "9.0.0";
     vec1 = "1.4.0";
+    varlink_generator = "9.0.0";
   };
   deps.maybe_uninit."2.0.0" = {};
   deps.md5."0.6.1" = {};
@@ -735,9 +681,18 @@ rec {
     uds_windows = "0.1.4";
     winapi = "0.3.8";
   };
-  deps.varlink_derive."9.0.0" = {};
-  deps.varlink_generator."9.0.0" = {};
-  deps.varlink_parser."4.0.3" = {};
+  deps.varlink_generator."9.0.0" = {
+    chainerror = "0.4.3";
+    getopts = "0.2.21";
+    proc_macro2 = "1.0.6";
+    quote = "1.0.2";
+    syn = "1.0.8";
+    varlink_parser = "4.0.3";
+  };
+  deps.varlink_parser."4.0.3" = {
+    ansi_term = "0.12.1";
+    chainerror = "0.4.3";
+  };
   deps.vec1."1.4.0" = {};
   deps.vec_map."0.8.1" = {};
   deps.void."1.0.2" = {};

@@ -4790,6 +4790,82 @@ rec {
 
 
 # end
+# varlink_generator-9.0.0
+
+  crates.varlink_generator."9.0.0" = deps: { features?(features_.varlink_generator."9.0.0" deps {}) }: buildRustCrate {
+    crateName = "varlink_generator";
+    version = "9.0.0";
+    description = "Rust code generator for the varlink protocol.";
+    authors = [ "Harald Hoyer <harald@redhat.com>" ];
+    edition = "2018";
+    sha256 = "1p9fbsd6g43mvr10mpp56amiq027bks59chkc51kqajrzhv6m5mr";
+    libPath = "src/lib.rs";
+    crateBin =
+      [{  name = "varlink-rust-generator";  path = "src/bin/varlink-rust-generator.rs"; }];
+    dependencies = mapFeatures features ([
+      (crates."chainerror"."${deps."varlink_generator"."9.0.0"."chainerror"}" deps)
+      (crates."getopts"."${deps."varlink_generator"."9.0.0"."getopts"}" deps)
+      (crates."proc_macro2"."${deps."varlink_generator"."9.0.0"."proc_macro2"}" deps)
+      (crates."quote"."${deps."varlink_generator"."9.0.0"."quote"}" deps)
+      (crates."syn"."${deps."varlink_generator"."9.0.0"."syn"}" deps)
+      (crates."varlink_parser"."${deps."varlink_generator"."9.0.0"."varlink_parser"}" deps)
+    ]);
+  };
+  features_.varlink_generator."9.0.0" = deps: f: updateFeatures f (rec {
+    chainerror."${deps.varlink_generator."9.0.0".chainerror}".default = true;
+    getopts."${deps.varlink_generator."9.0.0".getopts}".default = true;
+    proc_macro2."${deps.varlink_generator."9.0.0".proc_macro2}".default = true;
+    quote."${deps.varlink_generator."9.0.0".quote}".default = true;
+    syn."${deps.varlink_generator."9.0.0".syn}".default = true;
+    varlink_generator."9.0.0".default = (f.varlink_generator."9.0.0".default or true);
+    varlink_parser."${deps.varlink_generator."9.0.0".varlink_parser}".default = true;
+  }) [
+    (features_.chainerror."${deps."varlink_generator"."9.0.0"."chainerror"}" deps)
+    (features_.getopts."${deps."varlink_generator"."9.0.0"."getopts"}" deps)
+    (features_.proc_macro2."${deps."varlink_generator"."9.0.0"."proc_macro2"}" deps)
+    (features_.quote."${deps."varlink_generator"."9.0.0"."quote"}" deps)
+    (features_.syn."${deps."varlink_generator"."9.0.0"."syn"}" deps)
+    (features_.varlink_parser."${deps."varlink_generator"."9.0.0"."varlink_parser"}" deps)
+  ];
+
+
+# end
+# varlink_parser-4.0.3
+
+  crates.varlink_parser."4.0.3" = deps: { features?(features_.varlink_parser."4.0.3" deps {}) }: buildRustCrate {
+    crateName = "varlink_parser";
+    version = "4.0.3";
+    description = "A crate for parsing varlink interface definition files.";
+    authors = [ "Harald Hoyer <harald@redhat.com>" ];
+    edition = "2018";
+    sha256 = "0akc615x0k3z5irclr9ci5psyxhdkfq56fxqsg8z4bjfjsyxdxf1";
+    build = "build.rs";
+    dependencies = mapFeatures features ([
+      (crates."ansi_term"."${deps."varlink_parser"."4.0.3"."ansi_term"}" deps)
+      (crates."chainerror"."${deps."varlink_parser"."4.0.3"."chainerror"}" deps)
+    ]);
+
+    buildDependencies = mapFeatures features ([
+]);
+    features = mkFeatures (features."varlink_parser"."4.0.3" or {});
+  };
+  features_.varlink_parser."4.0.3" = deps: f: updateFeatures f (rec {
+    ansi_term."${deps.varlink_parser."4.0.3".ansi_term}".default = true;
+    chainerror."${deps.varlink_parser."4.0.3".chainerror}".default = true;
+    varlink_parser = fold recursiveUpdate {} [
+      { "4.0.3"."peg" =
+        (f.varlink_parser."4.0.3"."peg" or false) ||
+        (f.varlink_parser."4.0.3".dynamic_peg or false) ||
+        (varlink_parser."4.0.3"."dynamic_peg" or false); }
+      { "4.0.3".default = (f.varlink_parser."4.0.3".default or true); }
+    ];
+  }) [
+    (features_.ansi_term."${deps."varlink_parser"."4.0.3"."ansi_term"}" deps)
+    (features_.chainerror."${deps."varlink_parser"."4.0.3"."chainerror"}" deps)
+  ];
+
+
+# end
 # vec1-1.4.0
 
   crates.vec1."1.4.0" = deps: { features?(features_.vec1."1.4.0" deps {}) }: buildRustCrate {
