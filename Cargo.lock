@@ -454,7 +454,7 @@ dependencies = [
  "structopt 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile 3.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "varlink 10.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "varlink_derive 8.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "varlink_derive 9.0.0 (git+https://github.com/curiousleo/varlink-rust.git?rev=88bffab5)",
  "vec1 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1180,29 +1180,29 @@ dependencies = [
 
 [[package]]
 name = "varlink_derive"
-version = "8.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+version = "9.0.0"
+source = "git+https://github.com/curiousleo/varlink-rust.git?rev=88bffab5#88bffab506711d469b08548f8c42f14207c9e14d"
 dependencies = [
- "varlink_generator 8.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "varlink_generator 9.0.0 (git+https://github.com/curiousleo/varlink-rust.git?rev=88bffab5)",
 ]
 
 [[package]]
 name = "varlink_generator"
-version = "8.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+version = "9.0.0"
+source = "git+https://github.com/curiousleo/varlink-rust.git?rev=88bffab5#88bffab506711d469b08548f8c42f14207c9e14d"
 dependencies = [
  "chainerror 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "getopts 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
- "proc-macro2 0.4.30 (registry+https://github.com/rust-lang/crates.io-index)",
- "quote 0.6.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "syn 0.15.44 (registry+https://github.com/rust-lang/crates.io-index)",
- "varlink_parser 4.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proc-macro2 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syn 1.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "varlink_parser 4.0.3 (git+https://github.com/curiousleo/varlink-rust.git?rev=88bffab5)",
 ]
 
 [[package]]
 name = "varlink_parser"
 version = "4.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/curiousleo/varlink-rust.git?rev=88bffab5#88bffab506711d469b08548f8c42f14207c9e14d"
 dependencies = [
  "ansi_term 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "chainerror 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1438,9 +1438,9 @@ dependencies = [
 "checksum unix_socket 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "6aa2700417c405c38f5e6902d699345241c28c0b7ade4abaad71e35a87eb1564"
 "checksum uuid 0.7.4 (registry+https://github.com/rust-lang/crates.io-index)" = "90dbc611eb48397705a6b0f6e917da23ae517e4d127123d2cf7674206627d32a"
 "checksum varlink 10.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3e9ea65577eb459340e8b31131f80b58d5c514cba9394d7ecc6d8164a29e2e9d"
-"checksum varlink_derive 8.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "712199241863c0985f44df707d914e309109217d01fab8b214179db83d5c7f2c"
-"checksum varlink_generator 8.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c966903893f8a889d6ebac5a6d68448c2894f082b609c14e0f7f45434ebf58e9"
-"checksum varlink_parser 4.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "1ff17c8d8648a28912404008d4b01c5c197755210c5ed03006fdd348f7c83a06"
+"checksum varlink_derive 9.0.0 (git+https://github.com/curiousleo/varlink-rust.git?rev=88bffab5)" = "<none>"
+"checksum varlink_generator 9.0.0 (git+https://github.com/curiousleo/varlink-rust.git?rev=88bffab5)" = "<none>"
+"checksum varlink_parser 4.0.3 (git+https://github.com/curiousleo/varlink-rust.git?rev=88bffab5)" = "<none>"
 "checksum vec1 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d2ad2a3844cc028661fe02ab1fa64c117ce726ed268d0b93a56d8c2d5a96f961"
 "checksum vec_map 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "05c78687fb1a80548ae3250346c3db86a80a7cdd77bda190189f2d0a0987c81a"
 "checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
