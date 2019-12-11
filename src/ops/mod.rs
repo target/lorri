@@ -129,4 +129,10 @@ pub mod error {
             &self.message
         }
     }
+
+    impl From<std::io::Error> for ExitError {
+        fn from(e: std::io::Error) -> ExitError {
+            ExitError::temporary(format!("{}", e))
+        }
+    }
 }

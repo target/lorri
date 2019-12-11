@@ -4,7 +4,6 @@ extern crate tempfile;
 use lorri::build_loop;
 use lorri::cas::ContentAddressable;
 use lorri::daemon::Daemon;
-use lorri::project::Project;
 use lorri::rpc;
 use lorri::socket::SocketPath;
 use std::io::{Error, ErrorKind};
@@ -26,17 +25,17 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     let shell_nix = tempdir.as_ref().join("shell.nix");
     std::fs::File::create(&shell_nix)?;
 
-    // create unix socket file
-    let p = &tempdir.path().join("socket");
-    let socket_path = SocketPath::from(p);
+    let socket_path = SocketPath::from(&tempdir.path().join("socket"));
     let address = socket_path.address();
+    let cas = ContentAddressable::new(tempdir.path().join("cas")).unwrap();
+    let gc_root_dir = tempdir.path().join("gc_root").to_path_buf();
 
     // The daemon knows how to build stuff
-    let (mut daemon, server, build_rx, accept_rx) = Daemon::try_new(socket_path).unwrap();
-
-    // listen for incoming messages
+    let (daemon, build_rx) = Daemon::new();
     let accept_handle = thread::spawn(move || {
-        server.serve().unwrap();
+        daemon
+            .serve(socket_path, gc_root_dir, cas)
+            .expect("failed to serve daemon endpoint");
     });
 
     // connect to socket and send a ping message
@@ -47,13 +46,6 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
         })
         .call()
         .unwrap();
-
-    // The client pinged, so now a message should have arrived
-    let start_build = accept_rx.recv_timeout(Duration::from_millis(100)).unwrap();
-
-    let cas = ContentAddressable::new(tempdir.path().join("cas")).unwrap();
-    let project = Project::new(start_build.nix_file, &tempdir.path().join("gc_root"), cas).unwrap();
-    daemon.add(project);
 
     // Read the first build event, which should be a `Started` message
     match build_rx.recv_timeout(Duration::from_millis(100)).unwrap() {

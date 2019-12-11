@@ -7,6 +7,7 @@ use crate::socket::SocketPath;
 use crate::NixFile;
 use crossbeam_channel as chan;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 mod rpc;
 
@@ -45,28 +46,46 @@ impl Daemon {
     /// Create a new daemon. Also return an `chan::Receiver` that
     /// receives `build_loop::Event`s for all builders this daemon
     /// supervises.
-    pub fn try_new(
-        socket_path: SocketPath,
-    ) -> Result<
-        (
-            Daemon,
-            rpc::Server,
-            chan::Receiver<crate::build_loop::Event>,
-            chan::Receiver<IndicateActivity>,
-        ),
-        ExitError,
-    > {
+    pub fn new() -> (Daemon, chan::Receiver<crate::build_loop::Event>) {
         let (build_tx, build_rx) = chan::unbounded();
-        let (activity_tx, activity_rx) = chan::unbounded();
-        Ok((
+        (
             Daemon {
                 handler_threads: HashMap::new(),
                 build_tx,
             },
-            rpc::Server::new(socket_path, activity_tx)?,
             build_rx,
-            activity_rx,
-        ))
+        )
+    }
+
+    /// Serve the daemon's RPC endpoint.
+    pub fn serve(
+        mut self,
+        socket_path: SocketPath,
+        gc_root_dir: PathBuf,
+        cas: crate::cas::ContentAddressable,
+    ) -> Result<(), ExitError> {
+        let (activity_tx, activity_rx) = chan::unbounded();
+        let server = rpc::Server::new(socket_path, activity_tx)?;
+        let mut pool = crate::thread::Pool::new();
+        pool.spawn("accept-loop", move || {
+            server
+                .serve()
+                .expect("failed to serve daemon server endpoint");
+        })?;
+        pool.spawn("build-instruction-handler", move || {
+            // For each build instruction, add the corresponding file
+            // to the watch list.
+            for start_build in activity_rx {
+                let project =
+                    crate::project::Project::new(start_build.nix_file, &gc_root_dir, cas.clone())
+                        // TODO: the project needs to create its gc root dir
+                        .unwrap();
+                self.add(project)
+            }
+        })?;
+        pool.join_all_or_panic();
+
+        Ok(())
     }
 
     /// Add nix file to the set of files this daemon watches
