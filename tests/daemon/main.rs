@@ -67,18 +67,19 @@ fn connect(
     address: &str,
     timeout: Duration,
 ) -> std::sync::Arc<std::sync::RwLock<varlink::Connection>> {
-    use varlink::error::{Error, ErrorKind};
-
     let start = Instant::now();
     let mut connection = None;
+    let mut last_error = None;
     while connection.is_none() {
         if start.elapsed() > timeout {
-            panic!("failed to connect to RPC endpoint within {:?}", timeout);
+            panic!(
+                "failed to connect to RPC endpoint within {:?}; last error: {:?}",
+                timeout, last_error
+            );
         }
         match varlink::Connection::with_address(&address) {
-            Err(Error(ErrorKind::Io(std::io::ErrorKind::NotFound), _, _)) => (),
+            Err(e) => last_error = Some(e),
             Ok(c) => connection = Some(c),
-            Err(e) => panic!("unexpected error: {}", e),
         }
     }
     connection.unwrap()
