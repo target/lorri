@@ -11,8 +11,8 @@ use std::path::{Path, PathBuf};
 /// for a given nix file.
 #[derive(Clone)]
 pub struct Project {
-    /// Absolute path to this project’s nix file.
-    pub nix_file: NixFile,
+    /// Absolute path to this project’s shell nix file.
+    pub shell_nix: NixFile,
 
     /// Directory in which this project’s
     /// garbage collection roots are stored.
@@ -30,17 +30,17 @@ impl Project {
     /// and the base GC root directory
     /// (as returned by `Paths.gc_root_dir()`),
     pub fn new(
-        nix_file: NixFile,
+        shell_nix: NixFile,
         gc_root_dir: &Path,
         cas: ContentAddressable,
     ) -> std::io::Result<Project> {
-        let hash = format!("{:x}", md5::compute(nix_file.as_os_str().as_bytes()));
+        let hash = format!("{:x}", md5::compute(shell_nix.as_os_str().as_bytes()));
         let project_gc_root = gc_root_dir.join(&hash).join("gc_root").to_path_buf();
 
         std::fs::create_dir_all(&project_gc_root)?;
 
         Ok(Project {
-            nix_file,
+            shell_nix,
             gc_root_path: project_gc_root,
             hash,
             cas,

@@ -19,7 +19,7 @@ pub fn main<W: std::io::Write>(project: Project, mut shell_output: W) -> OpResul
     let paths_are_cached: bool = root_paths.all_exist();
     let address = crate::ops::get_paths()?.daemon_socket_address();
     let shell_nix = rpc::ShellNix {
-        path: project.nix_file.to_string(),
+        path: project.shell_nix.to_string(),
     };
 
     let ping_sent = if let Ok(connection) = varlink::Connection::with_address(&address) {

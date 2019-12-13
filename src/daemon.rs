@@ -95,7 +95,7 @@ impl Daemon {
         let build_tx = self.build_tx.clone();
 
         self.handler_threads
-            .entry(project.nix_file.clone())
+            .entry(project.shell_nix.clone())
             .or_insert_with(|| Handler {
                 tx,
                 _handle: std::thread::spawn(move || {
