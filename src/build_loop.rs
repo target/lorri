@@ -132,7 +132,8 @@ impl<'a> BuildLoop<'a> {
     /// the evaluation.
     pub fn once(&mut self) -> Result<BuildResults, BuildError> {
         let (tx, rx) = chan::unbounded();
-        let run_result = builder::run(tx, &self.project.nix_file, &self.project.cas)?;
+        let services_nix = None; // TODO: extend the Project struct to support an optional services_nix
+        let run_result = builder::run(tx, &self.project.nix_file, services_nix, &self.project.cas)?;
 
         self.register_paths(&run_result.referenced_paths)?;
 

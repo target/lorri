@@ -59,7 +59,8 @@ impl From<std::io::Error> for NixNotFoundError {
 
 fn instrumented_instantiation(
     tx: chan::Sender<OsString>,
-    root_nix_file: &NixFile,
+    shell_nix: &NixFile,
+    services_nix: Option<&NixFile>,
     cas: &ContentAddressable,
 ) -> Result<InstantiateOutput, NixNotFoundError> {
     // We're looking for log lines matching:
@@ -91,7 +92,16 @@ fn instrumented_instantiation(
         // the source file
         OsStr::new("--argstr"),
         OsStr::new("shellSrc"),
-        root_nix_file.as_os_str(),
+        shell_nix.as_os_str(),
+    ]);
+    if services_nix.is_some() {
+        cmd.args(&[
+            OsStr::new("--argstr"),
+            OsStr::new("servicesSrc"),
+            services_nix.unwrap().as_os_str(),
+        ]);
+    }
+    cmd.args(&[
         // instrumented by `./logged-evaluation.nix`
         OsStr::new("--"),
         &logged_evaluation_nix.as_os_str(),
@@ -186,8 +196,8 @@ fn instrumented_instantiation(
     }
 
     assert!(
-        build_products.len() == 1,
-        "got more or less than one build product from logged_evaluation.nix: {:#?}",
+        build_products.len() == if services_nix.is_some() { 2 } else { 1 },
+        "got the wrong number of build products from logged_evaluation.nix: {:#?}",
         build_products
     );
     let shell_gc_root = build_products.pop().unwrap();
@@ -273,10 +283,11 @@ pub enum RunStatus {
 /// which is valuable even if the build fails.
 pub fn run(
     tx: chan::Sender<OsString>,
-    root_nix_file: &NixFile,
+    shell_nix: &NixFile,
+    services_nix: Option<&NixFile>,
     cas: &ContentAddressable,
 ) -> Result<RunResult, Error> {
-    let inst_info = instrumented_instantiation(tx.clone(), root_nix_file, cas)?;
+    let inst_info = instrumented_instantiation(tx.clone(), shell_nix, services_nix, cas)?;
     if let Some(inst_output) = inst_info.output {
         let buildoutput = build(tx, inst_output.path)?;
 
@@ -492,6 +503,7 @@ in {}
         let info = run(
             tx,
             &crate::NixFile::from(cas.file_from_string(&nix_drv)?),
+            None,
             &cas,
         )
         .unwrap();
@@ -532,7 +544,7 @@ in {}
         ))?);
 
         let (tx, _rx) = chan::unbounded();
-        run(tx, &d, &cas).expect("build can fail, but must not panic");
+        run(tx, &d, None, &cas).expect("build can fail, but must not panic");
         Ok(())
     }
 
@@ -584,7 +596,7 @@ dir-as-source = ./dir;
         let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
 
         let (tx, rx) = chan::unbounded();
-        let inst_info = instrumented_instantiation(tx, &NixFile::from(shell), &cas).unwrap();
+        let inst_info = instrumented_instantiation(tx, &NixFile::from(shell), None, &cas).unwrap();
         let ends_with = |end| inst_info.referenced_paths.iter().any(|p| p.ends_with(end));
         assert!(
             ends_with("foo/default.nix"),
@@ -599,6 +611,37 @@ dir-as-source = ./dir;
             inst_info.referenced_paths
         );
         // unused
+        drop(rx);
+
+        Ok(())
+    }
+
+    #[test]
+    fn watches_services_nix_dependencies() -> std::io::Result<()> {
+        let root_tmp = tempfile::tempdir()?;
+        let cas_tmp = tempfile::tempdir()?;
+        let root = root_tmp.path();
+        let shell = root.join("shell.nix");
+        std::fs::write(&shell, drv("shell", r##"foo = "foo";"##))?;
+        let services = root.join("services.nix");
+        std::fs::write(&services, drv("services", "bar = import ./bar.nix;"))?;
+
+        // ./bar.nix <- should be watched
+        let bar = root.join("bar.nix");
+        std::fs::write(&bar, "42")?;
+
+        let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
+
+        let (tx, rx) = chan::unbounded();
+        let inst_info = instrumented_instantiation(
+            tx,
+            &NixFile::from(shell),
+            Some(&NixFile::from(services)),
+            &cas,
+        )
+        .unwrap();
+        let ends_with = |end| inst_info.referenced_paths.iter().any(|p| p.ends_with(end));
+        assert!(ends_with("bar.nix"), "bar.nix should be watched!");
         drop(rx);
 
         Ok(())
