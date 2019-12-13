@@ -40,6 +40,7 @@ pub struct RootedPath {
 
 struct InstantiateOutput {
     referenced_paths: Vec<PathBuf>,
+    paths_to_lint: Vec<PathBuf>,
     output: Option<RootedDrv>,
 }
 
@@ -155,9 +156,13 @@ fn instrumented_instantiation(
 
     for result in results {
         match result {
-            LogDatum::CopiedSource(src) | LogDatum::ReadFileOrDir(src) => {
-                paths.push(src);
-            }
+                LogDatum::CopiedSource(src) => {
+                    paths.push(src);
+                    paths_to_lint.push(src);
+                },
+                LogDatum::ReadFileOrDir(src) => {
+                    paths.push(src);
+                }
             LogDatum::NixSourceFile(mut src) => {
                 // We need to emulate nix’s `default.nix` mechanism here.
                 // That is, if the user uses something like
@@ -180,6 +185,7 @@ fn instrumented_instantiation(
     if !exec_result.success() {
         return Ok(InstantiateOutput {
             referenced_paths: paths,
+            paths_to_lint
             output: None,
         });
     }
