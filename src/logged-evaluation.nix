@@ -1,24 +1,24 @@
-{ src, runTimeClosure }:
+{ shellSrc, servicesSrc ? null, runtimeClosure }:
 let
-  runtimeCfg = import runTimeClosure;
+  runtimeCfg = import runtimeClosure;
 
   # using scopedImport, replace readDir and readFile with
   # implementations which will log files and paths they see.
-  overrides = {
-    import = scopedImport overrides;
-    scopedImport = x: builtins.scopedImport (overrides // x);
-    builtins = builtins // {
-      readFile = file: builtins.trace "lorri read: '${toString file}'" (builtins.readFile file);
-      readDir = path: builtins.trace "lorri read: '${toString path}'" (builtins.readDir path);
-    };
-  };
-
-  imported =
+  logged = src:
     let
+      overrides = {
+        import = scopedImport overrides;
+        scopedImport = x: builtins.scopedImport (overrides // x);
+        builtins = builtins // {
+          readFile = file: builtins.trace "lorri read: '${toString file}'" (builtins.readFile file);
+          readDir = path: builtins.trace "lorri read: '${toString path}'" (builtins.readDir path);
+        };
+      };
       raw = overrides.scopedImport overrides src;
-    in if (builtins.isFunction raw)
-    then raw {}
-    else raw;
+    in
+      if (builtins.isFunction raw)
+      then raw {}
+      else raw;
 
   # If you add a .drv to a gc-root, the `.drv` itself is protected
   # from GC, and the parent `drv`s up the tree are also protected.
@@ -31,8 +31,8 @@ let
   # gc rooting the resulting store path from this build will retain
   # references to all the store paths needed, preventing the shell's
   # actual environment from being deleted.
-  keep-env-hack = drv: derivation (drv.drvAttrs // {
-    name = "lorri-keep-env-hack-${drv.name}";
+  wrapped-shell = drv: derivation (drv.drvAttrs // {
+    name = "lorri-wrapped-shell-${drv.name}";
 
     origExtraClosure = drv.extraClosure or [];
     extraClosure = runtimeCfg.closure;
@@ -137,6 +137,7 @@ let
     allowSubstitutes = false;
   });
 
-  gc-root = keep-env-hack imported;
-
-in gc-root
+  shell = wrapped-shell (logged shellSrc);
+  services = logged servicesSrc;
+in
+if servicesSrc == null then [ shell ] else [ shell services ]

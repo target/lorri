@@ -86,11 +86,11 @@ fn instrumented_instantiation(
         OsStr::new("--indirect"),
         OsStr::new("--argstr"),
         // runtime nix paths to needed dependencies that come with lorri
-        OsStr::new("runTimeClosure"),
+        OsStr::new("runtimeClosure"),
         OsStr::new(crate::RUN_TIME_CLOSURE),
         // the source file
         OsStr::new("--argstr"),
-        OsStr::new("src"),
+        OsStr::new("shellSrc"),
         root_nix_file.as_os_str(),
         // instrumented by `./logged-evaluation.nix`
         OsStr::new("--"),
