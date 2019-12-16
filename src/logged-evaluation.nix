@@ -1,20 +1,19 @@
-{ src, runTimeClosure }:
+{ shellSrc, servicesSrc ? null, runtimeClosure }:
 let
-  runtimeCfg = import runTimeClosure;
+  runtimeCfg = import runtimeClosure;
 
   # using scopedImport, replace readDir and readFile with
   # implementations which will log files and paths they see.
-  overrides = {
-    import = scopedImport overrides;
-    scopedImport = x: builtins.scopedImport (overrides // x);
-    builtins = builtins // {
-      readFile = file: builtins.trace "lorri read: '${toString file}'" (builtins.readFile file);
-      readDir = path: builtins.trace "lorri read: '${toString path}'" (builtins.readDir path);
-    };
-  };
-
-  imported =
+  logged = src:
     let
+      overrides = {
+        import = scopedImport overrides;
+        scopedImport = x: builtins.scopedImport (overrides // x);
+        builtins = builtins // {
+          readFile = file: builtins.trace "lorri read: '${toString file}'" (builtins.readFile file);
+          readDir = path: builtins.trace "lorri read: '${toString path}'" (builtins.readDir path);
+        };
+      };
       raw = overrides.scopedImport overrides src;
     in
       if (builtins.isFunction raw)
@@ -32,9 +31,9 @@ let
   # gc rooting the resulting store path from this build will retain
   # references to all the store paths needed, preventing the shell's
   # actual environment from being deleted.
-  keep-env-hack = drv: derivation (
+  wrapped-project = drv: services: derivation (
     drv.drvAttrs // {
-      name = "lorri-keep-env-hack-${drv.name}";
+      name = "lorri-wrapped-project-${drv.name}";
 
       origExtraClosure = drv.extraClosure or [];
       extraClosure = runtimeCfg.closure;
@@ -116,7 +115,7 @@ let
       args = [
         "-e"
         (
-          builtins.toFile "lorri-keep-env-hack" ''
+          builtins.toFile "lorri-wrapped-project" ''
             mkdir -p "$out"
             touch "$out/varmap-v1"
 
@@ -135,6 +134,9 @@ let
             fi;
 
             export > $out/bash-export
+            cat << 'EOF' > $out/services.json
+            ${builtins.toJSON services}
+            EOF
           ''
         )
       ];
@@ -145,7 +147,6 @@ let
     }
   );
 
-  gc-root = keep-env-hack imported;
-
+  services = if servicesSrc == null then [] else logged servicesSrc;
 in
-gc-root
+wrapped-project (logged shellSrc) services
