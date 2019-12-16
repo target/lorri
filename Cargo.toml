@@ -28,7 +28,12 @@ slog-async = "2.3.0"
 slog-scope = "4.3.0"
 slog-term = "2.4.2"
 tempfile = "3.0.7"
+varlink = "10.0.0"
 vec1 = "1.1.0"
+
 # pinned to a git commit pending v2.0 release
 # see: https://github.com/rust-cli/human-panic/issues/46
 human-panic = { git = "https://github.com/rust-cli/human-panic.git", rev = "70db9489" }
+
+[build-dependencies]
+varlink_generator = "9.0.0"

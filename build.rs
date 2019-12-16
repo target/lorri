@@ -41,4 +41,10 @@ pub const RUN_TIME_CLOSURE: &str = "{}";
         .as_bytes(),
     )
     .unwrap();
+
+    // Generate src/com_target_lorri.rs
+    varlink_generator::cargo_build_tosource(
+        "src/com.target.lorri.varlink",
+        /* rustfmt */ true,
+    );
 }

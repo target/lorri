@@ -84,7 +84,12 @@ rec {
         (cratesIO.crates."slog_term"."${deps."lorri"."0.1.0"."slog_term"}" deps)
         (cratesIO.crates."structopt"."${deps."lorri"."0.1.0"."structopt"}" deps)
         (cratesIO.crates."tempfile"."${deps."lorri"."0.1.0"."tempfile"}" deps)
+        (cratesIO.crates."varlink"."${deps."lorri"."0.1.0"."varlink"}" deps)
         (cratesIO.crates."vec1"."${deps."lorri"."0.1.0"."vec1"}" deps)
+      ]);
+
+      buildDependencies = mapFeatures features ([
+        (cratesIO.crates."varlink_generator"."${deps."lorri"."0.1.0"."varlink_generator"}" deps)
       ]);
     };
     features_.lorri."0.1.0" = deps: f: updateFeatures f (rec {
@@ -109,6 +114,8 @@ rec {
       slog_term."${deps.lorri."0.1.0".slog_term}".default = true;
       structopt."${deps.lorri."0.1.0".structopt}".default = true;
       tempfile."${deps.lorri."0.1.0".tempfile}".default = true;
+      varlink."${deps.lorri."0.1.0".varlink}".default = true;
+      varlink_generator."${deps.lorri."0.1.0".varlink_generator}".default = true;
       vec1."${deps.lorri."0.1.0".vec1}".default = true;
     }) [
       (cratesIO.features_.atomicwrites."${deps."lorri"."0.1.0"."atomicwrites"}" deps)
@@ -131,7 +138,9 @@ rec {
       (cratesIO.features_.slog_term."${deps."lorri"."0.1.0"."slog_term"}" deps)
       (cratesIO.features_.structopt."${deps."lorri"."0.1.0"."structopt"}" deps)
       (cratesIO.features_.tempfile."${deps."lorri"."0.1.0"."tempfile"}" deps)
+      (cratesIO.features_.varlink."${deps."lorri"."0.1.0"."varlink"}" deps)
       (cratesIO.features_.vec1."${deps."lorri"."0.1.0"."vec1"}" deps)
+      (cratesIO.features_.varlink_generator."${deps."lorri"."0.1.0"."varlink_generator"}" deps)
     ];
 
 
@@ -145,6 +154,9 @@ rec {
     memchr = "2.2.1";
   };
   deps.ansi_term."0.11.0" = {
+    winapi = "0.3.8";
+  };
+  deps.ansi_term."0.12.1" = {
     winapi = "0.3.8";
   };
   deps.anymap."0.12.1" = {};
@@ -195,6 +207,7 @@ rec {
   };
   deps.cc."1.0.47" = {};
   deps.cfg_if."0.1.10" = {};
+  deps.chainerror."0.4.3" = {};
   deps.chashmap."2.2.2" = {
     owning_ref = "0.3.3";
     parking_lot = "0.4.8";
@@ -268,6 +281,9 @@ rec {
     fuchsia_zircon_sys = "0.3.3";
   };
   deps.fuchsia_zircon_sys."0.3.3" = {};
+  deps.getopts."0.2.21" = {
+    unicode_width = "0.1.6";
+  };
   deps.getrandom."0.1.13" = {
     cfg_if = "0.1.10";
     wasi = "0.7.0";
@@ -328,7 +344,9 @@ rec {
     slog_term = "2.4.2";
     structopt = "0.2.18";
     tempfile = "3.1.0";
+    varlink = "10.0.0";
     vec1 = "1.4.0";
+    varlink_generator = "9.0.0";
   };
   deps.maybe_uninit."2.0.0" = {};
   deps.md5."0.6.1" = {};
@@ -636,12 +654,44 @@ rec {
   deps.toml."0.4.10" = {
     serde = "1.0.103";
   };
+  deps.uds_windows."0.1.4" = {
+    kernel32_sys = "0.2.2";
+    tempdir = "0.3.7";
+    winapi = "0.2.8";
+    ws2_32_sys = "0.2.1";
+  };
   deps.unicode_segmentation."1.6.0" = {};
   deps.unicode_width."0.1.6" = {};
   deps.unicode_xid."0.1.0" = {};
   deps.unicode_xid."0.2.0" = {};
+  deps.unix_socket."0.5.0" = {
+    cfg_if = "0.1.10";
+    libc = "0.2.65";
+  };
   deps.uuid."0.7.4" = {
     rand = "0.6.5";
+  };
+  deps.varlink."10.0.0" = {
+    serde = "1.0.103";
+    serde_derive = "1.0.103";
+    serde_json = "1.0.42";
+    tempfile = "3.1.0";
+    libc = "0.2.65";
+    unix_socket = "0.5.0";
+    uds_windows = "0.1.4";
+    winapi = "0.3.8";
+  };
+  deps.varlink_generator."9.0.0" = {
+    chainerror = "0.4.3";
+    getopts = "0.2.21";
+    proc_macro2 = "1.0.6";
+    quote = "1.0.2";
+    syn = "1.0.8";
+    varlink_parser = "4.0.3";
+  };
+  deps.varlink_parser."4.0.3" = {
+    ansi_term = "0.12.1";
+    chainerror = "0.4.3";
   };
   deps.vec1."1.4.0" = {};
   deps.vec_map."0.8.1" = {};

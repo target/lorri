@@ -66,6 +66,43 @@ rec {
 
 
 # end
+# ansi_term-0.12.1
+
+  crates.ansi_term."0.12.1" = deps: { features?(features_.ansi_term."0.12.1" deps {}) }: buildRustCrate {
+    crateName = "ansi_term";
+    version = "0.12.1";
+    description = "Library for ANSI terminal colours and styles (bold, underline)";
+    authors = [ "ogham@bsago.me" "Ryan Scheel (Havvy) <ryan.havvy@gmail.com>" "Josh Triplett <josh@joshtriplett.org>" ];
+    sha256 = "1ggb7gsm8qgav5mqsmwrx64rfk2548v32id92qsag48xwhh34m9i";
+    dependencies = mapFeatures features ([
+])
+      ++ (if kernel == "windows" then mapFeatures features ([
+      (crates."winapi"."${deps."ansi_term"."0.12.1"."winapi"}" deps)
+    ]) else []);
+    features = mkFeatures (features."ansi_term"."0.12.1" or {});
+  };
+  features_.ansi_term."0.12.1" = deps: f: updateFeatures f (rec {
+    ansi_term = fold recursiveUpdate {} [
+      { "0.12.1"."serde" =
+        (f.ansi_term."0.12.1"."serde" or false) ||
+        (f.ansi_term."0.12.1".derive_serde_style or false) ||
+        (ansi_term."0.12.1"."derive_serde_style" or false); }
+      { "0.12.1".default = (f.ansi_term."0.12.1".default or true); }
+    ];
+    winapi = fold recursiveUpdate {} [
+      { "${deps.ansi_term."0.12.1".winapi}"."consoleapi" = true; }
+      { "${deps.ansi_term."0.12.1".winapi}"."errhandlingapi" = true; }
+      { "${deps.ansi_term."0.12.1".winapi}"."fileapi" = true; }
+      { "${deps.ansi_term."0.12.1".winapi}"."handleapi" = true; }
+      { "${deps.ansi_term."0.12.1".winapi}"."processenv" = true; }
+      { "${deps.ansi_term."0.12.1".winapi}".default = true; }
+    ];
+  }) [
+    (features_.winapi."${deps."ansi_term"."0.12.1"."winapi"}" deps)
+  ];
+
+
+# end
 # anymap-0.12.1
 
   crates.anymap."0.12.1" = deps: { features?(features_.anymap."0.12.1" deps {}) }: buildRustCrate {
@@ -676,6 +713,23 @@ rec {
 
 
 # end
+# chainerror-0.4.3
+
+  crates.chainerror."0.4.3" = deps: { features?(features_.chainerror."0.4.3" deps {}) }: buildRustCrate {
+    crateName = "chainerror";
+    version = "0.4.3";
+    description = "Make chaining errors easy.";
+    authors = [ "Harald Hoyer <harald@redhat.com>" ];
+    edition = "2018";
+    sha256 = "1pysaqv4ll8kfrmj5q9nkd3f4fbxhczp5lgqf175qy7yyhrw741c";
+    features = mkFeatures (features."chainerror"."0.4.3" or {});
+  };
+  features_.chainerror."0.4.3" = deps: f: updateFeatures f (rec {
+    chainerror."0.4.3".default = (f.chainerror."0.4.3".default or true);
+  }) [];
+
+
+# end
 # chashmap-2.2.2
 
   crates.chashmap."2.2.2" = deps: { features?(features_.chashmap."2.2.2" deps {}) }: buildRustCrate {
@@ -1277,6 +1331,44 @@ rec {
   features_.fuchsia_zircon_sys."0.3.3" = deps: f: updateFeatures f (rec {
     fuchsia_zircon_sys."0.3.3".default = (f.fuchsia_zircon_sys."0.3.3".default or true);
   }) [];
+
+
+# end
+# getopts-0.2.21
+
+  crates.getopts."0.2.21" = deps: { features?(features_.getopts."0.2.21" deps {}) }: buildRustCrate {
+    crateName = "getopts";
+    version = "0.2.21";
+    description = "getopts-like option parsing.\n";
+    authors = [ "The Rust Project Developers" ];
+    sha256 = "1sqp35br180qhc1kzqg7pcv1nkbs05fgjfg53n4swcx2q2ql4763";
+    dependencies = mapFeatures features ([
+      (crates."unicode_width"."${deps."getopts"."0.2.21"."unicode_width"}" deps)
+    ]);
+    features = mkFeatures (features."getopts"."0.2.21" or {});
+  };
+  features_.getopts."0.2.21" = deps: f: updateFeatures f (rec {
+    getopts = fold recursiveUpdate {} [
+      { "0.2.21"."core" =
+        (f.getopts."0.2.21"."core" or false) ||
+        (f.getopts."0.2.21".rustc-dep-of-std or false) ||
+        (getopts."0.2.21"."rustc-dep-of-std" or false); }
+      { "0.2.21"."std" =
+        (f.getopts."0.2.21"."std" or false) ||
+        (f.getopts."0.2.21".rustc-dep-of-std or false) ||
+        (getopts."0.2.21"."rustc-dep-of-std" or false); }
+      { "0.2.21".default = (f.getopts."0.2.21".default or true); }
+    ];
+    unicode_width = fold recursiveUpdate {} [
+      { "${deps.getopts."0.2.21".unicode_width}"."rustc-dep-of-std" =
+        (f.unicode_width."${deps.getopts."0.2.21".unicode_width}"."rustc-dep-of-std" or false) ||
+        (getopts."0.2.21"."rustc-dep-of-std" or false) ||
+        (f."getopts"."0.2.21"."rustc-dep-of-std" or false); }
+      { "${deps.getopts."0.2.21".unicode_width}".default = true; }
+    ];
+  }) [
+    (features_.unicode_width."${deps."getopts"."0.2.21"."unicode_width"}" deps)
+  ];
 
 
 # end
@@ -4448,6 +4540,36 @@ rec {
 
 
 # end
+# uds_windows-0.1.4
+
+  crates.uds_windows."0.1.4" = deps: { features?(features_.uds_windows."0.1.4" deps {}) }: buildRustCrate {
+    crateName = "uds_windows";
+    version = "0.1.4";
+    description = "Unix Domain Sockets for Windows!";
+    authors = [ "Azure IoT Edge Devs" "Harald Hoyer <harald@redhat.com>" ];
+    sha256 = "04vyb09xnqc61yh0iyqhjjiv4d5qny4fib8nn6phadk82lrfcy06";
+    dependencies = (if kernel == "windows" then mapFeatures features ([
+      (crates."kernel32_sys"."${deps."uds_windows"."0.1.4"."kernel32_sys"}" deps)
+      (crates."tempdir"."${deps."uds_windows"."0.1.4"."tempdir"}" deps)
+      (crates."winapi"."${deps."uds_windows"."0.1.4"."winapi"}" deps)
+      (crates."ws2_32_sys"."${deps."uds_windows"."0.1.4"."ws2_32_sys"}" deps)
+    ]) else []);
+  };
+  features_.uds_windows."0.1.4" = deps: f: updateFeatures f (rec {
+    kernel32_sys."${deps.uds_windows."0.1.4".kernel32_sys}".default = true;
+    tempdir."${deps.uds_windows."0.1.4".tempdir}".default = true;
+    uds_windows."0.1.4".default = (f.uds_windows."0.1.4".default or true);
+    winapi."${deps.uds_windows."0.1.4".winapi}".default = true;
+    ws2_32_sys."${deps.uds_windows."0.1.4".ws2_32_sys}".default = true;
+  }) [
+    (features_.kernel32_sys."${deps."uds_windows"."0.1.4"."kernel32_sys"}" deps)
+    (features_.tempdir."${deps."uds_windows"."0.1.4"."tempdir"}" deps)
+    (features_.winapi."${deps."uds_windows"."0.1.4"."winapi"}" deps)
+    (features_.ws2_32_sys."${deps."uds_windows"."0.1.4"."ws2_32_sys"}" deps)
+  ];
+
+
+# end
 # unicode-segmentation-1.6.0
 
   crates.unicode_segmentation."1.6.0" = deps: { features?(features_.unicode_segmentation."1.6.0" deps {}) }: buildRustCrate {
@@ -4528,6 +4650,30 @@ rec {
 
 
 # end
+# unix_socket-0.5.0
+
+  crates.unix_socket."0.5.0" = deps: { features?(features_.unix_socket."0.5.0" deps {}) }: buildRustCrate {
+    crateName = "unix_socket";
+    version = "0.5.0";
+    description = "Unix domain socket bindings";
+    authors = [ "Steven Fackler <sfackler@gmail.com>" ];
+    sha256 = "0gc4g7lybvq31cr6a1jfmn5lgg328lwjr9278j9dq4py5dq3n70f";
+    dependencies = mapFeatures features ([
+      (crates."cfg_if"."${deps."unix_socket"."0.5.0"."cfg_if"}" deps)
+      (crates."libc"."${deps."unix_socket"."0.5.0"."libc"}" deps)
+    ]);
+  };
+  features_.unix_socket."0.5.0" = deps: f: updateFeatures f (rec {
+    cfg_if."${deps.unix_socket."0.5.0".cfg_if}".default = true;
+    libc."${deps.unix_socket."0.5.0".libc}".default = true;
+    unix_socket."0.5.0".default = (f.unix_socket."0.5.0".default or true);
+  }) [
+    (features_.cfg_if."${deps."unix_socket"."0.5.0"."cfg_if"}" deps)
+    (features_.libc."${deps."unix_socket"."0.5.0"."libc"}" deps)
+  ];
+
+
+# end
 # uuid-0.7.4
 
   crates.uuid."0.7.4" = deps: { features?(features_.uuid."0.7.4" deps {}) }: buildRustCrate {
@@ -4588,6 +4734,134 @@ rec {
     ];
   }) [
     (features_.rand."${deps."uuid"."0.7.4"."rand"}" deps)
+  ];
+
+
+# end
+# varlink-10.0.0
+
+  crates.varlink."10.0.0" = deps: { features?(features_.varlink."10.0.0" deps {}) }: buildRustCrate {
+    crateName = "varlink";
+    version = "10.0.0";
+    description = "Client and server support for the varlink protocol.";
+    authors = [ "Harald Hoyer <harald@redhat.com>" ];
+    edition = "2018";
+    sha256 = "1wgqghrjszrbsmplviqzaa5gi8yp8ki59gsjqaiqb4py91jxhca4";
+    libPath = "src/lib.rs";
+    dependencies = mapFeatures features ([
+      (crates."serde"."${deps."varlink"."10.0.0"."serde"}" deps)
+      (crates."serde_derive"."${deps."varlink"."10.0.0"."serde_derive"}" deps)
+      (crates."serde_json"."${deps."varlink"."10.0.0"."serde_json"}" deps)
+      (crates."tempfile"."${deps."varlink"."10.0.0"."tempfile"}" deps)
+    ])
+      ++ (if (kernel == "linux" || kernel == "darwin") then mapFeatures features ([
+      (crates."libc"."${deps."varlink"."10.0.0"."libc"}" deps)
+      (crates."unix_socket"."${deps."varlink"."10.0.0"."unix_socket"}" deps)
+    ]) else [])
+      ++ (if kernel == "windows" then mapFeatures features ([
+      (crates."uds_windows"."${deps."varlink"."10.0.0"."uds_windows"}" deps)
+      (crates."winapi"."${deps."varlink"."10.0.0"."winapi"}" deps)
+    ]) else []);
+  };
+  features_.varlink."10.0.0" = deps: f: updateFeatures f (rec {
+    libc."${deps.varlink."10.0.0".libc}".default = (f.libc."${deps.varlink."10.0.0".libc}".default or false);
+    serde."${deps.varlink."10.0.0".serde}".default = true;
+    serde_derive."${deps.varlink."10.0.0".serde_derive}".default = true;
+    serde_json."${deps.varlink."10.0.0".serde_json}".default = true;
+    tempfile."${deps.varlink."10.0.0".tempfile}".default = true;
+    uds_windows."${deps.varlink."10.0.0".uds_windows}".default = true;
+    unix_socket."${deps.varlink."10.0.0".unix_socket}".default = true;
+    varlink."10.0.0".default = (f.varlink."10.0.0".default or true);
+    winapi = fold recursiveUpdate {} [
+      { "${deps.varlink."10.0.0".winapi}"."winsock2" = true; }
+      { "${deps.varlink."10.0.0".winapi}"."winuser" = true; }
+      { "${deps.varlink."10.0.0".winapi}".default = true; }
+    ];
+  }) [
+    (features_.serde."${deps."varlink"."10.0.0"."serde"}" deps)
+    (features_.serde_derive."${deps."varlink"."10.0.0"."serde_derive"}" deps)
+    (features_.serde_json."${deps."varlink"."10.0.0"."serde_json"}" deps)
+    (features_.tempfile."${deps."varlink"."10.0.0"."tempfile"}" deps)
+    (features_.libc."${deps."varlink"."10.0.0"."libc"}" deps)
+    (features_.unix_socket."${deps."varlink"."10.0.0"."unix_socket"}" deps)
+    (features_.uds_windows."${deps."varlink"."10.0.0"."uds_windows"}" deps)
+    (features_.winapi."${deps."varlink"."10.0.0"."winapi"}" deps)
+  ];
+
+
+# end
+# varlink_generator-9.0.0
+
+  crates.varlink_generator."9.0.0" = deps: { features?(features_.varlink_generator."9.0.0" deps {}) }: buildRustCrate {
+    crateName = "varlink_generator";
+    version = "9.0.0";
+    description = "Rust code generator for the varlink protocol.";
+    authors = [ "Harald Hoyer <harald@redhat.com>" ];
+    edition = "2018";
+    sha256 = "1p9fbsd6g43mvr10mpp56amiq027bks59chkc51kqajrzhv6m5mr";
+    libPath = "src/lib.rs";
+    crateBin =
+      [{  name = "varlink-rust-generator";  path = "src/bin/varlink-rust-generator.rs"; }];
+    dependencies = mapFeatures features ([
+      (crates."chainerror"."${deps."varlink_generator"."9.0.0"."chainerror"}" deps)
+      (crates."getopts"."${deps."varlink_generator"."9.0.0"."getopts"}" deps)
+      (crates."proc_macro2"."${deps."varlink_generator"."9.0.0"."proc_macro2"}" deps)
+      (crates."quote"."${deps."varlink_generator"."9.0.0"."quote"}" deps)
+      (crates."syn"."${deps."varlink_generator"."9.0.0"."syn"}" deps)
+      (crates."varlink_parser"."${deps."varlink_generator"."9.0.0"."varlink_parser"}" deps)
+    ]);
+  };
+  features_.varlink_generator."9.0.0" = deps: f: updateFeatures f (rec {
+    chainerror."${deps.varlink_generator."9.0.0".chainerror}".default = true;
+    getopts."${deps.varlink_generator."9.0.0".getopts}".default = true;
+    proc_macro2."${deps.varlink_generator."9.0.0".proc_macro2}".default = true;
+    quote."${deps.varlink_generator."9.0.0".quote}".default = true;
+    syn."${deps.varlink_generator."9.0.0".syn}".default = true;
+    varlink_generator."9.0.0".default = (f.varlink_generator."9.0.0".default or true);
+    varlink_parser."${deps.varlink_generator."9.0.0".varlink_parser}".default = true;
+  }) [
+    (features_.chainerror."${deps."varlink_generator"."9.0.0"."chainerror"}" deps)
+    (features_.getopts."${deps."varlink_generator"."9.0.0"."getopts"}" deps)
+    (features_.proc_macro2."${deps."varlink_generator"."9.0.0"."proc_macro2"}" deps)
+    (features_.quote."${deps."varlink_generator"."9.0.0"."quote"}" deps)
+    (features_.syn."${deps."varlink_generator"."9.0.0"."syn"}" deps)
+    (features_.varlink_parser."${deps."varlink_generator"."9.0.0"."varlink_parser"}" deps)
+  ];
+
+
+# end
+# varlink_parser-4.0.3
+
+  crates.varlink_parser."4.0.3" = deps: { features?(features_.varlink_parser."4.0.3" deps {}) }: buildRustCrate {
+    crateName = "varlink_parser";
+    version = "4.0.3";
+    description = "A crate for parsing varlink interface definition files.";
+    authors = [ "Harald Hoyer <harald@redhat.com>" ];
+    edition = "2018";
+    sha256 = "0akc615x0k3z5irclr9ci5psyxhdkfq56fxqsg8z4bjfjsyxdxf1";
+    build = "build.rs";
+    dependencies = mapFeatures features ([
+      (crates."ansi_term"."${deps."varlink_parser"."4.0.3"."ansi_term"}" deps)
+      (crates."chainerror"."${deps."varlink_parser"."4.0.3"."chainerror"}" deps)
+    ]);
+
+    buildDependencies = mapFeatures features ([
+]);
+    features = mkFeatures (features."varlink_parser"."4.0.3" or {});
+  };
+  features_.varlink_parser."4.0.3" = deps: f: updateFeatures f (rec {
+    ansi_term."${deps.varlink_parser."4.0.3".ansi_term}".default = true;
+    chainerror."${deps.varlink_parser."4.0.3".chainerror}".default = true;
+    varlink_parser = fold recursiveUpdate {} [
+      { "4.0.3"."peg" =
+        (f.varlink_parser."4.0.3"."peg" or false) ||
+        (f.varlink_parser."4.0.3".dynamic_peg or false) ||
+        (varlink_parser."4.0.3"."dynamic_peg" or false); }
+      { "4.0.3".default = (f.varlink_parser."4.0.3".default or true); }
+    ];
+  }) [
+    (features_.ansi_term."${deps."varlink_parser"."4.0.3"."ansi_term"}" deps)
+    (features_.chainerror."${deps."varlink_parser"."4.0.3"."chainerror"}" deps)
   ];
 
 
