@@ -51,7 +51,7 @@ fn main() {
 /// Try to read `shell.nix` from the current working dir.
 fn get_shell_nix(shellfile: &PathBuf) -> Result<NixFile, ExitError> {
     // use shell.nix from cwd
-    Ok(NixFile::from(locate_file::in_cwd(&shellfile).map_err(
+    Ok(NixFile::Shell(locate_file::in_cwd(&shellfile).map_err(
         |_| {
             ExitError::user_error(format!(
                 "`{}` does not exist\n\

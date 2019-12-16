@@ -75,11 +75,11 @@ impl rpc::VarlinkInterface for Server {
     }
 }
 
-impl std::convert::TryFrom<NixFile> for rpc::ShellNix {
+impl std::convert::TryFrom<&NixFile> for rpc::ShellNix {
     type Error = &'static str;
 
-    fn try_from(nix_file: NixFile) -> Result<Self, Self::Error> {
-        match nix_file.as_os_str().to_str() {
+    fn try_from(nix_file: &NixFile) -> Result<Self, Self::Error> {
+        match PathBuf::from(nix_file).as_os_str().to_str() {
             Some(s) => Ok(rpc::ShellNix {
                 path: s.to_string(),
             }),
@@ -94,7 +94,7 @@ impl std::convert::TryFrom<rpc::ShellNix> for NixFile {
     fn try_from(shell_nix: rpc::ShellNix) -> Result<Self, Self::Error> {
         let path = PathBuf::from(shell_nix.path);
         if path.as_path().is_file() {
-            Ok(NixFile::from(path))
+            Ok(NixFile::Shell(path))
         } else {
             Err(format!("nix file {} does not exist", path.display()))
         }

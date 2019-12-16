@@ -91,7 +91,7 @@ fn instrumented_instantiation(
         // the source file
         OsStr::new("--argstr"),
         OsStr::new("shellSrc"),
-        root_nix_file.as_os_str(),
+        PathBuf::from(root_nix_file).as_os_str(),
         // instrumented by `./logged-evaluation.nix`
         OsStr::new("--"),
         &logged_evaluation_nix.as_os_str(),
@@ -491,7 +491,7 @@ in {}
         let (tx, rx) = chan::unbounded();
         let info = run(
             tx,
-            &crate::NixFile::from(cas.file_from_string(&nix_drv)?),
+            &crate::NixFile::Shell(cas.file_from_string(&nix_drv)?),
             &cas,
         )
         .unwrap();
@@ -526,7 +526,7 @@ in {}
         let tmp = tempfile::tempdir()?;
         let cas = ContentAddressable::new(tmp.path().to_owned())?;
 
-        let d = crate::NixFile::from(cas.file_from_string(&drv(
+        let d = crate::NixFile::Shell(cas.file_from_string(&drv(
             "shell",
             &format!("dep = {};", drv("dep", r##"args = [ "-c" "exit 1" ];"##)),
         ))?);
@@ -584,7 +584,7 @@ dir-as-source = ./dir;
         let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
 
         let (tx, rx) = chan::unbounded();
-        let inst_info = instrumented_instantiation(tx, &NixFile::from(shell), &cas).unwrap();
+        let inst_info = instrumented_instantiation(tx, &NixFile::Shell(shell), &cas).unwrap();
         let ends_with = |end| inst_info.referenced_paths.iter().any(|p| p.ends_with(end));
         assert!(
             ends_with("foo/default.nix"),

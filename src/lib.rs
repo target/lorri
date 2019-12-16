@@ -59,31 +59,26 @@ include!(concat!(env!("OUT_DIR"), "/build_rev.rs"));
 
 /// A .nix file.
 #[derive(Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-pub struct NixFile(PathBuf);
+pub enum NixFile {
+    /// A .nix file which describes a shell environment
+    Shell(PathBuf),
+    /// A .nix file which describes a list of services
+    Services(PathBuf),
+}
 
-impl NixFile {
-    /// Underlying `&OsStr`.
-    pub fn as_os_str(&self) -> &std::ffi::OsStr {
-        self.0.as_os_str()
+impl From<&NixFile> for PathBuf {
+    fn from(p: &NixFile) -> PathBuf {
+        match p {
+            NixFile::Shell(p) => p.to_path_buf(),
+            NixFile::Services(p) => p.to_path_buf(),
+        }
     }
 }
 
 /// Proxy through the `Display` class for `PathBuf`.
 impl std::fmt::Display for NixFile {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.0.display().fmt(f)
-    }
-}
-
-impl From<&std::ffi::OsStr> for NixFile {
-    fn from(s: &std::ffi::OsStr) -> NixFile {
-        NixFile(PathBuf::from(s.to_owned()))
-    }
-}
-
-impl From<PathBuf> for NixFile {
-    fn from(p: PathBuf) -> NixFile {
-        NixFile(p)
+        PathBuf::from(self).display().fmt(f)
     }
 }
 
@@ -94,7 +89,7 @@ impl slog::Value for NixFile {
         key: slog::Key,
         serializer: &mut dyn slog::Serializer,
     ) -> slog::Result {
-        serializer.emit_str(key, &self.as_os_str().to_string_lossy())
+        serializer.emit_arguments(key, &format_args!("{}", PathBuf::from(self).display()))
     }
 }
 
