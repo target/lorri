@@ -59,7 +59,7 @@ impl From<std::io::Error> for NixNotFoundError {
 
 fn instrumented_instantiation(
     tx: chan::Sender<OsString>,
-    root_nix_file: &NixFile,
+    nix_file: &NixFile,
     cas: &ContentAddressable,
 ) -> Result<InstantiateOutput, NixNotFoundError> {
     // We're looking for log lines matching:
@@ -90,8 +90,12 @@ fn instrumented_instantiation(
         OsStr::new(crate::RUN_TIME_CLOSURE),
         // the source file
         OsStr::new("--argstr"),
-        OsStr::new("shellSrc"),
-        PathBuf::from(root_nix_file).as_os_str(),
+    ]);
+    match nix_file {
+        NixFile::Shell(shell) => cmd.args(&[OsStr::new("shellSrc"), shell.as_os_str()]),
+        NixFile::Services(services) => cmd.args(&[OsStr::new("servicesSrc"), services.as_os_str()]),
+    };
+    cmd.args(&[
         // instrumented by `./logged-evaluation.nix`
         OsStr::new("--"),
         &logged_evaluation_nix.as_os_str(),
