@@ -94,11 +94,11 @@ fn instrumented_instantiation(
         OsStr::new("shellSrc"),
         shell_nix.as_os_str(),
     ]);
-    if services_nix.is_some() {
+    if let Some(services_nix) = services_nix {
         cmd.args(&[
             OsStr::new("--argstr"),
             OsStr::new("servicesSrc"),
-            services_nix.unwrap().as_os_str(),
+            services_nix.as_os_str(),
         ]);
     }
     cmd.args(&[
