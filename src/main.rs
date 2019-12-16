@@ -88,8 +88,8 @@ fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
 
     match opts.command {
         Command::Info(opts) => {
-            let (project, _guard) = with_project(&opts.nix_file)?;
-            info::main(project)
+            let (_project, _guard) = with_project(&opts.nix_file)?;
+            info::main(opts.nix_file)
         }
         Command::Direnv(opts) => {
             let (project, _guard) = with_project(&opts.nix_file)?;

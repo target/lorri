@@ -75,13 +75,6 @@ impl From<&NixFile> for PathBuf {
     }
 }
 
-/// Proxy through the `Display` class for `PathBuf`.
-impl std::fmt::Display for NixFile {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        PathBuf::from(self).display().fmt(f)
-    }
-}
-
 impl slog::Value for NixFile {
     fn serialize(
         &self,

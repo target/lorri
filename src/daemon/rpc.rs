@@ -79,11 +79,14 @@ impl std::convert::TryFrom<&NixFile> for rpc::ShellNix {
     type Error = &'static str;
 
     fn try_from(nix_file: &NixFile) -> Result<Self, Self::Error> {
-        match PathBuf::from(nix_file).as_os_str().to_str() {
-            Some(s) => Ok(rpc::ShellNix {
-                path: s.to_string(),
-            }),
-            None => Err("nix file path is not UTF-8 clean"),
+        match nix_file {
+            NixFile::Shell(shell) => match shell.as_os_str().to_str() {
+                Some(s) => Ok(rpc::ShellNix {
+                    path: s.to_string(),
+                }),
+                None => Err("nix file path is not UTF-8 clean"),
+            },
+            NixFile::Services(_) => Err("need a shell nix file, not a services nix file"),
         }
     }
 }
