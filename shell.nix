@@ -102,6 +102,9 @@ pkgs.mkShell (
 
         set -x
 
+        lorri_travis_fold fmt-nix ./nix/fmt.sh --check
+        nix_fmt=$?
+
         lorri_travis_fold carnix-update ./nix/update-carnix.sh
         carnixupdate=$?
 
@@ -120,13 +123,14 @@ pkgs.mkShell (
         cargoclippyexit=$?
 
         set +x
+        echo "./nix/fmt.sh --check: $nix_fmt"
         echo "carnix update: $carnixupdates"
         echo "script tests: $scripttests"
         echo "cargo test: $cargotestexit"
         echo "cargo fmt: $cargofmtexit"
         echo "cargo clippy: $cargoclippyexit"
 
-        sum=$((carnixupdate + scripttest + cargotestexit + cargofmtexit + cargoclippyexit))
+        sum=$((nix_fmt + carnixupdate + scripttest + cargotestexit + cargofmtexit + cargoclippyexit))
         if [ "$sum" -gt 0 ]; then
           return 1
         fi
