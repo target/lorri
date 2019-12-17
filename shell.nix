@@ -47,6 +47,7 @@ let
       pkgs.shellcheck
       pkgs.carnix
       pkgs.nix-prefetch-git
+      pkgs.nixpkgs-fmt
 
       # To ensure we always have a compatible nix in our shells.
       # Travis doesn’t know `nix-env` otherwise.
