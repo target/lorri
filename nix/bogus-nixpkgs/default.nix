@@ -19,14 +19,17 @@ let
   bogusPackage = bogusFO ./builder.sh;
   bogusUnstablePackage = bogusUnstable ./builder.sh;
 
-in {
+in
+{
   mkShell = { name ? "shell", buildInputs ? [], env ? {} }: derivation
-    (env // {
-      inherit name;
-      builder = ./shell-builder.sh;
-      system = builtins.currentSystem;
-      stdenv = ./stdenv;
-    });
+    (
+      env // {
+        inherit name;
+        builder = ./shell-builder.sh;
+        system = builtins.currentSystem;
+        stdenv = ./stdenv;
+      }
+    );
 
   hello = bogusPackage "hello-1.0.0";
 

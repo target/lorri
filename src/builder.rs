@@ -59,7 +59,7 @@ impl From<std::io::Error> for NixNotFoundError {
 
 fn instrumented_instantiation(
     tx: chan::Sender<OsString>,
-    root_nix_file: &NixFile,
+    nix_file: &NixFile,
     cas: &ContentAddressable,
 ) -> Result<InstantiateOutput, NixNotFoundError> {
     // We're looking for log lines matching:
@@ -86,12 +86,16 @@ fn instrumented_instantiation(
         OsStr::new("--indirect"),
         OsStr::new("--argstr"),
         // runtime nix paths to needed dependencies that come with lorri
-        OsStr::new("runTimeClosure"),
+        OsStr::new("runtimeClosure"),
         OsStr::new(crate::RUN_TIME_CLOSURE),
         // the source file
         OsStr::new("--argstr"),
-        OsStr::new("src"),
-        root_nix_file.as_os_str(),
+    ]);
+    match nix_file {
+        NixFile::Shell(shell) => cmd.args(&[OsStr::new("shellSrc"), shell.as_os_str()]),
+        NixFile::Services(services) => cmd.args(&[OsStr::new("servicesSrc"), services.as_os_str()]),
+    };
+    cmd.args(&[
         // instrumented by `./logged-evaluation.nix`
         OsStr::new("--"),
         &logged_evaluation_nix.as_os_str(),
@@ -491,7 +495,7 @@ in {}
         let (tx, rx) = chan::unbounded();
         let info = run(
             tx,
-            &crate::NixFile::from(cas.file_from_string(&nix_drv)?),
+            &crate::NixFile::Shell(cas.file_from_string(&nix_drv)?),
             &cas,
         )
         .unwrap();
@@ -526,7 +530,7 @@ in {}
         let tmp = tempfile::tempdir()?;
         let cas = ContentAddressable::new(tmp.path().to_owned())?;
 
-        let d = crate::NixFile::from(cas.file_from_string(&drv(
+        let d = crate::NixFile::Shell(cas.file_from_string(&drv(
             "shell",
             &format!("dep = {};", drv("dep", r##"args = [ "-c" "exit 1" ];"##)),
         ))?);
@@ -584,8 +588,12 @@ dir-as-source = ./dir;
         let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
 
         let (tx, rx) = chan::unbounded();
-        let inst_info = instrumented_instantiation(tx, &NixFile::from(shell), &cas).unwrap();
+        let inst_info = instrumented_instantiation(tx, &NixFile::Shell(shell), &cas).unwrap();
         let ends_with = |end| inst_info.referenced_paths.iter().any(|p| p.ends_with(end));
+        assert!(
+            inst_info.output.is_some(),
+            "instantiation failed to produce an output"
+        );
         assert!(
             ends_with("foo/default.nix"),
             "foo/default.nix should be watched!"
@@ -601,6 +609,115 @@ dir-as-source = ./dir;
         // unused
         drop(rx);
 
+        Ok(())
+    }
+
+    #[test]
+    fn services_builds_json() -> std::io::Result<()> {
+        let root_tmp = tempfile::tempdir()?;
+        let cas_tmp = tempfile::tempdir()?;
+        let root = root_tmp.path();
+        let services = root.join("services.nix");
+        std::fs::write(
+            &services,
+            r##"
+let
+  program1 = import ./program1;
+  program2 = import ./program2/custom.nix;
+in
+[ { name = "service1"; program = "${program1}"; args = [ "--fast" ]; }
+  { name = "service2"; program = "${program2}"; args = [ "--faster" ]; } ]
+"##,
+        )?;
+
+        let program1 = root.join("program1");
+        std::fs::create_dir(&program1)?;
+        let program1_default = &program1.join("default.nix");
+        std::fs::write(&program1_default, "\"program1_path\"")?;
+
+        let program2 = root.join("program2");
+        std::fs::create_dir(&program2)?;
+        let program2_custom = &program2.join("custom.nix");
+        std::fs::write(&program2_custom, "\"program2_path\"")?;
+
+        let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
+
+        let (tx, rx) = chan::unbounded();
+        let RunResult {
+            status,
+            referenced_paths: _,
+        } = run(tx, &NixFile::Services(services), &cas).unwrap();
+
+        let path = match &status {
+            RunStatus::Complete(RootedPath { path, gc_handle: _ }) => path.as_path(),
+            _ => panic!("build failed"),
+        };
+
+        let services_json = path.join("services.json");
+        assert!(services_json.is_file(), "services.json must be a file");
+
+        let mut writer: Vec<u8> = Vec::new();
+        std::io::copy(
+            &mut std::fs::File::open(services_json).unwrap(),
+            &mut writer,
+        )
+        .unwrap();
+        assert_eq!(
+            r##"[{"args":["--fast"],"name":"service1","program":"program1_path"},{"args":["--faster"],"name":"service2","program":"program2_path"}]"##,
+            String::from_utf8(writer).unwrap().trim()
+        );
+
+        drop(rx);
+        Ok(())
+    }
+
+    #[test]
+    fn services_dependencies_watched() -> std::io::Result<()> {
+        let root_tmp = tempfile::tempdir()?;
+        let cas_tmp = tempfile::tempdir()?;
+        let root = root_tmp.path();
+        let services = root.join("services.nix");
+        std::fs::write(
+            &services,
+            r##"
+let
+  program1 = import ./program1;
+  program2 = import ./program2/custom.nix;
+in
+[ { name = "service1"; program = "${program1}"; args = [ "--fast" ]; }
+  { name = "service2"; program = "${program2}"; args = [ "--faster" ]; } ]
+"##,
+        )?;
+
+        let program1 = root.join("program1");
+        std::fs::create_dir(&program1)?;
+        let program1_default = &program1.join("default.nix");
+        std::fs::write(&program1_default, "\"program1_path\"")?;
+
+        let program2 = root.join("program2");
+        std::fs::create_dir(&program2)?;
+        let program2_custom = &program2.join("custom.nix");
+        std::fs::write(&program2_custom, "\"program2_path\"")?;
+
+        let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
+
+        let (tx, rx) = chan::unbounded();
+        let inst_info = instrumented_instantiation(tx, &NixFile::Services(services), &cas).unwrap();
+        assert!(
+            inst_info.output.is_some(),
+            "instantiation failed to produce an output"
+        );
+
+        let ends_with = |end| inst_info.referenced_paths.iter().any(|p| p.ends_with(end));
+        assert!(
+            ends_with("program1/default.nix"),
+            "program1/default.nix should be watched!"
+        );
+        assert!(
+            ends_with("program2/custom.nix"),
+            "program2/custom.nix should be watched!"
+        );
+        drop(rx);
         Ok(())
     }
 }

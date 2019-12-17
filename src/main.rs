@@ -51,7 +51,7 @@ fn main() {
 /// Try to read `shell.nix` from the current working dir.
 fn get_shell_nix(shellfile: &PathBuf) -> Result<NixFile, ExitError> {
     // use shell.nix from cwd
-    Ok(NixFile::from(locate_file::in_cwd(&shellfile).map_err(
+    Ok(NixFile::Shell(locate_file::in_cwd(&shellfile).map_err(
         |_| {
             ExitError::user_error(format!(
                 "`{}` does not exist\n\
@@ -88,8 +88,8 @@ fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
 
     match opts.command {
         Command::Info(opts) => {
-            let (project, _guard) = with_project(&opts.nix_file)?;
-            info::main(project)
+            let (_project, _guard) = with_project(&opts.nix_file)?;
+            info::main(opts.nix_file)
         }
         Command::Direnv(opts) => {
             let (project, _guard) = with_project(&opts.nix_file)?;

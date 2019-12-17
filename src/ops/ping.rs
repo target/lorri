@@ -9,7 +9,7 @@ use std::convert::TryFrom;
 pub fn main(nix_file: NixFile) -> OpResult {
     // TODO: set up socket path, make it settable by the user
     let address = crate::ops::get_paths()?.daemon_socket_address();
-    let shell_nix = rpc::ShellNix::try_from(nix_file).unwrap();
+    let shell_nix = rpc::ShellNix::try_from(&nix_file).unwrap();
 
     use rpc::VarlinkClientInterface;
     rpc::VarlinkClient::new(
