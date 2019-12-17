@@ -1,4 +1,11 @@
-{ shellSrc ? null, servicesSrc ? null, runtimeClosure }:
+# The purpose of this function is as follows:
+# 1. It protects the output paths of its dependencies from being garbage collected.
+# 2. Given 'shellSrc', it generates a shell environment by capturing environment variables in $out/bash-export.
+# 3. Given 'servicesSrc', it generates a services.json file.
+{ shellSrc ? null # Nix file describing a shell environment
+, servicesSrc ? null # Nix file containing a list of services
+, runtimeClosure
+}:
 assert shellSrc != null || servicesSrc != null;
 let
   runtimeCfg = import runtimeClosure;
@@ -26,7 +33,7 @@ let
   # However, the output paths referenced in any of the drvs are NOT
   # protected.
   #
-  # The keep-env-hack function takes a given derivation and replaces
+  # The wrapped-project function takes a given derivation and replaces
   # its builder with an `env` dumper.
   #
   # gc rooting the resulting store path from this build will retain
