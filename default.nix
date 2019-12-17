@@ -1,10 +1,13 @@
-{
-  pkgs ? import ./nix/nixpkgs.nix,
-  src ? pkgs.nix-gitignore.gitignoreSource [".git/"] ./.
+{ pkgs ? import ./nix/nixpkgs.nix
+, src ? pkgs.nix-gitignore.gitignoreSource [ ".git/" ] ./.
 }:
-((pkgs.callPackage ./Cargo.nix {
-  cratesIO = pkgs.callPackage ./nix/carnix/crates-io.nix {};
-}).lorri {}).override {
+(
+  (
+    pkgs.callPackage ./Cargo.nix {
+      cratesIO = pkgs.callPackage ./nix/carnix/crates-io.nix {};
+    }
+  ).lorri {}
+).override {
   crateOverrides = pkgs.defaultCrateOverrides // {
     lorri = attrs: {
       name = "lorri";
@@ -33,8 +36,7 @@
           --no-out-link
       '';
 
-      buildInputs = [ pkgs.nix pkgs.direnv pkgs.which pkgs.rustPackages.rustfmt ] ++
-      pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
+      buildInputs = [ pkgs.nix pkgs.direnv pkgs.which pkgs.rustPackages.rustfmt ] ++ pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
         pkgs.darwin.cf-private
         pkgs.darwin.Security
         pkgs.darwin.apple_sdk.frameworks.CoreServices

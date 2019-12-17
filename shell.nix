@@ -37,102 +37,102 @@ let
   CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
 
   buildInputs = [
-      pkgs.cargo
-      pkgs.rustPackages.clippy
-      pkgs.rustc
-      pkgs.rustfmt
-      pkgs.bashInteractive
-      pkgs.git
-      pkgs.direnv
-      pkgs.shellcheck
-      pkgs.carnix
-      pkgs.nix-prefetch-git
-      pkgs.nixpkgs-fmt
+    pkgs.cargo
+    pkgs.rustPackages.clippy
+    pkgs.rustc
+    pkgs.rustfmt
+    pkgs.bashInteractive
+    pkgs.git
+    pkgs.direnv
+    pkgs.shellcheck
+    pkgs.carnix
+    pkgs.nix-prefetch-git
+    pkgs.nixpkgs-fmt
 
-      # To ensure we always have a compatible nix in our shells.
-      # Travis doesn’t know `nix-env` otherwise.
-      pkgs.nix
-    ] ++
-    pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
-      pkgs.darwin.Security
-      pkgs.darwin.apple_sdk.frameworks.CoreServices
-      pkgs.darwin.apple_sdk.frameworks.CoreFoundation
-    ];
+    # To ensure we always have a compatible nix in our shells.
+    # Travis doesn’t know `nix-env` otherwise.
+    pkgs.nix
+  ] ++ pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
+    pkgs.darwin.Security
+    pkgs.darwin.apple_sdk.frameworks.CoreServices
+    pkgs.darwin.apple_sdk.frameworks.CoreFoundation
+  ];
 
-    # we manually collect all build inputs,
-    # because `mkShell` derivations cannot be built
-    # and we want to cachix them.
-    allBuildInputs = buildInputs;
+  # we manually collect all build inputs,
+  # because `mkShell` derivations cannot be built
+  # and we want to cachix them.
+  allBuildInputs = buildInputs;
 
 in
-pkgs.mkShell ({
-  name = "lorri";
-  buildInputs = buildInputs
+pkgs.mkShell (
+  {
+    name = "lorri";
+    buildInputs = buildInputs
     ++ pkgs.stdenv.lib.optionals isDevelopmentShell [ pkgs.rustracer ];
 
-  inherit BUILD_REV_COUNT RUN_TIME_CLOSURE;
+    inherit BUILD_REV_COUNT RUN_TIME_CLOSURE;
 
-  inherit RUST_BACKTRACE;
+    inherit RUST_BACKTRACE;
 
-  # Executed when entering `nix-shell`
-  shellHook = ''
-    # we can only output to stderr in the shellHook,
-    # otherwise direnv `use nix` does not work.
-    # see https://github.com/direnv/direnv/issues/427
-    exec 3>&1 # store stdout (1) in fd 3
-    exec 1>&2 # make stdout (1) an alias for stderr (2)
+    # Executed when entering `nix-shell`
+    shellHook = ''
+      # we can only output to stderr in the shellHook,
+      # otherwise direnv `use nix` does not work.
+      # see https://github.com/direnv/direnv/issues/427
+      exec 3>&1 # store stdout (1) in fd 3
+      exec 1>&2 # make stdout (1) an alias for stderr (2)
 
-    # this is needed so `lorri shell` runs the proper shell from
-    # inside this project's nix-shell. If you run `lorri` within a
-    # nix-shell, you don't need this.
-    export SHELL="${pkgs.bashInteractive}/bin/bash";
+      # this is needed so `lorri shell` runs the proper shell from
+      # inside this project's nix-shell. If you run `lorri` within a
+      # nix-shell, you don't need this.
+      export SHELL="${pkgs.bashInteractive}/bin/bash";
 
-    alias newlorri="(cd $LORRI_ROOT; cargo run -- shell)"
-    alias ci="ci_check"
+      alias newlorri="(cd $LORRI_ROOT; cargo run -- shell)"
+      alias ci="ci_check"
 
-    # this is mirrored from .envrc to make available from nix-shell
-    # pick up cargo plugins
-    export PATH="$LORRI_ROOT/.cargo/bin:$PATH"
-    # watch the output to add lorri once it's built
-    export PATH="$LORRI_ROOT/target/debug:$PATH"
+      # this is mirrored from .envrc to make available from nix-shell
+      # pick up cargo plugins
+      export PATH="$LORRI_ROOT/.cargo/bin:$PATH"
+      # watch the output to add lorri once it's built
+      export PATH="$LORRI_ROOT/target/debug:$PATH"
 
-    function ci_check() (
-      cd "$LORRI_ROOT";
-      source ./.travis_fold.sh
+      function ci_check() (
+        cd "$LORRI_ROOT";
+        source ./.travis_fold.sh
 
-      set -x
+        set -x
 
-      lorri_travis_fold carnix-update ./nix/update-carnix.sh
-      carnixupdate=$?
+        lorri_travis_fold carnix-update ./nix/update-carnix.sh
+        carnixupdate=$?
 
-      lorri_travis_fold script-tests ./script-tests/run-all.sh
-      scripttests=$?
+        lorri_travis_fold script-tests ./script-tests/run-all.sh
+        scripttests=$?
 
-      lorri_travis_fold cargo-test cargo test
-      cargotestexit=$?
+        lorri_travis_fold cargo-test cargo test
+        cargotestexit=$?
 
-      lorri_travis_fold cargo-fmt \
-        cargo fmt -- --check
-      cargofmtexit=$?
+        lorri_travis_fold cargo-fmt \
+          cargo fmt -- --check
+        cargofmtexit=$?
 
-      RUSTFLAGS='-D warnings' \
-        lorri_travis_fold cargo-clippy cargo clippy
-      cargoclippyexit=$?
+        RUSTFLAGS='-D warnings' \
+          lorri_travis_fold cargo-clippy cargo clippy
+        cargoclippyexit=$?
 
-      set +x
-      echo "carnix update: $carnixupdates"
-      echo "script tests: $scripttests"
-      echo "cargo test: $cargotestexit"
-      echo "cargo fmt: $cargofmtexit"
-      echo "cargo clippy: $cargoclippyexit"
+        set +x
+        echo "carnix update: $carnixupdates"
+        echo "script tests: $scripttests"
+        echo "cargo test: $cargotestexit"
+        echo "cargo fmt: $cargofmtexit"
+        echo "cargo clippy: $cargoclippyexit"
 
-      sum=$((carnixupdate + scripttest + cargotestexit + cargofmtexit + cargoclippyexit))
-      if [ "$sum" -gt 0 ]; then
-        return 1
-      fi
-    )
+        sum=$((carnixupdate + scripttest + cargotestexit + cargofmtexit + cargoclippyexit))
+        if [ "$sum" -gt 0 ]; then
+          return 1
+        fi
+      )
 
-    ${pkgs.lib.optionalString isDevelopmentShell ''
+      ${pkgs.lib.optionalString isDevelopmentShell ''
       echo "lorri" | ${pkgs.figlet}/bin/figlet | ${pkgs.lolcat}/bin/lolcat
       (
         format="  %-12s %s\n"
@@ -146,19 +146,23 @@ pkgs.mkShell ({
       )
     ''}
 
-    # restore stdout and close 3
-    exec 1>&3-
-  '' + (if !pkgs.stdenv.isDarwin then "" else ''
-    # Cargo wasn't able to find CF during a `cargo test` run on Darwin.
-    export NIX_LDFLAGS="-F${pkgs.darwin.apple_sdk.frameworks.CoreFoundation}/Library/Frameworks -framework CoreFoundation $NIX_LDFLAGS"
-  '');
+      # restore stdout and close 3
+      exec 1>&3-
+    '' + (
+      if !pkgs.stdenv.isDarwin then "" else ''
+        # Cargo wasn't able to find CF during a `cargo test` run on Darwin.
+        export NIX_LDFLAGS="-F${pkgs.darwin.apple_sdk.frameworks.CoreFoundation}/Library/Frameworks -framework CoreFoundation $NIX_LDFLAGS"
+      ''
+    );
 
-  passthru.allBuildInputs = allBuildInputs;
+    passthru.allBuildInputs = allBuildInputs;
 
-  preferLocalBuild = true;
-  allowSubstitutes = false;
-}
-//
-(if isDevelopmentShell then {
-  inherit RUST_SRC_PATH CARGO_INSTALL_ROOT HISTFILE;
-} else {}))
+    preferLocalBuild = true;
+    allowSubstitutes = false;
+  }
+  // (
+    if isDevelopmentShell then {
+      inherit RUST_SRC_PATH CARGO_INSTALL_ROOT HISTFILE;
+    } else {}
+  )
+)
