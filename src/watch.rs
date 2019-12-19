@@ -163,7 +163,7 @@ impl Watch {
                 // for the unconditional update. These metadata modification events are
                 // spurious annd they can easily cause a rebuild-loop when a shell.nix
                 // file does not pin its version of nixpkgs or other channels. When
-                // a Nix channel is updated we recieve many other types of events, so
+                // a Nix channel is updated we receive many other types of events, so
                 // ignoring these metadata modifications will not impact lorri's
                 // ability to correctly watch for channel changes.
                 EventKind::Modify(ModifyKind::Metadata(_)) => {
