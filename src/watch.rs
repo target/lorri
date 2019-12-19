@@ -162,7 +162,7 @@ impl Watch {
                 // link in this forest. See https://github.com/NixOS/nix/blob/629b9b0049363e091b76b7f60a8357d9f94733cc/src/libstore/local-store.cc#L74-L80
                 // for the unconditional update. These metadata modification events are
                 // spurious annd they can easily cause a rebuild-loop when a shell.nix
-                // file does not pin it's version of nixpkgs or other channels. When
+                // file does not pin its version of nixpkgs or other channels. When
                 // a Nix channel is updated we recieve many other types of events, so
                 // ignoring these metadata modifications will not impact lorri's
                 // ability to correctly watch for channel changes.
