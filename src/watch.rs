@@ -159,7 +159,7 @@ impl Watch {
                 // We ignore metadata modification events for the profiles directory
                 // tree as it is a symlink forest that is used to keep track of
                 // channels and nix will uconditionally update the metadata of each
-                // linnk in this forest. See https://github.com/NixOS/nix/blob/629b9b0049363e091b76b7f60a8357d9f94733cc/src/libstore/local-store.cc#L74-L80
+                // link in this forest. See https://github.com/NixOS/nix/blob/629b9b0049363e091b76b7f60a8357d9f94733cc/src/libstore/local-store.cc#L74-L80
                 // for the unconditional update. These metadata mofication events are
                 // spurious annd they can easily cause a rebuild-loop when a shell.nix
                 // file does not pin it's version of nixpkgs or other channels. When
