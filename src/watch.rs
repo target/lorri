@@ -3,7 +3,8 @@
 
 use crate::NixFile;
 use crossbeam_channel as chan;
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use notify::event::ModifyKind;
+use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use slog_scope::{debug, info};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -75,10 +76,10 @@ impl Watch {
                 if event.paths.is_empty() {
                     Some(Err(EventError::EventHasNoFilePath(event)))
                 } else {
-                    let interesting_paths: Vec<PathBuf> = event
-                        .paths
+                    let notify::Event { paths, kind, .. } = event;
+                    let interesting_paths: Vec<PathBuf> = paths
                         .into_iter()
-                        .filter(|p| self.path_is_interesting(p))
+                        .filter(|p| self.path_is_interesting(p, &kind))
                         .collect();
                     if !interesting_paths.is_empty() {
                         Some(Ok(Reason::FilesChanged(interesting_paths)))
@@ -153,8 +154,29 @@ impl Watch {
         Ok(())
     }
 
-    fn path_is_interesting(&self, path: &PathBuf) -> bool {
+    fn path_is_interesting(&self, path: &PathBuf, kind: &EventKind) -> bool {
         path_match(&self.watches, path)
+            && match kind {
+                // We ignore metadata modification events for the profiles directory
+                // tree as it is a symlink forest that is used to keep track of
+                // channels and nix will uconditionally update the metadata of each
+                // link in this forest. See https://github.com/NixOS/nix/blob/629b9b0049363e091b76b7f60a8357d9f94733cc/src/libstore/local-store.cc#L74-L80
+                // for the unconditional update. These metadata modification events are
+                // spurious annd they can easily cause a rebuild-loop when a shell.nix
+                // file does not pin its version of nixpkgs or other channels. When
+                // a Nix channel is updated we receive many other types of events, so
+                // ignoring these metadata modifications will not impact lorri's
+                // ability to correctly watch for channel changes.
+                EventKind::Modify(ModifyKind::Metadata(_)) => {
+                    if path.starts_with(Path::new("/nix/var/nix/profiles/per-user")) {
+                        debug!("ignoring spurious metadata change event within the profiles dir"; "path" => path.to_str());
+                        false
+                    } else {
+                        true
+                    }
+                }
+                _ => true,
+            }
     }
 }
 
