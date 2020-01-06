@@ -40,29 +40,29 @@ let
   # references to all the store paths needed, preventing the shell's
   # actual environment from being deleted.
   wrapped-project = shell: services: derivation (
-    (shell.drvAttrs or {}) // {
-      name = "lorri-wrapped-project-${shell.name or "unknown"}";
+    shell.drvAttrs // {
+      name = "lorri-wrapped-project-${shell.name}";
 
-      origExtraClosure = shell.extraClosure or [];
+      origExtraClosure = shell.extraClosure;
       extraClosure = runtimeCfg.closure;
 
-      origBuilder = shell.builder or null;
+      origBuilder = shell.builder;
       builder = runtimeCfg.builder;
 
-      origSystem = shell.system or null;
+      origSystem = shell.system;
       system = builtins.currentSystem;
 
-      origPATH = shell.PATH or "";
+      origPATH = shell.PATH;
       PATH = runtimeCfg.path;
 
       # The derivation we're examining may be multi-output. However,
       # this builder only produces the «out» output. Not specifying a
       # single output means we would fail to start a shell for those
       # projects.
-      origOutputs = shell.outputs or [];
+      origOutputs = shell.outputs;
       outputs = [ "out" ];
 
-      origPreHook = shell.preHook or "";
+      origPreHook = shell.preHook;
       preHook = ''
         # Redefine addToSearchPathWithCustomDelimiter to integrate with
         # lorri's environment variable setup map. Then, call the original
@@ -116,10 +116,10 @@ let
           }
         fi
 
-        ${shell.preHook or ""}
+        ${shell.preHook}
       '';
 
-      origArgs = shell.args or [];
+      origArgs = shell.args;
       args = [
         "-e"
         (
@@ -155,7 +155,17 @@ let
     }
   );
 
-  shell = if shellSrc == null then {} else logged shellSrc;
+  shell = {
+    name = "unknown";
+    args = [];
+    builder = null;
+    drvAttrs = {};
+    extraClosure = [];
+    outputs = [];
+    preHook = "";
+    system = null;
+    PATH = "";
+  } // (if shellSrc == null then {} else logged shellSrc);
   services = if servicesSrc == null then [] else logged servicesSrc;
 in
 wrapped-project shell services
