@@ -132,15 +132,17 @@ let
 
             export IN_NIX_SHELL=impure
 
-            # https://github.com/NixOS/nix/blob/92d08c02c84be34ec0df56ed718526c382845d1a/src/nix-build/nix-build.cc#
+            # https://github.com/NixOS/nix/blob/2.3.1/src/nix-build/nix-build.cc#L418
             [ -e $stdenv/setup ] && . $stdenv/setup
 
-            # target/lorri#23
-            # https://github.com/NixOS/nix/blob/bfc6bdf222d00d3cb1b0e168a5d55d1a7c9cdb72/src/nix-build/nix-build.cc#L424
+            # https://github.com/NixOS/nix/blob/2.3.1/src/nix-build/nix-build.cc#L422
             set +e
+
+            # https://github.com/NixOS/nix/blob/2.3.1/src/nix-build/nix-build.cc#L424
             if [ "$(type -t runHook)" = function ]; then
              runHook shellHook;
             fi;
+
             set -e
 
             export > "$out/bash-export"
