@@ -137,9 +137,11 @@ let
 
             # target/lorri#23
             # https://github.com/NixOS/nix/blob/bfc6bdf222d00d3cb1b0e168a5d55d1a7c9cdb72/src/nix-build/nix-build.cc#L424
+            set +e
             if [ "$(type -t runHook)" = function ]; then
              runHook shellHook;
             fi;
+            set -e
 
             export > "$out/bash-export"
             cat << 'EOF' > "$out/services.json"
