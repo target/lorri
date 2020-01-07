@@ -2,7 +2,7 @@
 
 ## Cutting a release
 
-TODO
+TODO: https://github.com/target/lorri/issues/269
 
 ## Updating dependencies
 
