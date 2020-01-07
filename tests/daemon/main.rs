@@ -1,6 +1,3 @@
-extern crate lorri;
-extern crate tempfile;
-
 use lorri::build_loop;
 use lorri::cas::ContentAddressable;
 use lorri::daemon::Daemon;
@@ -39,7 +36,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     });
 
     // connect to socket and send a ping message
-    use crate::lorri::rpc::VarlinkClientInterface;
+    use lorri::rpc::VarlinkClientInterface;
     rpc::VarlinkClient::new(connect(&address, Duration::from_millis(1000)))
         .watch_shell(rpc::ShellNix {
             path: shell_nix.to_str().unwrap().to_string(),

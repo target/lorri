@@ -6,21 +6,8 @@
 
 #[macro_use]
 extern crate structopt;
-
-extern crate regex;
-#[macro_use]
-extern crate lazy_static;
-
-extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
-
-extern crate notify;
-extern crate tempfile;
-extern crate vec1;
-
-extern crate proptest;
 
 pub mod bash;
 pub mod build_loop;

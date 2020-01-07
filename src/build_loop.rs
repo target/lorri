@@ -3,7 +3,6 @@
 
 use crate::builder;
 use crate::builder::RunStatus;
-use crate::notify;
 use crate::pathreduction::reduce_paths;
 use crate::project::roots;
 use crate::project::roots::Roots;
