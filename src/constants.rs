@@ -1,9 +1,7 @@
 //! Global project constants.
 
-extern crate directories;
-
-use self::directories::ProjectDirs;
 use crate::cas::ContentAddressable;
+use directories::ProjectDirs;
 use std::path::{Path, PathBuf};
 
 /// Path constants like the GC root directory.

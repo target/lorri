@@ -1,8 +1,3 @@
-extern crate lorri;
-extern crate structopt;
-#[macro_use]
-extern crate human_panic;
-
 use lorri::cli::{Arguments, Command};
 use lorri::constants;
 use lorri::locate_file;
@@ -21,7 +16,7 @@ const DEFAULT_ENVRC: &str = "eval \"$(lorri direnv)\"";
 
 fn main() {
     // This returns 101 on panics, see also `ExitError::panic`.
-    setup_panic!();
+    human_panic::setup_panic!();
 
     let exit_code = {
         let opts = Arguments::from_args();
