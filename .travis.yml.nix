@@ -13,9 +13,9 @@ let
     ''echo "pushing these paths to cachix:"''
     ''cat ${cachix-queue-file}''
     ''
-    if [ -n "$CACHIX_SIGNING_KEY" ]; then
-      cachix push ${cachix-repo} < ${cachix-queue-file}
-    fi
+      if [ -n "$CACHIX_SIGNING_KEY" ]; then
+        cachix push ${cachix-repo} < ${cachix-queue-file}
+      fi
     ''
   ];
 
@@ -80,26 +80,30 @@ let
       # delete all our own artifacts from the cache dir
       # based on https://gist.github.com/jkcclemens/000456ca646bd502cac0dbddcb8fa307
       before_cache =
-        let rmTarget = path: ''rm -rvf "$TRAVIS_BUILD_DIR/target/debug/${path}"'';
-        in (map rmTarget [
-          "lib${projectname}.rlib"
-          # our own binaries/libraries (keep all other deps)
-          "${projectname}*"
-          "build/${projectname}-*"
-          "deps/${projectname}-*"
-          "deps/lib${projectname}-*"
-          "incremental/${projectname}-*"
-          ".fingerprint/${projectname}-*"
-          # build script executable
-          "incremental/build_script_build-*"
-          # TODO: the direnv integration test is not deterministic
-          "direnv-*"
-          "deps/direnv-*"
-          "incremental/direnv-*"
-        ]);
-        # TODO: this might improve things, but we don’t want
-        # to open another `nix-shell` (because it takes a few seconds)
-        # ++ [ "cargo clean -p ${projectname}" ];
+        let
+          rmTarget = path: ''rm -rvf "$TRAVIS_BUILD_DIR/target/debug/${path}"'';
+        in
+          (
+            map rmTarget [
+              "lib${projectname}.rlib"
+              # our own binaries/libraries (keep all other deps)
+              "${projectname}*"
+              "build/${projectname}-*"
+              "deps/${projectname}-*"
+              "deps/lib${projectname}-*"
+              "incremental/${projectname}-*"
+              ".fingerprint/${projectname}-*"
+              # build script executable
+              "incremental/build_script_build-*"
+              # TODO: the direnv integration test is not deterministic
+              "direnv-*"
+              "deps/direnv-*"
+              "incremental/direnv-*"
+            ]
+          );
+      # TODO: this might improve things, but we don’t want
+      # to open another `nix-shell` (because it takes a few seconds)
+      # ++ [ "cargo clean -p ${projectname}" ];
       cache.directories = [ "$HOME/.cargo" "$TRAVIS_BUILD_DIR/target" ];
       env = [ "CACHE_NAME=${name}" ];
     };
@@ -115,14 +119,14 @@ let
         ];
       };
 
-      macos-cachix-fix = {
-        # fix on MacOS with cachix v3 (2019-09-20)
-        # see https://github.com/cachix/cachix/issues/228#issuecomment-531165065
-        install = [
-          ''echo "trusted-users = root $USER" | sudo tee -a /etc/nix/nix.conf''
-          ''sudo launchctl kickstart -k system/org.nixos.nix-daemon || true''
-        ];
-      };
+    macos-cachix-fix = {
+      # fix on MacOS with cachix v3 (2019-09-20)
+      # see https://github.com/cachix/cachix/issues/228#issuecomment-531165065
+      install = [
+        ''echo "trusted-users = root $USER" | sudo tee -a /etc/nix/nix.conf''
+        ''sudo launchctl kickstart -k system/org.nixos.nix-daemon || true''
+      ];
+    };
   };
 
   jobs =
@@ -131,37 +135,42 @@ let
       # lists are concatenated, everything else is an error.
       # This is // but with merging of lists (left to right).
       mergeShallowConcatLists = pkgs.lib.zipAttrsWith
-        (_: values:
-          let first = builtins.head values; in
-          if builtins.length values == 1 then first else
-          if builtins.isList first
-          then builtins.concatLists values
-          else abort "can only merge lists for now");
+        (
+          _: values:
+            let
+              first = builtins.head values;
+            in
+              if builtins.length values == 1 then first else
+                if builtins.isList first
+                then builtins.concatLists values
+                else abort "can only merge lists for now"
+        );
     in
-    {
-      git.depth = false;
-      language = "minimal";
-      matrix.include = map mergeShallowConcatLists [
-        # Verifying lints on macOS and Linux ensures nix-shell works
-        # on both platforms.
-        [ hosts.linux scripts.setup-cachix (scripts.lints {}) (scripts.cache "linux") ]
-        # cachix 3 on macOS is broken on travis, see
-        # https://github.com/cachix/cachix/issues/228#issuecomment-533634704
-        [ hosts.macos /*scripts.macos-cachix-fix scripts.setup-cachix*/ (scripts.lints { isDarwin = true; }) (scripts.cache "macos") ]
+      {
+        git.depth = false;
+        language = "minimal";
+        matrix.include = map mergeShallowConcatLists [
+          # Verifying lints on macOS and Linux ensures nix-shell works
+          # on both platforms.
+          [ hosts.linux scripts.setup-cachix (scripts.lints {}) (scripts.cache "linux") ]
+          # cachix 3 on macOS is broken on travis, see
+          # https://github.com/cachix/cachix/issues/228#issuecomment-533634704
+          [ hosts.macos /*scripts.macos-cachix-fix scripts.setup-cachix*/ (scripts.lints { isDarwin = true; }) (scripts.cache "macos") ]
 
-        [ hosts.linux scripts.setup-cachix (scripts.builds {}) ]
-        # cachix 3 on macOS is broken on travis, see
-        # https://github.com/cachix/cachix/issues/228#issuecomment-533634704
-        [ hosts.macos /*scripts.macos-cachix-fix scripts.setup-cachix*/ (scripts.builds { isDarwin = true; }) ]
-      ];
-    };
-in pkgs.runCommand "travis.yml" {
+          [ hosts.linux scripts.setup-cachix (scripts.builds {}) ]
+          # cachix 3 on macOS is broken on travis, see
+          # https://github.com/cachix/cachix/issues/228#issuecomment-533634704
+          [ hosts.macos /*scripts.macos-cachix-fix scripts.setup-cachix*/ (scripts.builds { isDarwin = true; }) ]
+        ];
+      };
+in
+pkgs.runCommand "travis.yml" {
   buildInputs = [ pkgs.yj ];
   passAsFile = [ "jobs" ];
   jobs = builtins.toJSON jobs;
   preferLocalBuild = true;
   allowSubstitutes = false;
 }
-''
-  yj -jy < $jobsPath > $out
-''
+  ''
+    yj -jy < $jobsPath > $out
+  ''
