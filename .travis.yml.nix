@@ -66,13 +66,27 @@ let
         ''nix-build -A allBuildInputs shell.nix > ./shell-inputs''
       ]
       ++ pushToCachix { inherit isDarwin; } "./shell-inputs"
-      ++ [
-        ''nix-shell --quiet --arg isDevelopmentShell false --run ci_check''
-        ''cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml''
-        ''git diff -q ./.travis.yml''
-        ''git diff -q ./Cargo.nix''
-        ''git diff -q ./src/com_target_lorri.rs''
-      ];
+      ++ (
+        let
+          # Cachix is broken on macOS [1] and clippy is not built by Hydra [2].
+          # To avoid building clippy on macOS in CI, which takes about 25
+          # minutes, we don't run lints (which require clippy) on macOS.
+          # Instead we run only ci_test.
+          #
+          # On Linux, we run ci_check, which itself runs both ci_test and ci_lint.
+          #
+          # [1] https://github.com/cachix/cachix/issues/228#issuecomment-533634704
+          # [2] https://github.com/NixOS/nixpkgs/issues/77358
+          script = if isDarwin then "ci_test" else "ci_check";
+        in
+          [
+            ''nix-shell --quiet --arg isDevelopmentShell false --run ${script}''
+            ''cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml''
+            ''git diff -q ./.travis.yml''
+            ''git diff -q ./Cargo.nix''
+            ''git diff -q ./src/com_target_lorri.rs''
+          ]
+      );
     };
 
     # cache rust dependency building
