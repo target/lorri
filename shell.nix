@@ -96,7 +96,7 @@ pkgs.mkShell (
       # watch the output to add lorri once it's built
       export PATH="$LORRI_ROOT/target/debug:$PATH"
 
-      function ci_check() (
+      function ci_lint() (
         cd "$LORRI_ROOT";
         source ./.travis_fold.sh
 
@@ -107,12 +107,6 @@ pkgs.mkShell (
 
         lorri_travis_fold carnix-update ./nix/update-carnix.sh
         carnixupdate=$?
-
-        lorri_travis_fold script-tests ./script-tests/run-all.sh
-        scripttests=$?
-
-        lorri_travis_fold cargo-test cargo test
-        cargotestexit=$?
 
         lorri_travis_fold cargo-fmt \
           cargo fmt -- --check
@@ -125,12 +119,45 @@ pkgs.mkShell (
         set +x
         echo "./nix/fmt.sh --check: $nix_fmt"
         echo "carnix update: $carnixupdates"
-        echo "script tests: $scripttests"
-        echo "cargo test: $cargotestexit"
         echo "cargo fmt: $cargofmtexit"
         echo "cargo clippy: $cargoclippyexit"
 
-        sum=$((nix_fmt + carnixupdate + scripttest + cargotestexit + cargofmtexit + cargoclippyexit))
+        sum=$((nix_fmt + carnixupdate + cargofmtexit + cargoclippyexit))
+        if [ "$sum" -gt 0 ]; then
+          return 1
+        fi
+      )
+
+      function ci_test() (
+        cd "$LORRI_ROOT";
+        source ./.travis_fold.sh
+
+        set -x
+
+        lorri_travis_fold script-tests ./script-tests/run-all.sh
+        scripttests=$?
+
+        lorri_travis_fold cargo-test cargo test
+        cargotestexit=$?
+
+        set +x
+        echo "script tests: $scripttests"
+        echo "cargo test: $cargotestexit"
+
+        sum=$((scripttest + cargotestexit))
+        if [ "$sum" -gt 0 ]; then
+          return 1
+        fi
+      )
+
+      function ci_check() (
+        ci_lint
+        lint=$?
+
+        ci_test
+        test=$?
+
+        sum=$((lint + test))
         if [ "$sum" -gt 0 ]; then
           return 1
         fi
