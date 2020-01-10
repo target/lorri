@@ -38,16 +38,13 @@ let
 
   buildInputs = [
     pkgs.cargo
-    pkgs.rustPackages.clippy
     pkgs.rustc
     pkgs.rustfmt
     pkgs.bashInteractive
     pkgs.git
     pkgs.direnv
     pkgs.shellcheck
-    pkgs.carnix
     pkgs.nix-prefetch-git
-    pkgs.nixpkgs-fmt
 
     # To ensure we always have a compatible nix in our shells.
     # Travis doesn’t know `nix-env` otherwise.
@@ -56,6 +53,19 @@ let
     pkgs.darwin.Security
     pkgs.darwin.apple_sdk.frameworks.CoreServices
     pkgs.darwin.apple_sdk.frameworks.CoreFoundation
+  ] ++ pkgs.stdenv.lib.optionals (!pkgs.stdenv.isDarwin) [
+    # Cachix is broken on macOS [1] and clippy is not built by Hydra [2].
+    # Building clippy and carnix on macOS in CI takes about 25 minutes, so we
+    # don't run lints (which require clippy) on macOS.
+    #
+    # [1] https://github.com/cachix/cachix/issues/228#issuecomment-533634704
+    # [2] https://github.com/NixOS/nixpkgs/issues/77358
+    pkgs.rustPackages.clippy
+    pkgs.carnix
+
+    # These other tools are also used only for linting, and are thus not
+    # required on macOS.
+    pkgs.nixpkgs-fmt
   ];
 
   # we manually collect all build inputs,
