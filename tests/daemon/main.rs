@@ -1,20 +1,11 @@
-extern crate lorri;
-extern crate tempfile;
-
-use crossbeam_channel as chan;
 use lorri::build_loop;
 use lorri::cas::ContentAddressable;
-use lorri::daemon::LoopHandlerEvent;
-use lorri::project::Project;
-use lorri::socket::communicate::{client, listener};
-use lorri::socket::communicate::{CommunicationType, Ping};
-use lorri::socket::path::SocketPath;
-use lorri::socket::{ReadWriter, Timeout};
-use lorri::NixFile;
+use lorri::daemon::Daemon;
+use lorri::rpc;
+use lorri::socket::SocketPath;
 use std::io::{Error, ErrorKind};
-use std::path::PathBuf;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// This tests the basic working of the client/daemon setup.
 ///
@@ -27,89 +18,66 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     // TODO: this code is a mess because Daeomon is not
     // nicely abstracted yet.
 
-    // messages returned by the `daemon.accept()` handler
-    let (accept_messages_tx, accept_messages_rx) = chan::unbounded();
-
     let tempdir = tempfile::tempdir()?;
+    let shell_nix = tempdir.as_ref().join("shell.nix");
+    std::fs::File::create(&shell_nix)?;
 
-    // create unix socket file
-    let p = &tempdir.path().join("socket");
-    let socket_path = SocketPath::from(p);
-    let listener = listener::Listener::new(&socket_path).unwrap();
+    let socket_path = SocketPath::from(&tempdir.path().join("socket"));
+    let address = socket_path.address();
+    let cas = ContentAddressable::new(tempdir.path().join("cas")).unwrap();
+    let gc_root_dir = tempdir.path().join("gc_root").to_path_buf();
 
     // The daemon knows how to build stuff
-    let (mut daemon, build_events_rx) = ::lorri::daemon::Daemon::new();
-
-    let handlers = daemon.handlers();
-    // listen for incoming messages
-    // TODO: put this listener stuff into the Daemon
+    let (daemon, build_rx) = Daemon::new();
     let accept_handle = thread::spawn(move || {
-        listener
-            .accept(move |unix_stream, comm_type| match comm_type {
-                CommunicationType::Ping => {
-                    handlers.ping(ReadWriter::new(&unix_stream), accept_messages_tx)
-                }
-                ev => Err(Error::new(
-                    ErrorKind::Other,
-                    format!("didn’t expect event {:?}", ev),
-                ))
-                .unwrap(),
-            })
-            .unwrap()
+        daemon
+            .serve(socket_path, gc_root_dir, cas)
+            .expect("failed to serve daemon endpoint");
     });
+
     // connect to socket and send a ping message
-    client::ping(Timeout::from_millis(100))
-        .connect(&socket_path)
-        .unwrap()
-        .write(&Ping {
-            nix_file: NixFile::from(PathBuf::from("/who/cares")),
+    use lorri::rpc::VarlinkClientInterface;
+    rpc::VarlinkClient::new(connect(&address, Duration::from_millis(1000)))
+        .watch_shell(rpc::ShellNix {
+            path: shell_nix.to_str().unwrap().to_string(),
         })
+        .call()
         .unwrap();
-
-    // The client pinged, so now a message should have arrived
-    let daemon_subroutine_handle = accept_handle.join().unwrap();
-    let start_build = accept_messages_rx
-        .recv_timeout(Duration::from_millis(100))
-        .unwrap();
-
-    let cas = ContentAddressable::new(tempdir.path().join("cas")).unwrap();
-    let project = Project::new(start_build.nix_file, &tempdir.path().join("gc_root"), cas).unwrap();
-    daemon.add(project);
 
     // Read the first build event, which should be a `Started` message
-    match build_events_rx
-        .recv_timeout(Duration::from_millis(100))
-        .unwrap()
-    {
-        LoopHandlerEvent::BuildEvent(build_loop::Event::Started { .. }) => Ok(()),
+    match build_rx.recv_timeout(Duration::from_millis(100)).unwrap() {
+        build_loop::Event::Started(_) => Ok(()),
         ev => Err(Error::new(
             ErrorKind::Other,
             format!("didn’t expect event {:?}", ev),
         )),
     }?;
 
+    drop(accept_handle);
     drop(tempdir);
-    daemon_subroutine_handle.join().unwrap();
     Ok(())
 }
 
-#[test]
-pub fn start_two_listeners_on_same_socket() -> std::io::Result<()> {
-    let tempdir = tempfile::tempdir()?;
-
-    // create unix socket file
-    let p = &tempdir.path().join("socket");
-    let socket_path = SocketPath::from(p);
-    let listener = listener::Listener::new(&socket_path).unwrap();
-
-    match listener::Listener::new(&socket_path) {
-        // check that we can’t listen because the socket is locked
-        Err(lorri::socket::path::BindError::OtherProcessListening) => Ok(()),
-        Ok(_) => panic!("other process should be listening"),
-        Err(e) => Err(e),
+/// The server side of the connection is started in a separate thread. This function waits until
+/// the socket address is available for connection.
+fn connect(
+    address: &str,
+    timeout: Duration,
+) -> std::sync::Arc<std::sync::RwLock<varlink::Connection>> {
+    let start = Instant::now();
+    let mut connection = None;
+    let mut last_error = None;
+    while connection.is_none() {
+        if start.elapsed() > timeout {
+            panic!(
+                "failed to connect to RPC endpoint within {:?}; last error: {:?}",
+                timeout, last_error
+            );
+        }
+        match varlink::Connection::with_address(&address) {
+            Err(e) => last_error = Some(e),
+            Ok(c) => connection = Some(c),
+        }
     }
-    .unwrap();
-
-    drop(listener);
-    Ok(())
+    connection.unwrap()
 }

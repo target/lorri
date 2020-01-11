@@ -8,8 +8,9 @@ use crate::cas::ContentAddressable;
 use crate::changelog;
 use crate::cli;
 use crate::nix;
-use crate::ops::error::{ExitError, OpResult};
+use crate::ops::error::{ok, ExitError, OpResult};
 use crate::VERSION_BUILD_REV;
+use slog_scope::info;
 use std::process::Command;
 
 impl From<cli::UpgradeTo> for String {
@@ -75,7 +76,8 @@ pub fn main(upgrade_target: cli::UpgradeTo, cas: &ContentAddressable) -> OpResul
             drop(gc_root);
 
             if status.success() {
-                Ok(Some(String::from("\nUpgrade successful.")))
+                info!("upgrade successful");
+                ok()
             } else {
                 Err(ExitError::expected_error(format!(
                     "\nError: nix-env command was not successful!\n{:#?}",

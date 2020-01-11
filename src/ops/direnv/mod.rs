@@ -3,32 +3,30 @@
 mod version;
 
 use self::version::{DirenvVersion, MIN_DIRENV_VERSION};
-use crate::ops::error::{ok, ok_msg, ExitError, OpResult};
+use crate::ops::error::{ok, ExitError, OpResult};
 use crate::project::roots::Roots;
 use crate::project::Project;
-use crate::socket::communicate::client;
-use crate::socket::communicate::{Ping, DEFAULT_READ_TIMEOUT};
+use crate::rpc;
+use slog_scope::{error, info, warn};
+use std::convert::TryFrom;
 use std::process::Command;
 
 /// See the documentation for lorri::cli::Command::Direnv for more
 /// details.
-pub fn main(project: Project) -> OpResult {
+pub fn main<W: std::io::Write>(project: Project, mut shell_output: W) -> OpResult {
     check_direnv_version()?;
-
-    let socket_path = crate::ops::get_paths()?.daemon_socket_file().to_owned();
 
     let root_paths = Roots::from_project(&project).paths();
     let paths_are_cached: bool = root_paths.all_exist();
+    let address = crate::ops::get_paths()?.daemon_socket_address();
+    let shell_nix = rpc::ShellNix::try_from(&project.nix_file).map_err(ExitError::temporary)?;
 
-    let ping_sent: bool = if let Ok(client) = client::ping(DEFAULT_READ_TIMEOUT).connect(
-        &crate::socket::path::SocketPath::from(crate::ops::get_paths()?.daemon_socket_file()),
-    ) {
-        client
-            .write(&Ping {
-                nix_file: project.nix_file.clone(),
-            })
-            .unwrap();
-        true
+    let ping_sent = if let Ok(connection) = varlink::Connection::with_address(&address) {
+        use rpc::VarlinkClientInterface;
+        rpc::VarlinkClient::new(connection)
+            .watch_shell(shell_nix)
+            .call()
+            .is_ok()
     } else {
         false
     };
@@ -38,48 +36,54 @@ pub fn main(project: Project) -> OpResult {
 
         // Ping sent & paths aren't cached: once the environment is created
         // the direnv environment will be updated automatically.
-        (true, false) => {
-            eprintln!("Notice: lorri has not completed an evaluation for this project yet.");
-            eprintln!("        lorri should be evaluating the environment now.");
-        }
+        (true, false) =>
+            info!(
+                "lorri has not completed an evaluation for this project yet"
+            ),
 
         // Ping not sent and paths are cached: we can load a stale environment
         // When the daemon is started, we'll send a fresh ping.
-        (false, true) => {
-            eprintln!("Info: the lorri daemon is not running. Loading a cached environment.");
-        }
+        (false, true) =>
+            info!(
+                "lorri daemon is not running, loading a cached environment"
+            ),
 
         // Ping not sent and paths are not cached: we can't load anything,
         // but when the daemon in started we'll send a ping and eventually
         // load a fresh environment.
-        (false, false) => {
-            eprintln!("Error: the lorri daemon is not running and this project has not yet been evaluated.");
-            eprintln!("       Please run `lorri daemon`.");
-        }
+        (false, false) =>
+            error!("lorri daemon is not running and this project has not yet been evaluated, please run `lorri daemon`"),
     }
 
     if std::env::var("DIRENV_IN_ENVRC") != Ok(String::from("1")) {
-        eprintln!(
-            "Warning: 'lorri direnv' should be executed by direnv from within an `.envrc` file."
-        )
+        warn!("`lorri direnv` should be executed by direnv from within an `.envrc` file")
     }
 
-    ok_msg(format!(
+    // direnv interprets stdout as a script that it evaluates. That is why (1) the logger for
+    // `lorri direnv` outputs to stderr by default (to avoid corrupting the script) and (2) we
+    // can't use the stderr logger here.
+    // In production code, `shell_output` will be stdout so direnv can interpret the output.
+    // `shell_output` is an argument so that testing code can inject a different `std::io::Write`
+    // in order to inspect the output.
+    writeln!(
+        shell_output,
         r#"
 EVALUATION_ROOT="{}"
 
 watch_file "{}"
 watch_file "$EVALUATION_ROOT"
 
-{}
-"#,
+{}"#,
         root_paths.shell_gc_root,
-        socket_path
-            .into_os_string()
-            .into_string()
+        crate::ops::get_paths()?
+            .daemon_socket_file()
+            .to_str()
             .expect("Socket path is not UTF-8 clean!"),
         include_str!("envrc.bash")
-    ))
+    )
+    .expect("failed to write shell output");
+
+    ok()
 }
 
 /// Checks `direnv version` against the minimal version lorri requires.

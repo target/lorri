@@ -1,18 +1,13 @@
-extern crate lorri;
-extern crate structopt;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate human_panic;
-
+use lorri::cli::{Arguments, Command};
 use lorri::constants;
 use lorri::locate_file;
-use lorri::NixFile;
-
-use lorri::cli::{Arguments, Command};
+use lorri::logging;
 use lorri::ops::error::{ExitError, OpResult};
 use lorri::ops::{daemon, direnv, info, init, ping, stream_events, upgrade, watch};
 use lorri::project::Project;
+use lorri::NixFile;
+use slog::{debug, error, o};
+use slog_scope::GlobalLoggerGuard;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -21,35 +16,37 @@ const DEFAULT_ENVRC: &str = "eval \"$(lorri direnv)\"";
 
 fn main() {
     // This returns 101 on panics, see also `ExitError::panic`.
-    setup_panic!();
+    human_panic::setup_panic!();
 
-    let exit = |result: OpResult| match result {
-        Err(err) => {
-            eprintln!("{}", err.message());
-            std::process::exit(err.exitcode());
-        }
-        Ok(Some(msg)) => {
-            println!("{}", msg);
-            std::process::exit(0);
-        }
-        Ok(None) => {
-            std::process::exit(0);
+    let exit_code = {
+        let opts = Arguments::from_args();
+
+        // This logger is asynchronous. It is guaranteed to be flushed upon destruction. By tying
+        // its lifetime to this smaller scope, we ensure that it is destroyed before
+        // 'std::process::exit' gets called.
+        let log = logging::root(opts.verbosity, &opts.command);
+        debug!(log, "input options"; "options" => ?opts);
+
+        match run_command(log.clone(), opts) {
+            Err(err) => {
+                error!(log, "{}", err.message());
+                err.exitcode()
+            }
+            Ok(()) => 0,
         }
     };
 
-    let opts = Arguments::from_args();
-
-    lorri::logging::init_with_default_log_level(opts.verbosity);
-    debug!("Input options: {:?}", opts);
-
-    let result = run_command(opts);
-    exit(result);
+    // TODO: Once the 'Termination' trait has been stabilised, 'OpResult' should implement
+    // 'Termination' and 'main' should return 'OpResult'.
+    // https://doc.rust-lang.org/std/process/trait.Termination.html
+    // https://github.com/rust-lang/rfcs/blob/master/text/1937-ques-in-main.md
+    std::process::exit(exit_code);
 }
 
 /// Try to read `shell.nix` from the current working dir.
 fn get_shell_nix(shellfile: &PathBuf) -> Result<NixFile, ExitError> {
     // use shell.nix from cwd
-    Ok(NixFile::from(locate_file::in_cwd(&shellfile).map_err(
+    Ok(NixFile::Shell(locate_file::in_cwd(&shellfile).map_err(
         |_| {
             ExitError::user_error(format!(
                 "`{}` does not exist\n\
@@ -72,43 +69,75 @@ fn create_project(paths: &constants::Paths, shell_nix: NixFile) -> Result<Projec
 }
 
 /// Run the main function of the relevant command.
-fn run_command(opts: Arguments) -> OpResult {
+fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
     let paths = lorri::ops::get_paths()?;
+
+    // `without_project` and `with_project` set up the slog_scope global logger. Make sure to use
+    // one of them so the logger gets set up correctly.
+    let without_project = || slog_scope::set_global_logger(log.clone());
+    let with_project = |nix_file| -> std::result::Result<(Project, GlobalLoggerGuard), ExitError> {
+        let project = create_project(&lorri::ops::get_paths()?, get_shell_nix(nix_file)?)?;
+        let guard = slog_scope::set_global_logger(log.new(o!("root" => project.nix_file.clone())));
+        Ok((project, guard))
+    };
+
     match opts.command {
         Command::Info(opts) => {
-            get_shell_nix(&opts.nix_file).and_then(|sn| info::main(create_project(&paths, sn)?))
+            let (_project, _guard) = with_project(&opts.nix_file)?;
+            info::main(opts.nix_file)
         }
-
         Command::Direnv(opts) => {
-            get_shell_nix(&opts.nix_file).and_then(|sn| direnv::main(create_project(&paths, sn)?))
+            let (project, _guard) = with_project(&opts.nix_file)?;
+            direnv::main(project, /* shell_output */ std::io::stdout())
+        }
+        Command::Watch(opts) => {
+            let (project, _guard) = with_project(&opts.nix_file)?;
+            watch::main(project, opts)
+        }
+        Command::Daemon => {
+            let _guard = without_project();
+            daemon::main()
+        }
+        Command::Upgrade(opts) => {
+            let _guard = without_project();
+            upgrade::main(opts, paths.cas_store())
+        }
+        // TODO: remove
+        Command::Ping_(opts) => {
+            let _guard = without_project();
+            get_shell_nix(&opts.nix_file).and_then(ping::main)
         }
 
-        Command::Watch(opts) => get_shell_nix(&opts.nix_file)
-            .and_then(|sn| watch::main(create_project(&paths, sn)?, opts)),
-
-        Command::Daemon => daemon::main(),
-
-        Command::Upgrade(opts) => upgrade::main(opts, paths.cas_store()),
-
-        // TODO: remove
-        Command::Ping_(opts) => get_shell_nix(&opts.nix_file).and_then(ping::main),
-
+        // XXX jdl
         Command::StreamEvents_(se) => stream_events::main(se.kind),
 
-        Command::Init => init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC),
+        Command::Init => {
+            let _guard = without_project();
+            init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC)
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     /// Try instantiating the trivial shell file we provide the user.
     #[test]
     fn trivial_shell_nix() -> std::io::Result<()> {
+        let nixpkgs = "./nix/bogus-nixpkgs/";
+
+        // Sanity check the test environment
+        assert!(Path::new(nixpkgs).is_dir(), "nixpkgs must be a directory");
+        assert!(
+            Path::new(nixpkgs).join("default.nix").is_file(),
+            "nixpkgs/default.nix must be a file"
+        );
+
         let out = std::process::Command::new("nix-instantiate")
             // we can’t assume to have a <nixpkgs>, so use bogus-nixpkgs
-            .args(&["-I", "nixpkgs=./nix/bogus-nixpkgs/"])
+            .args(&["-I", &format!("nixpkgs={}", nixpkgs)])
             .args(&["--expr", TRIVIAL_SHELL_SRC])
             .output()?;
         assert!(

@@ -1,27 +1,16 @@
 //! The lorri daemon, watches multiple projects in the background.
 
-use crate::build_loop::{BuildLoop, Event};
+use crate::build_loop::{BuildLoop,Event};
+use crate::ops::error::ExitError;
 use crate::project::Project;
 use crate::socket::communicate::{NoMessage, Ping, DEFAULT_READ_TIMEOUT};
 use crate::socket::{ReadError, ReadWriter, Timeout};
 use crate::NixFile;
 use crossbeam_channel as chan;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
-#[derive(Debug, Clone)]
-/// Union of build_loop::Event and NewListener for internal use.
-pub enum LoopHandlerEvent {
-    /// A new listener has joined for event streaming
-    NewListener(chan::Sender<Event>),
-    /// Events from a BuildLoop
-    BuildEvent(Event),
-}
-
-impl From<Event> for LoopHandlerEvent {
-    fn from(item: Event) -> Self {
-        LoopHandlerEvent::BuildEvent(item)
-    }
-}
+mod rpc;
 
 /// Indicate that the user is interested in a specific nix file.
 /// Usually a nix file describes the environment of a project,
@@ -52,11 +41,7 @@ pub struct Daemon {
     /// Sending end that we pass to every `BuildLoop` the daemon controls.
     // TODO: this needs to transmit information to identify the builder with
     build_events_tx: chan::Sender<LoopHandlerEvent>,
-    /// The handlers functions for incoming requests
-    handler_fns: HandlerFns,
 }
-
-// TODO: set a `Listener` up in the daemon instead of manually outside
 
 impl Daemon {
     /// Create a new daemon. Also return an `chan::Receiver` that
@@ -68,22 +53,40 @@ impl Daemon {
             Daemon {
                 handler_threads: HashMap::new(),
                 build_events_tx: tx,
-                handler_fns: HandlerFns {
-                    read_timeout: DEFAULT_READ_TIMEOUT,
-                },
             },
             rx,
         )
     }
 
-    /// The handler daemon message handler functions
-    pub fn handlers(&self) -> HandlerFns {
-        self.handler_fns.clone()
-    }
+    /// Serve the daemon's RPC endpoint.
+    pub fn serve(
+        mut self,
+        socket_path: SocketPath,
+        gc_root_dir: PathBuf,
+        cas: crate::cas::ContentAddressable,
+    ) -> Result<(), ExitError> {
+        let (activity_tx, activity_rx) = chan::unbounded();
+        let server = rpc::Server::new(socket_path, activity_tx)?;
+        let mut pool = crate::thread::Pool::new();
+        pool.spawn("accept-loop", move || {
+            server
+                .serve()
+                .expect("failed to serve daemon server endpoint");
+        })?;
+        pool.spawn("build-instruction-handler", move || {
+            // For each build instruction, add the corresponding file
+            // to the watch list.
+            for start_build in activity_rx {
+                let project =
+                    crate::project::Project::new(start_build.nix_file, &gc_root_dir, cas.clone())
+                        // TODO: the project needs to create its gc root dir
+                        .unwrap();
+                self.add(project)
+            }
+        })?;
+        pool.join_all_or_panic();
 
-    /// The deamon's transmission channel for build events
-    pub fn build_events_tx(&self) -> chan::Sender<LoopHandlerEvent> {
-        self.build_events_tx.clone()
+        Ok(())
     }
 
     /// Add nix file to the set of files this daemon watches
@@ -108,62 +111,5 @@ impl Daemon {
             .tx
             .send(())
             .unwrap();
-    }
-}
-
-/// Holds handler functions the daemon uses to react to messages.
-#[derive(Clone)]
-pub struct HandlerFns {
-    /// How long the daemon waits for messages to arrive after accept()
-    read_timeout: Timeout,
-}
-
-impl HandlerFns {
-    /// Accept handler for `socket::communicate::Ping` messages.
-    /// For a valid ping message, it sends an instruction to start
-    /// the build to `build_chan`.
-    // TODO: make private again
-    // the ReadWriter here has to be the inverse of the `Client.ping()`, which is `ReadWriter<!, Ping>`
-    pub fn ping(
-        &self,
-        rw: ReadWriter<Ping, NoMessage>,
-        build_chan: chan::Sender<IndicateActivity>,
-    ) {
-        let ping: Result<Ping, ReadError> = rw.read(&self.read_timeout);
-        match ping {
-            Err(ReadError::Timeout) => debug!(
-                "Client didn’t send a `Ping` message after waiting for {}",
-                &self.read_timeout
-            ),
-            Err(ReadError::Deserialize(e)) => {
-                debug!("Client `Ping` message could not be decoded: {}", e)
-            }
-            Ok(p) => {
-                info!("pinged with {}", p.nix_file);
-                build_chan
-                    .send(IndicateActivity {
-                        nix_file: p.nix_file,
-                    })
-                    .expect("StartBuild channel closed")
-            }
-        }
-    }
-
-    /// Accept handler for socket::communicate::StreamEvents messages.
-    /// Once connected, it streams BuildEvent messages to the client.
-    pub fn stream_events(
-        &self,
-        mut rw: ReadWriter<NoMessage, Event>,
-        build_chan: chan::Receiver<Event>,
-    ) {
-        for event in build_chan {
-            match rw.write(&self.read_timeout, &event) {
-                Err(e) => {
-                    debug!("Couldn't write event: {:?} {:?}", &event, e);
-                    break;
-                }
-                Ok(_) => debug!("Sent an event"),
-            }
-        }
     }
 }

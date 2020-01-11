@@ -1,5 +1,5 @@
 let
-  pkgs = import ./nix/nixpkgs.nix {};
+  pkgs = import ./nix/nixpkgs.nix;
 
   projectname = "lorri";
 
@@ -71,6 +71,7 @@ let
         ''cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml''
         ''git diff -q ./.travis.yml''
         ''git diff -q ./Cargo.nix''
+        ''git diff -q ./src/com_target_lorri.rs''
       ];
     };
 

@@ -8,9 +8,8 @@ use std::path::PathBuf;
 /// Global arguments which set global program state. Most
 /// arguments will be to sub-commands.
 pub struct Arguments {
-    /// Increase debug logging, can be passed multiple times.
-    /// Supports up to -vvvv, and this setting is ignored if RUST_LOG
-    /// is set.
+    /// Activate debug logging. Multiple occurrences are accepted for backwards compatibility, but
+    /// have no effect.
     #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
     pub verbosity: u8,
 

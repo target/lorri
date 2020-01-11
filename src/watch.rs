@@ -3,7 +3,9 @@
 
 use crate::NixFile;
 use crossbeam_channel as chan;
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use notify::event::ModifyKind;
+use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use slog_scope::{debug, info};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -43,6 +45,7 @@ pub enum Reason {
 }
 
 /// We weren’t able to understand a `notify::Event`.
+#[derive(Clone, Debug)]
 pub enum EventError {
     /// No message was received from the raw event channel
     RxNoEventReceived,
@@ -52,7 +55,7 @@ pub enum EventError {
 
 impl Watch {
     /// Instantiate a new Watch.
-    pub fn init() -> Result<Watch, notify::Error> {
+    pub fn try_new() -> Result<Watch, notify::Error> {
         let (tx, rx) = chan::unbounded();
 
         Ok(Watch {
@@ -74,10 +77,10 @@ impl Watch {
                 if event.paths.is_empty() {
                     Some(Err(EventError::EventHasNoFilePath(event)))
                 } else {
-                    let interesting_paths: Vec<PathBuf> = event
-                        .paths
+                    let notify::Event { paths, kind, .. } = event;
+                    let interesting_paths: Vec<PathBuf> = paths
                         .into_iter()
-                        .filter(|p| self.path_is_interesting(p))
+                        .filter(|p| self.path_is_interesting(p, &kind))
                         .collect();
                     if !interesting_paths.is_empty() {
                         Some(Ok(Reason::FilesChanged(interesting_paths)))
@@ -110,7 +113,7 @@ impl Watch {
                 info!("identified removal: {:?}", &event.paths);
             }
             _ => {
-                debug!("watch event: {:#?}", event);
+                debug!("watch event"; "event" => ?event);
             }
         }
     }
@@ -135,7 +138,7 @@ impl Watch {
 
     fn add_path(&mut self, path: &PathBuf) -> Result<(), notify::Error> {
         if !self.watches.contains(path) {
-            debug!("Watching path {:?}", path);
+            debug!("watching path"; "path" => path.to_str());
 
             self.notify.watch(path, RecursiveMode::NonRecursive)?;
             self.watches.insert(path.clone());
@@ -143,7 +146,7 @@ impl Watch {
 
         if let Some(parent) = path.parent() {
             if !self.watches.contains(parent) {
-                debug!("Watching parent path {:?}", parent);
+                debug!("watching parent path"; "parent_path" => parent.to_str());
 
                 self.notify.watch(&parent, RecursiveMode::NonRecursive)?;
             }
@@ -152,8 +155,29 @@ impl Watch {
         Ok(())
     }
 
-    fn path_is_interesting(&self, path: &PathBuf) -> bool {
+    fn path_is_interesting(&self, path: &PathBuf, kind: &EventKind) -> bool {
         path_match(&self.watches, path)
+            && match kind {
+                // We ignore metadata modification events for the profiles directory
+                // tree as it is a symlink forest that is used to keep track of
+                // channels and nix will uconditionally update the metadata of each
+                // link in this forest. See https://github.com/NixOS/nix/blob/629b9b0049363e091b76b7f60a8357d9f94733cc/src/libstore/local-store.cc#L74-L80
+                // for the unconditional update. These metadata modification events are
+                // spurious annd they can easily cause a rebuild-loop when a shell.nix
+                // file does not pin its version of nixpkgs or other channels. When
+                // a Nix channel is updated we receive many other types of events, so
+                // ignoring these metadata modifications will not impact lorri's
+                // ability to correctly watch for channel changes.
+                EventKind::Modify(ModifyKind::Metadata(_)) => {
+                    if path.starts_with(Path::new("/nix/var/nix/profiles/per-user")) {
+                        debug!("ignoring spurious metadata change event within the profiles dir"; "path" => path.to_str());
+                        false
+                    } else {
+                        true
+                    }
+                }
+                _ => true,
+            }
     }
 }
 
@@ -174,9 +198,8 @@ fn path_match(watched_paths: &HashSet<PathBuf>, event_path: &Path) -> bool {
     let matches = |watched: &Path| {
         if event_path == watched {
             debug!(
-                "Event path ({:?}) directly matches watched path",
-                event_path
-            );
+                "event path directly matches watched path";
+                "event_path" => event_path.to_str());
 
             return true;
         }
@@ -184,9 +207,8 @@ fn path_match(watched_paths: &HashSet<PathBuf>, event_path: &Path) -> bool {
         if let Some(parent) = event_parent {
             if parent == watched {
                 debug!(
-                    "Event path ({:?}) parent ({:?}) matches watched path",
-                    event_path, parent
-                );
+                    "event path parent matches watched path";
+                    "event_path" => event_path.to_str(), "parent_path" => parent.to_str());
                 return true;
             }
         }
@@ -228,20 +250,33 @@ mod tests {
     }
 
     /// Returns true iff the given file has changed
-    fn file_changed(watch: &Watch, file_name: &str) -> bool {
+    fn file_changed(watch: &Watch, file_name: &str) -> (bool, Vec<Reason>) {
+        let mut reasons = Vec::new();
         let mut changed = false;
         for event in process_all(watch) {
-            if let Some(Ok(Reason::FilesChanged(files))) = event {
-                changed = changed
-                    || files
-                        .iter()
-                        .map(|p| p.file_name())
-                        .filter(|f| f.is_some())
-                        .map(|f| f.unwrap())
-                        .any(|f| f == file_name)
+            if let Some(Ok(reason)) = event {
+                reasons.push(reason.clone());
+                if let Reason::FilesChanged(files) = reason {
+                    changed = changed
+                        || files
+                            .iter()
+                            .map(|p| p.file_name())
+                            .filter(|f| f.is_some())
+                            .map(|f| f.unwrap())
+                            .any(|f| f == file_name)
+                }
             }
         }
-        changed
+        (changed, reasons)
+    }
+
+    fn assert_file_changed(watch: &Watch, file_name: &str) {
+        let (file_changed, events) = file_changed(watch, file_name);
+        assert!(
+            file_changed,
+            "no file change notification for '{}'; these events occurred instead: {:?}",
+            file_name, events
+        );
     }
 
     /// Returns true iff there were no changes
@@ -278,7 +313,7 @@ mod tests {
 
     #[test]
     fn trivial_watch_whole_directory() {
-        let mut watcher = Watch::init().expect("failed creating Watch");
+        let mut watcher = Watch::try_new().expect("failed creating Watch");
         let temp = tempdir().unwrap();
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
@@ -286,16 +321,16 @@ mod tests {
 
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
         sleep(upper_watcher_timeout());
-        assert!(file_changed(&watcher, "foo"));
+        assert_file_changed(&watcher, "foo");
 
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
         sleep(upper_watcher_timeout());
-        assert!(file_changed(&watcher, "foo"));
+        assert_file_changed(&watcher, "foo");
     }
 
     #[test]
     fn trivial_watch_specific_file() {
-        let mut watcher = Watch::init().expect("failed creating Watch");
+        let mut watcher = Watch::try_new().expect("failed creating Watch");
         let temp = tempdir().unwrap();
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
@@ -305,13 +340,13 @@ mod tests {
 
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
         sleep(upper_watcher_timeout());
-        assert!(file_changed(&watcher, "foo"));
+        assert_file_changed(&watcher, "foo");
     }
 
     #[test]
     fn rename_over_vim() {
         // Vim renames files in to place for atomic writes
-        let mut watcher = Watch::init().expect("failed creating Watch");
+        let mut watcher = Watch::try_new().expect("failed creating Watch");
         let temp = tempdir().unwrap();
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
@@ -327,7 +362,7 @@ mod tests {
         // Rename bar to foo, expect a notification
         expect_bash(r#"mv "$1/bar" "$1/foo""#, &[temp.path().as_os_str()]);
         sleep(upper_watcher_timeout());
-        assert!(file_changed(&watcher, "foo"));
+        assert_file_changed(&watcher, "foo");
 
         // Do it a second time
         expect_bash(r#"echo 1 > "$1/bar""#, &[temp.path().as_os_str()]);
@@ -337,6 +372,6 @@ mod tests {
         // Rename bar to foo, expect a notification
         expect_bash(r#"mv "$1/bar" "$1/foo""#, &[temp.path().as_os_str()]);
         sleep(upper_watcher_timeout());
-        assert!(file_changed(&watcher, "foo"));
+        assert_file_changed(&watcher, "foo");
     }
 }

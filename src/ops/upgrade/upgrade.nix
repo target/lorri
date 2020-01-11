@@ -3,7 +3,8 @@
   #
   # Calling this with `--argstr src $(pwd)` will install the version
   # of lorri present in $(pwd).
-  src ? "rolling-release",
+  src ? "rolling-release"
+,
 }:
 let
   inherit (builtins) fetchGit hasAttr getAttr trace;
@@ -23,6 +24,7 @@ let
   };
 
   path = if hasAttr src sources
-    then getAttr src sources
-    else sources.local;
-in (import "${path}/release.nix" { src = path; } )
+  then getAttr src sources
+  else sources.local;
+in
+(import "${path}/release.nix" { src = path; })

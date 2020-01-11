@@ -1,9 +1,7 @@
 //! Global project constants.
 
-extern crate directories;
-
-use self::directories::ProjectDirs;
 use crate::cas::ContentAddressable;
+use directories::ProjectDirs;
 use std::path::{Path, PathBuf};
 
 /// Path constants like the GC root directory.
@@ -75,10 +73,14 @@ impl Paths {
 
     /// Path to the socket file.
     ///
-    /// The daemon uses this path to create its Unix socket on
-    /// (see `::daemon` and `::socket::communicate`).
+    /// The daemon uses this path to create its Unix socket.
     pub fn daemon_socket_file(&self) -> &Path {
         &self.daemon_socket_file
+    }
+
+    /// Unix socket address of the daemon.
+    pub fn daemon_socket_address(&self) -> String {
+        format!("unix:{}", self.daemon_socket_file().display())
     }
 
     /// content-addressable store.
