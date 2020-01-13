@@ -37,7 +37,6 @@
       '';
 
       buildInputs = [ pkgs.nix pkgs.direnv pkgs.which pkgs.rustPackages.rustfmt ] ++ pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
-        pkgs.darwin.cf-private
         pkgs.darwin.Security
         pkgs.darwin.apple_sdk.frameworks.CoreServices
       ];
