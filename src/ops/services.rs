@@ -182,17 +182,18 @@ async fn start_service(service: Service, stop: oneshot::Receiver<()>) {
         .stderr(Stdio::piped());
     match cmd.spawn() {
         Ok(mut child) => {
-            tokio::spawn(log_stream(
+            let stdout = log_stream(
                 BufReader::new(child.stdout.take().unwrap()).lines(),
                 service.name.to_string(),
                 Fd::Stdout,
-            ));
-            tokio::spawn(log_stream(
+            );
+            let stderr = log_stream(
                 BufReader::new(child.stderr.take().unwrap()).lines(),
                 service.name.to_string(),
                 Fd::Stderr,
-            ));
-            cleanup(child, service.name, stop).await;
+            );
+            let cleanup = cleanup(child, service.name, stop);
+            future::join3(stdout, stderr, cleanup).await;
         }
         Err(e) => {
             error!("failed to start service {}", &service.name; "name" => &service.name, "cmd" => ?cmd, "error" => ?e)
