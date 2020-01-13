@@ -68,6 +68,8 @@ rec {
         (cratesIO.crates."bincode"."${deps."lorri"."0.1.0"."bincode"}" deps)
         (cratesIO.crates."crossbeam_channel"."${deps."lorri"."0.1.0"."crossbeam_channel"}" deps)
         (cratesIO.crates."directories"."${deps."lorri"."0.1.0"."directories"}" deps)
+        (cratesIO.crates."futures_channel"."${deps."lorri"."0.1.0"."futures_channel"}" deps)
+        (cratesIO.crates."futures_util"."${deps."lorri"."0.1.0"."futures_util"}" deps)
         (crates."human_panic"."${deps."lorri"."0.1.0"."human_panic"}" deps)
         (cratesIO.crates."lazy_static"."${deps."lorri"."0.1.0"."lazy_static"}" deps)
         (cratesIO.crates."md5"."${deps."lorri"."0.1.0"."md5"}" deps)
@@ -84,6 +86,7 @@ rec {
         (cratesIO.crates."slog_term"."${deps."lorri"."0.1.0"."slog_term"}" deps)
         (cratesIO.crates."structopt"."${deps."lorri"."0.1.0"."structopt"}" deps)
         (cratesIO.crates."tempfile"."${deps."lorri"."0.1.0"."tempfile"}" deps)
+        (cratesIO.crates."tokio"."${deps."lorri"."0.1.0"."tokio"}" deps)
         (cratesIO.crates."varlink"."${deps."lorri"."0.1.0"."varlink"}" deps)
         (cratesIO.crates."vec1"."${deps."lorri"."0.1.0"."vec1"}" deps)
       ]);
@@ -97,6 +100,8 @@ rec {
       bincode."${deps.lorri."0.1.0".bincode}".default = true;
       crossbeam_channel."${deps.lorri."0.1.0".crossbeam_channel}".default = true;
       directories."${deps.lorri."0.1.0".directories}".default = true;
+      futures_channel."${deps.lorri."0.1.0".futures_channel}".default = true;
+      futures_util."${deps.lorri."0.1.0".futures_util}".default = true;
       human_panic."${deps.lorri."0.1.0".human_panic}".default = true;
       lazy_static."${deps.lorri."0.1.0".lazy_static}".default = true;
       lorri."0.1.0".default = (f.lorri."0.1.0".default or true);
@@ -114,6 +119,15 @@ rec {
       slog_term."${deps.lorri."0.1.0".slog_term}".default = true;
       structopt."${deps.lorri."0.1.0".structopt}".default = true;
       tempfile."${deps.lorri."0.1.0".tempfile}".default = true;
+      tokio = fold recursiveUpdate {} [
+        { "${deps.lorri."0.1.0".tokio}"."io-util" = true; }
+        { "${deps.lorri."0.1.0".tokio}"."process" = true; }
+        { "${deps.lorri."0.1.0".tokio}"."rt-core" = true; }
+        { "${deps.lorri."0.1.0".tokio}"."rt-threaded" = true; }
+        { "${deps.lorri."0.1.0".tokio}"."stream" = true; }
+        { "${deps.lorri."0.1.0".tokio}"."sync" = true; }
+        { "${deps.lorri."0.1.0".tokio}".default = true; }
+      ];
       varlink."${deps.lorri."0.1.0".varlink}".default = true;
       varlink_generator."${deps.lorri."0.1.0".varlink_generator}".default = true;
       vec1."${deps.lorri."0.1.0".vec1}".default = true;
@@ -122,6 +136,8 @@ rec {
       (cratesIO.features_.bincode."${deps."lorri"."0.1.0"."bincode"}" deps)
       (cratesIO.features_.crossbeam_channel."${deps."lorri"."0.1.0"."crossbeam_channel"}" deps)
       (cratesIO.features_.directories."${deps."lorri"."0.1.0"."directories"}" deps)
+      (cratesIO.features_.futures_channel."${deps."lorri"."0.1.0"."futures_channel"}" deps)
+      (cratesIO.features_.futures_util."${deps."lorri"."0.1.0"."futures_util"}" deps)
       (features_.human_panic."${deps."lorri"."0.1.0"."human_panic"}" deps)
       (cratesIO.features_.lazy_static."${deps."lorri"."0.1.0"."lazy_static"}" deps)
       (cratesIO.features_.md5."${deps."lorri"."0.1.0"."md5"}" deps)
@@ -138,6 +154,7 @@ rec {
       (cratesIO.features_.slog_term."${deps."lorri"."0.1.0"."slog_term"}" deps)
       (cratesIO.features_.structopt."${deps."lorri"."0.1.0"."structopt"}" deps)
       (cratesIO.features_.tempfile."${deps."lorri"."0.1.0"."tempfile"}" deps)
+      (cratesIO.features_.tokio."${deps."lorri"."0.1.0"."tokio"}" deps)
       (cratesIO.features_.varlink."${deps."lorri"."0.1.0"."varlink"}" deps)
       (cratesIO.features_.vec1."${deps."lorri"."0.1.0"."vec1"}" deps)
       (cratesIO.features_.varlink_generator."${deps."lorri"."0.1.0"."varlink_generator"}" deps)
@@ -202,6 +219,7 @@ rec {
     constant_time_eq = "0.1.4";
   };
   deps.byteorder."1.3.2" = {};
+  deps.bytes."0.5.2" = {};
   deps.c2_chacha."0.2.3" = {
     ppv_lite86 = "0.2.6";
   };
@@ -281,6 +299,26 @@ rec {
     fuchsia_zircon_sys = "0.3.3";
   };
   deps.fuchsia_zircon_sys."0.3.3" = {};
+  deps.futures_channel."0.3.1" = {
+    futures_core = "0.3.1";
+  };
+  deps.futures_core."0.3.1" = {};
+  deps.futures_macro."0.3.1" = {
+    proc_macro_hack = "0.5.11";
+    proc_macro2 = "1.0.6";
+    quote = "1.0.2";
+    syn = "1.0.8";
+  };
+  deps.futures_task."0.3.1" = {};
+  deps.futures_util."0.3.1" = {
+    futures_core = "0.3.1";
+    futures_macro = "0.3.1";
+    futures_task = "0.3.1";
+    pin_utils = "0.1.0-alpha.4";
+    proc_macro_hack = "0.5.11";
+    proc_macro_nested = "0.1.3";
+    slab = "0.4.2";
+  };
   deps.getopts."0.2.21" = {
     unicode_width = "0.1.6";
   };
@@ -291,6 +329,9 @@ rec {
   };
   deps.heck."0.3.1" = {
     unicode_segmentation = "1.6.0";
+  };
+  deps.hermit_abi."0.1.3" = {
+    libc = "0.2.65";
   };
   deps.human_panic."1.0.1" = {
     backtrace = "0.3.40";
@@ -328,6 +369,8 @@ rec {
     bincode = "1.2.0";
     crossbeam_channel = "0.3.9";
     directories = "1.0.2";
+    futures_channel = "0.3.1";
+    futures_util = "0.3.1";
     human_panic = "1.0.1";
     lazy_static = "1.4.0";
     md5 = "0.6.1";
@@ -344,6 +387,7 @@ rec {
     slog_term = "2.4.2";
     structopt = "0.2.18";
     tempfile = "3.1.0";
+    tokio = "0.2.8";
     varlink = "10.0.0";
     vec1 = "1.4.0";
     varlink_generator = "9.0.0";
@@ -351,7 +395,8 @@ rec {
   deps.maybe_uninit."2.0.0" = {};
   deps.md5."0.6.1" = {};
   deps.memchr."2.2.1" = {};
-  deps.mio."0.6.19" = {
+  deps.mio."0.6.21" = {
+    cfg_if = "0.1.10";
     iovec = "0.1.4";
     log = "0.4.8";
     net2 = "0.2.33";
@@ -366,14 +411,29 @@ rec {
   deps.mio_extras."2.0.5" = {
     lazycell = "1.2.1";
     log = "0.4.8";
-    mio = "0.6.19";
+    mio = "0.6.21";
     slab = "0.4.2";
+  };
+  deps.mio_named_pipes."0.1.6" = {
+    log = "0.4.8";
+    mio = "0.6.21";
+    miow = "0.3.3";
+    winapi = "0.3.8";
+  };
+  deps.mio_uds."0.6.7" = {
+    iovec = "0.1.4";
+    libc = "0.2.65";
+    mio = "0.6.21";
   };
   deps.miow."0.2.1" = {
     kernel32_sys = "0.2.2";
     net2 = "0.2.33";
     winapi = "0.2.8";
     ws2_32_sys = "0.2.1";
+  };
+  deps.miow."0.3.3" = {
+    socket2 = "0.3.11";
+    winapi = "0.3.8";
   };
   deps.net2."0.2.33" = {
     cfg_if = "0.1.10";
@@ -395,7 +455,7 @@ rec {
     libc = "0.2.65";
     walkdir = "2.2.9";
     inotify = "0.7.0";
-    mio = "0.6.19";
+    mio = "0.6.21";
     mio_extras = "2.0.5";
     fsevent = "0.4.0";
     fsevent_sys = "2.0.1";
@@ -408,6 +468,10 @@ rec {
   };
   deps.num_traits."0.2.10" = {
     autocfg = "0.1.7";
+  };
+  deps.num_cpus."1.11.1" = {
+    libc = "0.2.65";
+    hermit_abi = "0.1.3";
   };
   deps.os_type."2.2.0" = {
     regex = "1.3.1";
@@ -425,7 +489,15 @@ rec {
     libc = "0.2.65";
     winapi = "0.3.8";
   };
+  deps.pin_project_lite."0.1.1" = {};
+  deps.pin_utils."0.1.0-alpha.4" = {};
   deps.ppv_lite86."0.2.6" = {};
+  deps.proc_macro_hack."0.5.11" = {
+    proc_macro2 = "1.0.6";
+    quote = "1.0.2";
+    syn = "1.0.8";
+  };
+  deps.proc_macro_nested."0.1.3" = {};
   deps.proc_macro2."0.4.30" = {
     unicode_xid = "0.1.0";
   };
@@ -570,6 +642,10 @@ rec {
     ryu = "1.0.2";
     serde = "1.0.103";
   };
+  deps.signal_hook_registry."1.2.0" = {
+    arc_swap = "0.4.4";
+    libc = "0.2.65";
+  };
   deps.slab."0.4.2" = {};
   deps.slog."2.5.2" = {};
   deps.slog_async."2.3.0" = {
@@ -591,6 +667,12 @@ rec {
   };
   deps.smallvec."0.6.13" = {
     maybe_uninit = "2.0.0";
+  };
+  deps.socket2."0.3.11" = {
+    cfg_if = "0.1.10";
+    libc = "0.2.65";
+    redox_syscall = "0.1.56";
+    winapi = "0.3.8";
   };
   deps.stable_deref_trait."1.1.1" = {};
   deps.strsim."0.8.0" = {};
@@ -649,6 +731,21 @@ rec {
   deps.time."0.1.42" = {
     libc = "0.2.65";
     redox_syscall = "0.1.56";
+    winapi = "0.3.8";
+  };
+  deps.tokio."0.2.8" = {
+    bytes = "0.5.2";
+    fnv = "1.0.6";
+    futures_core = "0.3.1";
+    lazy_static = "1.4.0";
+    memchr = "2.2.1";
+    mio = "0.6.21";
+    num_cpus = "1.11.1";
+    pin_project_lite = "0.1.1";
+    libc = "0.2.65";
+    mio_uds = "0.6.7";
+    signal_hook_registry = "1.2.0";
+    mio_named_pipes = "0.1.6";
     winapi = "0.3.8";
   };
   deps.toml."0.4.10" = {
