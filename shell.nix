@@ -45,6 +45,7 @@ let
     pkgs.direnv
     pkgs.shellcheck
     pkgs.nix-prefetch-git
+    pkgs.strace
 
     # To ensure we always have a compatible nix in our shells.
     # Travis doesn’t know `nix-env` otherwise.
@@ -147,7 +148,8 @@ pkgs.mkShell (
         lorri_travis_fold script-tests ./script-tests/run-all.sh
         scripttests=$?
 
-        lorri_travis_fold cargo-test cargo test
+        lorri_travis_fold cargo-test cargo test service_starts --no-run
+        strace -s 256 -f -t -y target/debug/services-c2711cc12a85502b 2>&1 | tee strace-output
         cargotestexit=$?
 
         set +x

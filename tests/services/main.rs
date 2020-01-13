@@ -6,6 +6,7 @@ pub fn service_starts() -> std::io::Result<()> {
     let tempdir = tempfile::tempdir()?;
     let services_nix = tempdir.as_ref().join("services.nix");
     let file_to_touch = tempdir.as_ref().join("touchit");
+    eprintln!("file to touch: {}", file_to_touch.display());
     std::fs::write(
         &services_nix,
         format!(
@@ -23,6 +24,7 @@ pub fn service_starts() -> std::io::Result<()> {
             file_touched = true;
             break;
         }
+        std::thread::sleep(std::time::Duration::from_millis(500));
     }
 
     assert!(file_touched, "service did not run successfully");
