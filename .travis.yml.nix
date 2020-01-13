@@ -156,15 +156,12 @@ let
       ];
     };
 in pkgs.runCommand "travis.yml" {
-  # TODO: move to yj (in newer nixpkgs)
-  # is a statically compiled golang package,
-  # so doesn’t incur a dependency on python
-  buildInputs = [ pkgs.remarshal ];
+  buildInputs = [ pkgs.yj ];
   passAsFile = [ "jobs" ];
   jobs = builtins.toJSON jobs;
   preferLocalBuild = true;
   allowSubstitutes = false;
 }
 ''
-  remarshal -if json -i $jobsPath -of yaml -o $out --yaml-style ">"
+  yj -jy < $jobsPath > $out
 ''
