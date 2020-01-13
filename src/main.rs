@@ -3,7 +3,7 @@ use lorri::constants;
 use lorri::locate_file;
 use lorri::logging;
 use lorri::ops::error::{ExitError, OpResult};
-use lorri::ops::{daemon, direnv, info, init, ping, upgrade, watch};
+use lorri::ops::{daemon, direnv, info, init, ping, services, upgrade, watch};
 use lorri::project::Project;
 use lorri::NixFile;
 use slog::{debug, error, o};
@@ -75,7 +75,7 @@ fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
     // `without_project` and `with_project` set up the slog_scope global logger. Make sure to use
     // one of them so the logger gets set up correctly.
     let without_project = || slog_scope::set_global_logger(log.clone());
-    let with_project = |nix_file| -> std::result::Result<(Project, GlobalLoggerGuard), ExitError> {
+    let with_project = |nix_file| -> Result<(Project, GlobalLoggerGuard), ExitError> {
         let project = create_project(&lorri::ops::get_paths()?, get_shell_nix(nix_file)?)?;
         let guard = slog_scope::set_global_logger(log.new(o!("root" => project.nix_file.clone())));
         Ok((project, guard))
@@ -101,6 +101,10 @@ fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
         Command::Upgrade(opts) => {
             let _guard = without_project();
             upgrade::main(opts, paths.cas_store())
+        }
+        Command::Services(opts) => {
+            let _guard = without_project();
+            services::main(opts.config_file.to_path_buf())
         }
         // TODO: remove
         Command::Ping_(opts) => {

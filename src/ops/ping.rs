@@ -1,5 +1,4 @@
-//! Run a BuildLoop for `shell.nix`, watching for input file changes.
-//! Can be used together with `direnv`.
+//! Ping the daemon.
 use crate::ops::error::{ok, OpResult};
 use crate::rpc;
 use crate::NixFile;

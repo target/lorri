@@ -5,6 +5,7 @@ pub mod direnv;
 pub mod info;
 pub mod init;
 pub mod ping;
+pub mod services;
 pub mod upgrade;
 pub mod watch;
 

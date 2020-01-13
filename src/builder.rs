@@ -663,7 +663,7 @@ in
         )
         .unwrap();
         assert_eq!(
-            r##"[{"args":["--fast"],"name":"service1","program":"program1_path"},{"args":["--faster"],"name":"service2","program":"program2_path"}]"##,
+            r##"{"services":[{"args":["--fast"],"name":"service1","program":"program1_path"},{"args":["--faster"],"name":"service2","program":"program2_path"}]}"##,
             String::from_utf8(writer).unwrap().trim()
         );
 

@@ -10,6 +10,26 @@ assert shellSrc != null || servicesSrc != null;
 let
   runtimeCfg = import runtimeClosure;
 
+  # We want to support services.nix files which refer to derivation outputs,
+  # e.g. programs from <nixpkgs>. The natural choice, builtins.toFile, cannot
+  # refer to derivation outputs. We don't want lorri itself to have a runtime
+  # dependency on <nixpkgs>, so we can't use <nixpkgs>.lib.writeTextFile. Hence
+  # this minimal implementation.
+  writeTextFile = name: content: derivation {
+    inherit name content;
+    passAsFile = [ "content" ];
+    system = builtins.currentSystem;
+    outputs = [ "out" ];
+    PATH = runtimeCfg.path;
+    builder = "/bin/sh";
+    args = [
+      "-c"
+      ''
+        cp $contentPath $out
+      ''
+    ];
+  };
+
   # using scopedImport, replace readDir and readFile with
   # implementations which will log files and paths they see.
   logged = src:
@@ -123,7 +143,7 @@ let
       args = [
         "-e"
         (
-          builtins.toFile "lorri-wrapped-project" ''
+          writeTextFile "lorri-wrapped-project" ''
             mkdir -p "$out"
             touch "$out/varmap-v1"
 
@@ -143,7 +163,7 @@ let
 
             export > "$out/bash-export"
             cat << 'EOF' > "$out/services.json"
-            ${builtins.toJSON services}
+            ${builtins.toJSON { inherit services; }}
             EOF
           ''
         )
