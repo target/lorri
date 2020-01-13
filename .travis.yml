@@ -74,7 +74,7 @@ matrix:
     script:
     - set -e
     - nix-build -A allBuildInputs shell.nix > ./shell-inputs
-    - nix-shell --quiet --arg isDevelopmentShell false --run ci_check
+    - nix-shell --quiet --arg isDevelopmentShell false --run ci_test
     - cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
     - git diff -q ./.travis.yml
     - git diff -q ./Cargo.nix
