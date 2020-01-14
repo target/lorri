@@ -97,7 +97,6 @@ pkgs.mkShell (
       # nix-shell, you don't need this.
       export SHELL="${pkgs.bashInteractive}/bin/bash";
 
-      alias newlorri="(cd $LORRI_ROOT; cargo run -- shell)"
       alias ci="ci_check"
 
       # this is mirrored from .envrc to make available from nix-shell
