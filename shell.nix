@@ -40,7 +40,6 @@ let
     pkgs.cargo
     pkgs.rustc
     pkgs.rustfmt
-    pkgs.bashInteractive
     pkgs.git
     pkgs.direnv
     pkgs.shellcheck
@@ -91,11 +90,6 @@ pkgs.mkShell (
       # see https://github.com/direnv/direnv/issues/427
       exec 3>&1 # store stdout (1) in fd 3
       exec 1>&2 # make stdout (1) an alias for stderr (2)
-
-      # this is needed so `lorri shell` runs the proper shell from
-      # inside this project's nix-shell. If you run `lorri` within a
-      # nix-shell, you don't need this.
-      export SHELL="${pkgs.bashInteractive}/bin/bash";
 
       alias ci="ci_check"
 

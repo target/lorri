@@ -3,7 +3,7 @@ use lorri::constants;
 use lorri::locate_file;
 use lorri::logging;
 use lorri::ops::error::{ExitError, OpResult};
-use lorri::ops::{daemon, direnv, info, init, ping, upgrade, watch};
+use lorri::ops::{daemon, direnv, info, init, ping, shell, upgrade, watch};
 use lorri::project::Project;
 use lorri::NixFile;
 use slog::{debug, error, o};
@@ -89,6 +89,10 @@ fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
         Command::Direnv(opts) => {
             let (project, _guard) = with_project(&opts.nix_file)?;
             direnv::main(project, /* shell_output */ std::io::stdout())
+        }
+        Command::Shell(opts) => {
+            let (project, _guard) = with_project(&opts.nix_file)?;
+            shell::main(project)
         }
         Command::Watch(opts) => {
             let (project, _guard) = with_project(&opts.nix_file)?;

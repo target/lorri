@@ -6,6 +6,12 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 429;
+        changes = ''
+          - Re-introduced `lorri shell` command.
+        '';
+      }
+      {
         version = 309;
         changes = ''
           - The deprecated `lorri shell` command was removed.
