@@ -46,7 +46,7 @@ pub struct BuildLoop<'a> {
     project: &'a Project,
     /// Watches all input files for changes.
     /// As new input files are discovered, they are added to the watchlist.
-    watch: Watch,
+    pub watch: Watch,
 }
 
 impl<'a> BuildLoop<'a> {

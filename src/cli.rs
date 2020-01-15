@@ -56,6 +56,10 @@ pub struct DirenvOptions {
     /// The .nix file in the current directory to use
     #[structopt(long = "shell-file", parse(from_os_str), default_value = "shell.nix")]
     pub nix_file: PathBuf,
+
+    /// Whether or not to block
+    #[structopt(long = "block")]
+    pub block: bool,
 }
 
 /// Options for `watch` subcommand.

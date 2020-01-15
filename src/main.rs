@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 
 const TRIVIAL_SHELL_SRC: &str = include_str!("./trivial-shell.nix");
-const DEFAULT_ENVRC: &str = "eval \"$(lorri direnv)\"";
+const DEFAULT_ENVRC: &str = "eval \"$(lorri direnv --block)\"";
 
 fn main() {
     // This returns 101 on panics, see also `ExitError::panic`.
@@ -88,7 +88,11 @@ fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
         }
         Command::Direnv(opts) => {
             let (project, _guard) = with_project(&opts.nix_file)?;
-            direnv::main(project, /* shell_output */ std::io::stdout())
+            direnv::main(
+                project,
+                opts.block,
+                /* shell_output */ std::io::stdout(),
+            )
         }
         Command::Watch(opts) => {
             let (project, _guard) = with_project(&opts.nix_file)?;

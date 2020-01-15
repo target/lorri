@@ -16,7 +16,7 @@ pub struct Watch {
     /// Event receiver. Process using `Watch::process`.
     pub rx: chan::Receiver<notify::Result<notify::Event>>,
     notify: RecommendedWatcher,
-    watches: HashSet<PathBuf>,
+    pub watches: HashSet<PathBuf>,
 }
 
 /// A debug message string that can only be displayed via `Debug`.

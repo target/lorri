@@ -3,6 +3,7 @@
 mod version;
 
 use self::version::{DirenvVersion, MIN_DIRENV_VERSION};
+use crate::build_loop::{BuildError, BuildLoop, BuildResults};
 use crate::ops::error::{ok, ExitError, OpResult};
 use crate::project::roots::Roots;
 use crate::project::Project;
@@ -13,51 +14,75 @@ use std::process::Command;
 
 /// See the documentation for lorri::cli::Command::Direnv for more
 /// details.
-pub fn main<W: std::io::Write>(project: Project, mut shell_output: W) -> OpResult {
+pub fn main<W: std::io::Write>(project: Project, block: bool, mut shell_output: W) -> OpResult {
     check_direnv_version()?;
+
+    if std::env::var("DIRENV_IN_ENVRC") != Ok(String::from("1")) {
+        warn!("`lorri direnv` should be executed by direnv from within an `.envrc` file")
+    }
 
     let root_paths = Roots::from_project(&project).paths();
     let paths_are_cached: bool = root_paths.all_exist();
     let address = crate::ops::get_paths()?.daemon_socket_address();
     let shell_nix = rpc::ShellNix::try_from(&project.nix_file).map_err(ExitError::temporary)?;
 
-    let ping_sent = if let Ok(connection) = varlink::Connection::with_address(&address) {
-        use rpc::VarlinkClientInterface;
-        rpc::VarlinkClient::new(connection)
-            .watch_shell(shell_nix)
-            .call()
-            .is_ok()
+    let files_to_watch = if block {
+        let mut build_loop = BuildLoop::new(&project);
+        match build_loop.once() {
+            Ok(_) => build_loop
+                .watch
+                .watches
+                .iter()
+                .map(|p| format!("\"{}\"", p.display()))
+                .collect::<Vec<_>>()
+                .join(" "),
+            Err(BuildError::Unrecoverable(err)) => {
+                return Err(ExitError::temporary(format!("{:?}", err)))
+            }
+            Err(BuildError::Recoverable(exit_failure)) => {
+                return Err(ExitError::expected_error(format!("{:#?}", exit_failure)))
+            }
+        }
     } else {
-        false
+        let ping_sent = if let Ok(connection) = varlink::Connection::with_address(&address) {
+            use rpc::VarlinkClientInterface;
+            rpc::VarlinkClient::new(connection)
+                .watch_shell(shell_nix)
+                .call()
+                .is_ok()
+        } else {
+            false
+        };
+
+        match (ping_sent, paths_are_cached) {
+            (true, true) => {}
+
+            // Ping sent & paths aren't cached: once the environment is created
+            // the direnv environment will be updated automatically.
+            (true, false) =>
+                info!(
+                    "lorri has not completed an evaluation for this project yet"
+                ),
+
+            // Ping not sent and paths are cached: we can load a stale environment
+            // When the daemon is started, we'll send a fresh ping.
+            (false, true) =>
+                info!(
+                    "lorri daemon is not running, loading a cached environment"
+                ),
+
+            // Ping not sent and paths are not cached: we can't load anything,
+            // but when the daemon in started we'll send a ping and eventually
+            // load a fresh environment.
+            (false, false) =>
+                error!("lorri daemon is not running and this project has not yet been evaluated, please run `lorri daemon`"),
+        }
+        crate::ops::get_paths()?
+            .daemon_socket_file()
+            .to_str()
+            .expect("Socket path is not UTF-8 clean!")
+            .to_string()
     };
-
-    match (ping_sent, paths_are_cached) {
-        (true, true) => {}
-
-        // Ping sent & paths aren't cached: once the environment is created
-        // the direnv environment will be updated automatically.
-        (true, false) =>
-            info!(
-                "lorri has not completed an evaluation for this project yet"
-            ),
-
-        // Ping not sent and paths are cached: we can load a stale environment
-        // When the daemon is started, we'll send a fresh ping.
-        (false, true) =>
-            info!(
-                "lorri daemon is not running, loading a cached environment"
-            ),
-
-        // Ping not sent and paths are not cached: we can't load anything,
-        // but when the daemon in started we'll send a ping and eventually
-        // load a fresh environment.
-        (false, false) =>
-            error!("lorri daemon is not running and this project has not yet been evaluated, please run `lorri daemon`"),
-    }
-
-    if std::env::var("DIRENV_IN_ENVRC") != Ok(String::from("1")) {
-        warn!("`lorri direnv` should be executed by direnv from within an `.envrc` file")
-    }
 
     // direnv interprets stdout as a script that it evaluates. That is why (1) the logger for
     // `lorri direnv` outputs to stderr by default (to avoid corrupting the script) and (2) we
@@ -70,15 +95,12 @@ pub fn main<W: std::io::Write>(project: Project, mut shell_output: W) -> OpResul
         r#"
 EVALUATION_ROOT="{}"
 
-watch_file "{}"
+watch_file {}
 watch_file "$EVALUATION_ROOT"
 
 {}"#,
         root_paths.shell_gc_root,
-        crate::ops::get_paths()?
-            .daemon_socket_file()
-            .to_str()
-            .expect("Socket path is not UTF-8 clean!"),
+        files_to_watch,
         include_str!("direnv/envrc.bash")
     )
     .expect("failed to write shell output");
