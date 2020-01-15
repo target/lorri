@@ -79,7 +79,7 @@ watch_file "$EVALUATION_ROOT"
             .daemon_socket_file()
             .to_str()
             .expect("Socket path is not UTF-8 clean!"),
-        include_str!("envrc.bash")
+        include_str!("direnv/envrc.bash")
     )
     .expect("failed to write shell output");
 
