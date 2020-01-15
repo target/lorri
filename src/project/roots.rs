@@ -85,19 +85,24 @@ where {
     }
 
     /// Store a new root under name
-    fn add(&self, name: &str, store_path: &StorePath) -> Result<RootPath, AddRootError> {
+    pub fn add(&self, name: &str, store_path: &StorePath) -> Result<RootPath, AddRootError> {
+        self.add_path(name, &store_path.as_path().to_path_buf())
+    }
+
+    /// Store a new root under name. Prefer to use `add`.
+    pub fn add_path(&self, name: &str, store_path: &PathBuf) -> Result<RootPath, AddRootError> {
         // final path in the `self.gc_root_path` directory
         let mut path = self.gc_root_path.clone();
         path.push(name);
 
-        debug!("adding root"; "from" => store_path.as_path().to_str(), "to" => path.to_str());
+        debug!("adding root"; "from" => store_path.to_str(), "to" => path.to_str());
         std::fs::remove_file(&path).or_else(|e| AddRootError::remove(e, &path))?;
 
         std::fs::remove_file(&path).or_else(|e| AddRootError::remove(e, &path))?;
 
         // the forward GC root that points from the store path to our cache gc_roots dir
-        std::os::unix::fs::symlink(store_path.as_path(), &path)
-            .map_err(|e| AddRootError::symlink(e, store_path.as_path(), &path))?;
+        std::os::unix::fs::symlink(store_path, &path)
+            .map_err(|e| AddRootError::symlink(e, store_path, &path))?;
 
         // the reverse GC root that points from nix to our cache gc_roots dir
         let mut root = if let Ok(path) = env::var("NIX_STATE_DIR") {

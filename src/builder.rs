@@ -13,7 +13,7 @@ use crate::osstrlines;
 use crate::{DrvFile, NixFile};
 use crossbeam_channel as chan;
 use regex::Regex;
-use slog_scope::debug;
+use slog_scope::{debug, warn};
 use std::any::Any;
 use std::ffi::{OsStr, OsString};
 use std::io::BufReader;
@@ -40,6 +40,7 @@ pub struct RootedPath {
 
 struct InstantiateOutput {
     referenced_paths: Vec<PathBuf>,
+    shell_drv: Option<PathBuf>,
     output: Option<RootedDrv>,
 }
 
@@ -149,6 +150,8 @@ fn instrumented_instantiation(
             .expect("Failed to join stderr processing thread")?,
     );
 
+    let mut shell_drv = None;
+
     // TODO: this can move entirely into the stderr thread,
     // meaning we don’t have to keep the outputs in memory (fold directly)
 
@@ -176,6 +179,12 @@ fn instrumented_instantiation(
                         paths.push(src);
                     }
                     LogDatum::Text(line) => log_lines.push(OsString::from(line)),
+                    LogDatum::ShellDrv(drv) => {
+                        if let Some(old_drv) = &shell_drv {
+                            warn!("multiple shell derivation paths found, ignoring old one"; "old" => ?old_drv, "new" => ?drv);
+                        }
+                        shell_drv = Some(drv);
+                    },
                     LogDatum::NonUtf(line) => log_lines.push(line),
                 };
 
@@ -185,6 +194,7 @@ fn instrumented_instantiation(
     if !exec_result.success() {
         return Ok(InstantiateOutput {
             referenced_paths: paths,
+            shell_drv,
             output: None,
         });
     }
@@ -198,6 +208,7 @@ fn instrumented_instantiation(
 
     Ok(InstantiateOutput {
         referenced_paths: paths,
+        shell_drv,
         output: Some(RootedDrv {
             _gc_handle: GcRootTempDir(gc_root_dir),
             path: shell_gc_root,
@@ -256,6 +267,8 @@ struct GcRootTempDir(tempfile::TempDir);
 pub struct RunResult {
     /// All the paths identified during the instantiation
     pub referenced_paths: Vec<PathBuf>,
+    /// The derivation path of the shell expression, if any
+    pub shell_drv: Option<PathBuf>,
     /// The status of the build attempt
     pub status: RunStatus,
 }
@@ -287,17 +300,20 @@ pub fn run(
         if let Some(build_output) = buildoutput.output {
             Ok(RunResult {
                 referenced_paths: inst_info.referenced_paths,
+                shell_drv: inst_info.shell_drv,
                 status: RunStatus::Complete(build_output),
             })
         } else {
             Ok(RunResult {
                 referenced_paths: inst_info.referenced_paths,
+                shell_drv: inst_info.shell_drv,
                 status: RunStatus::FailedAtRealize,
             })
         }
     } else {
         Ok(RunResult {
             referenced_paths: inst_info.referenced_paths,
+            shell_drv: inst_info.shell_drv,
             status: RunStatus::FailedAtInstantiation,
         })
     }
@@ -316,6 +332,8 @@ enum LogDatum {
     Text(String),
     /// Text which we coudn’t decode from UTF-8
     NonUtf(OsString),
+    /// The derivation path of the shell expression
+    ShellDrv(PathBuf),
 }
 
 /// Examine a line of output and extract interesting log items in to
@@ -336,6 +354,8 @@ where
         // by our instrumentation in `./logged-evaluation.nix`.
         static ref LORRI_READ: Regex =
             Regex::new("^trace: lorri read: '(?P<source>.*)'$").expect("invalid regex!");
+        static ref LORRI_SHELL: Regex =
+            Regex::new("^trace: lorri shell: '(?P<drv>.*)'$").expect("invalid regex!");
     }
 
     // see the regexes above for explanations of the nix outputs
@@ -354,6 +374,8 @@ where
             // to make sure we only watch directories if they were builtins.readDir’ed
             } else if let Some(matches) = LORRI_READ.captures(&linestr) {
                 LogDatum::ReadFileOrDir(PathBuf::from(&matches["source"]))
+            } else if let Some(matches) = LORRI_SHELL.captures(&linestr) {
+                LogDatum::ShellDrv(PathBuf::from(&matches["drv"]))
             } else {
                 LogDatum::Text(linestr.to_owned())
             }
@@ -645,12 +667,13 @@ in
         let (tx, rx) = chan::unbounded();
         let RunResult {
             status,
+            shell_drv: _,
             referenced_paths: _,
         } = run(tx, &NixFile::Services(services), &cas).unwrap();
 
         let path = match &status {
             RunStatus::Complete(RootedPath { path, gc_handle: _ }) => path.as_path(),
-            _ => panic!("build failed"),
+            status => panic!("build failed: {:?}", status),
         };
 
         let services_json = path.join("services.json");

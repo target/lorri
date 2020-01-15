@@ -28,6 +28,8 @@ pub enum Event {
 pub struct BuildResults {
     /// See `build::Info.outputPaths
     pub output_paths: builder::OutputPaths<roots::RootPath>,
+    /// The derivation path of the shell expression, if any
+    pub shell_drv: Option<PathBuf>,
 }
 
 /// Results of a single, failing build.
@@ -144,7 +146,7 @@ impl<'a> BuildLoop<'a> {
             RunStatus::FailedAtRealize => Err(BuildError::Recoverable(BuildExitFailure {
                 log_lines: lines,
             })),
-            RunStatus::Complete(path) => self.root_result(path),
+            RunStatus::Complete(path) => self.root_result(path, run_result.shell_drv),
         }
     }
 
@@ -159,11 +161,16 @@ impl<'a> BuildLoop<'a> {
         Ok(())
     }
 
-    fn root_result(&mut self, build: builder::RootedPath) -> Result<BuildResults, BuildError> {
+    fn root_result(
+        &mut self,
+        build: builder::RootedPath,
+        shell_drv: Option<PathBuf>,
+    ) -> Result<BuildResults, BuildError> {
         let roots = Roots::from_project(&self.project);
 
         Ok(BuildResults {
             output_paths: roots.create_roots(build)?,
+            shell_drv,
         })
     }
 }
