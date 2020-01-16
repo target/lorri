@@ -36,9 +36,12 @@
           --no-out-link
       '';
 
-      buildInputs = [ pkgs.nix pkgs.direnv pkgs.which pkgs.rustPackages.rustfmt ] ++ pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
-        pkgs.darwin.Security
-        pkgs.darwin.apple_sdk.frameworks.CoreServices
+      buildInputs = with pkgs; [
+        nix # required for the preConfigure test
+        rustPackages.rustfmt
+      ] ++ stdenv.lib.optionals stdenv.isDarwin [
+        darwin.Security
+        darwin.apple_sdk.frameworks.CoreServices
       ];
     };
   };
