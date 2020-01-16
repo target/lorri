@@ -62,7 +62,10 @@ pub struct DirenvOptions {
 #[derive(StructOpt, Debug)]
 pub struct InfoOptions {
     /// The .nix file in the current directory to use
-    #[structopt(long = "shell-file", parse(from_os_str), default_value = "shell.nix")]
+    // The "shell-file" argument has no default value. That's on purpose: sometimes users have
+    // projects with multiple shell files. This way, they are forced to think about which shell
+    // file was causing problems when they submit a bug report.
+    #[structopt(long = "shell-file", parse(from_os_str))]
     pub nix_file: PathBuf,
 }
 
