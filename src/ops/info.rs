@@ -8,6 +8,7 @@ use slog_scope::info;
 /// See the documentation for lorri::cli::Command::Info for more
 /// details.
 pub fn main(project: Project) -> OpResult {
+    info!("lorri version: {}", crate::VERSION_BUILD_REV);
     let root_paths = Roots::from_project(&project).paths();
     let OutputPaths { shell_gc_root } = &root_paths;
     if root_paths.all_exist() {
