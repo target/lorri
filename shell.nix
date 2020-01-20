@@ -149,7 +149,8 @@ pkgs.mkShell (
         scripttests=$?
 
         lorri_travis_fold cargo-test cargo test service_starts --no-run
-        strace -s 256 -f -t -y target/debug/services-c2711cc12a85502b 2>&1 | tee strace-output
+        cargo test
+        #strace -s 256 -f -t -y target/debug/services-c2711cc12a85502b 2>&1 | tee strace-output
         cargotestexit=$?
 
         set +x
