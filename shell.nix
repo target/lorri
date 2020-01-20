@@ -45,7 +45,6 @@ let
     pkgs.direnv
     pkgs.shellcheck
     pkgs.nix-prefetch-git
-    pkgs.strace
 
     # To ensure we always have a compatible nix in our shells.
     # Travis doesn’t know `nix-env` otherwise.
@@ -61,7 +60,7 @@ let
     #
     # [1] https://github.com/cachix/cachix/issues/228#issuecomment-533634704
     # [2] https://github.com/NixOS/nixpkgs/issues/77358
-    #pkgs.rustPackages.clippy
+    pkgs.rustPackages.clippy
     pkgs.carnix
 
     # These other tools are also used only for linting, and are thus not
@@ -98,7 +97,6 @@ pkgs.mkShell (
       # nix-shell, you don't need this.
       export SHELL="${pkgs.bashInteractive}/bin/bash";
 
-      alias newlorri="(cd $LORRI_ROOT; cargo run -- shell)"
       alias ci="ci_check"
 
       # this is mirrored from .envrc to make available from nix-shell
@@ -123,18 +121,17 @@ pkgs.mkShell (
           cargo fmt -- --check
         cargofmtexit=$?
 
-        #RUSTFLAGS='-D warnings' \
-        #  lorri_travis_fold cargo-clippy cargo clippy
-        #cargoclippyexit=$?
+        RUSTFLAGS='-D warnings' \
+          lorri_travis_fold cargo-clippy cargo clippy
+        cargoclippyexit=$?
 
         set +x
         echo "./nix/fmt.sh --check: $nix_fmt"
         echo "carnix update: $carnixupdates"
         echo "cargo fmt: $cargofmtexit"
-        #echo "cargo clippy: $cargoclippyexit"
+        echo "cargo clippy: $cargoclippyexit"
 
-        #sum=$((nix_fmt + carnixupdate + cargofmtexit + cargoclippyexit))
-        sum=$((nix_fmt + carnixupdate + cargofmtexit))
+        sum=$((nix_fmt + carnixupdate + cargofmtexit + cargoclippyexit))
         if [ "$sum" -gt 0 ]; then
           return 1
         fi
@@ -149,9 +146,7 @@ pkgs.mkShell (
         lorri_travis_fold script-tests ./script-tests/run-all.sh
         scripttests=$?
 
-        lorri_travis_fold cargo-test cargo test service_starts --no-run
-        cargo test
-        #strace -s 256 -f -t -y target/debug/services-c2711cc12a85502b 2>&1 | tee strace-output
+        lorri_travis_fold cargo-test cargo test
         cargotestexit=$?
 
         set +x
