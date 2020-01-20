@@ -19,7 +19,7 @@ use std::process::Stdio;
 use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 use tokio::process::{Child, Command};
-use tokio::runtime::Runtime;
+use tokio::runtime::{Builder, Runtime};
 use tokio::sync::mpsc;
 
 enum Fd {
@@ -46,7 +46,13 @@ pub fn main(services_nix: PathBuf) -> OpResult {
             .canonicalize()
             .expect("failed to canonicalize services nix file path"),
     );
-    match Runtime::new().unwrap().block_on(main_async(nix_file)) {
+    let mut runtime = Builder::new()
+        .threaded_scheduler()
+        .enable_all()
+        .core_threads(3) // 3 threads are strictly required.
+        .build()
+        .expect("failed to create threaded runtime");
+    match runtime.block_on(main_async(nix_file)) {
         Ok(()) => ok(),
         Err(e) => Err(ExitError::panic(format!("{}", e))),
     }
