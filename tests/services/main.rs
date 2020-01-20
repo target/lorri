@@ -24,7 +24,7 @@ pub fn service_starts() -> std::io::Result<()> {
 
     let now = Instant::now();
     let mut file_touched = false;
-    while now.elapsed().as_secs() < 5 {
+    while now.elapsed().as_secs() < 10 {
         if file_to_touch.is_file() {
             file_touched = true;
             break;
