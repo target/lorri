@@ -16,8 +16,8 @@ rec {
       edition = "2018";
       src = fetchgit {
          url = "https://github.com/rust-cli/human-panic.git";
-         rev = "70db948973a746418e3a23434fe48fe45d3c9866";
-         sha256 = "0yznxvgxl5nka75p4bh1pf8ab0c3mfqwihp7lcl0vbiv2yli7nkv";
+         rev = "5195002d89b7f54cc68eb42255879654965bb175";
+         sha256 = "1zs4ckhlczr9jgwagyw3bjmgvzsk1anm3hwd3m7j7hik0kypmpsq";
          fetchSubmodules = false;
       };
       dependencies = mapFeatures features ([
