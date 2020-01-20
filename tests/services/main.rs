@@ -20,7 +20,7 @@ pub fn service_starts() -> std::io::Result<()> {
         ),
     )?;
 
-    std::thread::spawn(|| services::main(services_nix).unwrap());
+    let _build_thread = std::thread::spawn(|| services::main(services_nix).unwrap());
 
     let now = Instant::now();
     let mut file_touched = false;
@@ -34,6 +34,7 @@ pub fn service_starts() -> std::io::Result<()> {
 
     assert!(file_touched, "service did not run successfully");
 
+    drop(_build_thread);
     drop(tempdir);
     drop(_guard);
     Ok(())

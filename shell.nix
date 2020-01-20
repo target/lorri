@@ -61,7 +61,7 @@ let
     #
     # [1] https://github.com/cachix/cachix/issues/228#issuecomment-533634704
     # [2] https://github.com/NixOS/nixpkgs/issues/77358
-    pkgs.rustPackages.clippy
+    #pkgs.rustPackages.clippy
     pkgs.carnix
 
     # These other tools are also used only for linting, and are thus not
@@ -123,17 +123,18 @@ pkgs.mkShell (
           cargo fmt -- --check
         cargofmtexit=$?
 
-        RUSTFLAGS='-D warnings' \
-          lorri_travis_fold cargo-clippy cargo clippy
-        cargoclippyexit=$?
+        #RUSTFLAGS='-D warnings' \
+        #  lorri_travis_fold cargo-clippy cargo clippy
+        #cargoclippyexit=$?
 
         set +x
         echo "./nix/fmt.sh --check: $nix_fmt"
         echo "carnix update: $carnixupdates"
         echo "cargo fmt: $cargofmtexit"
-        echo "cargo clippy: $cargoclippyexit"
+        #echo "cargo clippy: $cargoclippyexit"
 
-        sum=$((nix_fmt + carnixupdate + cargofmtexit + cargoclippyexit))
+        #sum=$((nix_fmt + carnixupdate + cargofmtexit + cargoclippyexit))
+        sum=$((nix_fmt + carnixupdate + cargofmtexit))
         if [ "$sum" -gt 0 ]; then
           return 1
         fi
