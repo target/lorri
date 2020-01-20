@@ -19,7 +19,7 @@ use std::process::Stdio;
 use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
 use tokio::process::{Child, Command};
-use tokio::runtime::{Builder, Runtime};
+use tokio::runtime::Builder;
 use tokio::sync::mpsc;
 
 enum Fd {
@@ -285,6 +285,7 @@ struct ProcessGroupMember(Service, oneshot::Sender<()>);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::runtime::Runtime;
 
     #[test]
     fn diff_correct() {
