@@ -25,23 +25,6 @@ let
       language = "nix";
       nix = "2.3.1";
     };
-
-    macos = {
-      os = "osx";
-      #language = "nix";
-      #nix = "2.3.1";
-      before_install = [
-        ''wget --retry-connrefused --waitretry=1 -O /tmp/nix-install https://nixos.org/releases/nix/nix-2.3.1/install''
-        ''yes | sh /tmp/nix-install --daemon''
-        ''
-          if [ -f /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then
-            source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-          elif [ -f ''${TRAVIS_HOME}/.nix-profile/etc/profile.d/nix.sh ]; then
-            source source ''${TRAVIS_HOME}/.nix-profile/etc/profile.d/nix.sh
-          fi
-        ''
-      ];
-    };
   };
 
   scripts = {
@@ -65,7 +48,7 @@ let
         ''set -e''
         ''nix-build -A allBuildInputs shell.nix > ./shell-inputs''
       ]
-      ++ pushToCachix { inherit isDarwin; } "./shell-inputs"
+      #++ pushToCachix { inherit isDarwin; } "./shell-inputs"
       ++ (
         let
           # Cachix is broken on macOS [1] and clippy is not built by Hydra [2].
@@ -166,15 +149,15 @@ let
         matrix.include = map mergeShallowConcatLists [
           # Verifying lints on macOS and Linux ensures nix-shell works
           # on both platforms.
-          [ hosts.linux scripts.setup-cachix (scripts.lints {}) (scripts.cache "linux") ]
+          [ hosts.linux /* scripts.setup-cachix */ (scripts.lints {}) (scripts.cache "linux") ]
           # cachix 3 on macOS is broken on travis, see
           # https://github.com/cachix/cachix/issues/228#issuecomment-533634704
-          [ hosts.macos /*scripts.macos-cachix-fix scripts.setup-cachix*/ (scripts.lints { isDarwin = true; }) (scripts.cache "macos") ]
+          #[ hosts.macos /*scripts.macos-cachix-fix scripts.setup-cachix*/ (scripts.lints { isDarwin = true; }) (scripts.cache "macos") ]
 
-          [ hosts.linux scripts.setup-cachix (scripts.builds {}) ]
+          #[ hosts.linux scripts.setup-cachix (scripts.builds {}) ]
           # cachix 3 on macOS is broken on travis, see
           # https://github.com/cachix/cachix/issues/228#issuecomment-533634704
-          [ hosts.macos /*scripts.macos-cachix-fix scripts.setup-cachix*/ (scripts.builds { isDarwin = true; }) ]
+          #[ hosts.macos /*scripts.macos-cachix-fix scripts.setup-cachix*/ (scripts.builds { isDarwin = true; }) ]
         ];
       };
 in
