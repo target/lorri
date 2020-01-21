@@ -28,10 +28,10 @@ pub fn main(project: Project) -> OpResult {
         .expect("failed to get runtime closure path");
 
     let tempdir = tempfile::tempdir().expect("failed to create temporary directory");
-    let script_file = tempdir.path().join("activate");
+    let init_file = tempdir.path().join("init");
 
     fs::write(
-        &script_file,
+        &init_file,
         format!(
             r#"
 EVALUATION_ROOT="{}"
@@ -48,7 +48,7 @@ EVALUATION_ROOT="{}"
     shell
         .args(&[
             "--init-file",
-            script_file
+            init_file
                 .to_str()
                 .expect("script file path not UTF-8 clean"),
         ])
