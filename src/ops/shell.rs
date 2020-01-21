@@ -3,7 +3,6 @@
 use crate::build_loop::{BuildLoop, Event};
 use crate::nix::CallOpts;
 use crate::ops::error::{ExitError, OpResult};
-use crate::project::roots::Roots;
 use crate::project::Project;
 use crossbeam_channel as chan;
 use slog_scope::{debug, info, warn};
@@ -31,11 +30,6 @@ pub fn main(project: Project) -> OpResult {
     let bash_path = CallOpts::expression(&format!("(import {}).path", crate::RUN_TIME_CLOSURE))
         .value::<PathBuf>()
         .expect("failed to get runtime closure path");
-
-    debug!("running with bash"; "path" => &bash_path.display());
-    Roots::from_project(&project)
-        .add_path("bash", &bash_path)
-        .expect("failed to add GC root for bashInteractive");
 
     let first_build = rx
         .iter()
