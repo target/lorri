@@ -95,12 +95,10 @@ where {
         let mut path = self.gc_root_path.clone();
         path.push(name);
 
-        debug!("adding root"; "from" => store_path.to_str(), "to" => path.to_str());
-        std::fs::remove_file(&path).or_else(|e| AddRootError::remove(e, &path))?;
-
         std::fs::remove_file(&path).or_else(|e| AddRootError::remove(e, &path))?;
 
         // the forward GC root that points from the store path to our cache gc_roots dir
+        debug!("adding root"; "from" => store_path.to_str(), "to" => path.to_str());
         std::os::unix::fs::symlink(store_path, &path)
             .map_err(|e| AddRootError::symlink(e, store_path, &path))?;
 

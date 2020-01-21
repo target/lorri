@@ -14,10 +14,12 @@ use std::{fs, thread};
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
 pub fn main(project: Project) -> OpResult {
-    let (tx, rx) = chan::unbounded();
-    let root_nix_file = &project.nix_file;
-    let roots = Roots::from_project(&project);
+    warn!(
+        "lorri shell is very simplistic and not suppported at the moment. \
+         Please use the other commands."
+    );
 
+    let (tx, rx) = chan::unbounded();
     let _build_thread = {
         let project = project.clone();
         thread::spawn(move || {
@@ -25,44 +27,36 @@ pub fn main(project: Project) -> OpResult {
         })
     };
 
-    warn!(
-        "lorri shell is very simplistic and not suppported at the moment. \
-         Please use the other commands."
-    );
-
-    debug!("Building bash...");
-    let bash: PathBuf = CallOpts::expression(&format!("(import {}).path", crate::RUN_TIME_CLOSURE))
+    debug!("building bash via runtime closure"; "closure" => crate::RUN_TIME_CLOSURE);
+    let bash_path = CallOpts::expression(&format!("(import {}).path", crate::RUN_TIME_CLOSURE))
         .value::<PathBuf>()
         .expect("failed to get runtime closure path");
 
-    debug!("running with bash: {:?}", bash);
-    roots
-        .add_path("bash", &bash)
-        .expect("Failed to add GC root for bashInteractive");
+    debug!("running with bash"; "path" => &bash_path.display());
+    Roots::from_project(&project)
+        .add_path("bash", &bash_path)
+        .expect("failed to add GC root for bashInteractive");
 
-    // Log all failing builds, return an iterator of the first
-    // build that succeeds.
-    let first_build_opt = rx.iter().find_map(|mes| match mes {
-        Event::Completed(res) => Some(res),
-        s @ Event::Started(_) => {
-            print_build_event(&s);
-            None
-        }
-        f @ Event::Failure(_) => {
-            print_build_event(&f);
-            None
-        }
-    });
-
-    let first_build = match first_build_opt {
-        Some(e) => e,
-        None => {
-            return Err(ExitError::panic(format!(
+    let first_build = rx
+        .iter()
+        .find_map(|mes| match mes {
+            Event::Completed(res) => Some(res),
+            s @ Event::Started(_) => {
+                print_build_event(&s);
+                None
+            }
+            f @ Event::Failure(_) => {
+                print_build_event(&f);
+                None
+            }
+        })
+        .map_or(
+            Err(ExitError::panic(format!(
                 "Build for {:?} never produced a successful result",
-                root_nix_file
-            )));
-        }
-    };
+                &project.nix_file,
+            ))),
+            Ok,
+        )?;
 
     // Move the channel to a new thread to log all remaining builds.
     let _msg_handler_thread = thread::spawn(move || {
@@ -87,7 +81,7 @@ EVALUATION_ROOT="{}"
     )
     .expect("failed to write shell output");
 
-    let mut shell = Command::new(format!("{}/bash", bash.display()));
+    let mut shell = Command::new(bash_path.join("bash"));
     debug!("bash"; "cmd" => ?&shell);
     shell
         .args(&[
