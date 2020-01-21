@@ -169,5 +169,9 @@ elif [ -f "$EVALUATION_ROOT" ]; then
     # shellcheck disable=SC1090
     . "$EVALUATION_ROOT"
 fi
+if [ -f "$EVALUATION_ROOT/alias-export" ]; then
+    # shellcheck disable=SC1090
+    . "$EVALUATION_ROOT/alias-export"
+fi
 
 unset declare
