@@ -9,7 +9,7 @@ use crossbeam_channel as chan;
 use slog_scope::{debug, info, warn};
 use std::path::PathBuf;
 use std::process::Command;
-use std::thread;
+use std::{fs, thread};
 
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
@@ -66,12 +66,6 @@ pub fn main(project: Project) -> OpResult {
         }
     };
 
-    // the `shell` derivation is required in oder to start a shell
-    // TODO: is this actually a derivation? Or an attribute?
-    let shell_drv = first_build
-        .shell_drv
-        .expect("No shell derivation found in build");
-
     // Move the channel to a new thread to log all remaining builds.
     let _msg_handler_thread = thread::spawn(move || {
         for mes in rx {
@@ -79,14 +73,33 @@ pub fn main(project: Project) -> OpResult {
         }
     });
 
-    let mut nix_shell = Command::new("nix-shell");
-    nix_shell
-        .arg(shell_drv.as_os_str())
-        .env("NIX_BUILD_SHELL", format!("{}/bin/bash", bash.display()))
-        .env("LORRI_SHELL_ROOT", shell_drv)
-        .env("PROMPT_COMMAND", include_str!("./prompt.sh"));
-    debug!("nix-shell"; "cmd" => ?&nix_shell);
-    nix_shell.status().expect("Failed to execute bash");
+    let tempdir = tempfile::tempdir().expect("failed to create temporary directory");
+    let script_file = tempdir.path().join("activate");
+
+    fs::write(
+        &script_file,
+        format!(
+            r#"
+EVALUATION_ROOT="{}"
+
+{}"#,
+            first_build.output_paths.shell_gc_root,
+            include_str!("direnv/envrc.bash")
+        ),
+    )
+    .expect("failed to write shell output");
+
+    let mut shell = Command::new(format!("{}/bin/bash", bash.display()));
+    debug!("bash"; "cmd" => ?&shell);
+    shell
+        .args(&[
+            "--init-file",
+            script_file
+                .to_str()
+                .expect("script file path not UTF-8 clean"),
+        ])
+        .status()
+        .expect("failed to execute bash");
 
     Ok(())
 }
