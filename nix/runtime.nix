@@ -5,13 +5,13 @@
 , writeText
 , buildEnv
 , # Actual dependencies to propagate:
-  bash
+  bashInteractive
 , coreutils
 }:
 let
   tools = buildEnv {
     name = "lorri-runtime-tools";
-    paths = [ coreutils bash ];
+    paths = [ coreutils bashInteractive ];
   };
 
   runtimeClosureInfo = closureInfo {

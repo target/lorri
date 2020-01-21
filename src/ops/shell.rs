@@ -31,16 +31,14 @@ pub fn main(project: Project) -> OpResult {
     );
 
     debug!("Building bash...");
-    let bash: PathBuf = CallOpts::expression("(import <nixpkgs> {}).bashInteractive.out")
+    let bash: PathBuf = CallOpts::expression(&format!("(import {}).path", crate::RUN_TIME_CLOSURE))
         .value::<PathBuf>()
-        .expect("Failed to get a bashInteractive");
+        .expect("failed to get runtime closure path");
 
     debug!("running with bash: {:?}", bash);
     roots
         .add_path("bash", &bash)
         .expect("Failed to add GC root for bashInteractive");
-
-    debug!("Waiting for the builder to produce a drv for the 'shell' attribute.");
 
     // Log all failing builds, return an iterator of the first
     // build that succeeds.
@@ -89,7 +87,7 @@ EVALUATION_ROOT="{}"
     )
     .expect("failed to write shell output");
 
-    let mut shell = Command::new(format!("{}/bin/bash", bash.display()));
+    let mut shell = Command::new(format!("{}/bash", bash.display()));
     debug!("bash"; "cmd" => ?&shell);
     shell
         .args(&[
