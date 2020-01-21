@@ -155,7 +155,6 @@ let
     }
   );
 
-  loggedShell = logged shellSrc;
   shell = {
     name = "unknown";
     args = [];
@@ -166,7 +165,7 @@ let
     preHook = "";
     system = null;
     PATH = "";
-  } // (if shellSrc == null then {} else builtins.trace "lorri shell: '${loggedShell.drvPath}'" loggedShell);
+  } // (if shellSrc == null then {} else logged shellSrc);
   services = if servicesSrc == null then [] else logged servicesSrc;
 in
 wrapped-project shell services
