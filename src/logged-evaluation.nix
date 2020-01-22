@@ -142,7 +142,6 @@ let
             fi;
 
             export > "$out/bash-export"
-            alias > "$out/alias-export"
             cat << 'EOF' > "$out/services.json"
             ${builtins.toJSON services}
             EOF
