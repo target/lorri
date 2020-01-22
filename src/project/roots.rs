@@ -18,7 +18,7 @@ pub struct Roots {
 
 /// A path to a gc root.
 #[derive(Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
-pub struct RootPath(PathBuf);
+pub struct RootPath(pub PathBuf);
 
 impl RootPath {
     /// Underlying `&OsStr`.

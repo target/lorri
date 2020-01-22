@@ -12,6 +12,34 @@ type ShellNix (
   path: string
 )
 
+# Monitor the daemon. The method will reply with an update whenever a build begins or ends.
+# Montior will immediately reply with a snapshot of known projects, then a marker event,
+# indicating that the stream of events is now "live."
+method Monitor() -> (event: Event)
+
+type Event (
+    kind: (sectionend, started, completed, failure),
+    nix_file: ?ShellNix, # not in sectionend
+    reason: ?Reason,     # only if started
+    result: ?Outcome,     # only if completed
+    failure: ?Failure    # only if failure
+)
+
+type Reason (
+    kind: (projectadded, pingreceived, fileschanged, unknown),
+    project: ?ShellNix,
+    files: ?[]string,
+    debug: ?string
+)
+
+type Outcome (
+    project_root: string
+)
+
+type Failure (
+    log: []string
+)
+
 # WatchServices establishes a stream with the daemon. Initially, the daemon
 # evaluates the given services definition to an array of Command objects and
 # sends a reply for each of them. After this initial evaluation, the daemon

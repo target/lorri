@@ -29,6 +29,18 @@ impl From<String> for DebugMessage {
     }
 }
 
+impl From<DebugMessage> for String {
+    fn from(d: DebugMessage) -> Self {
+        d.0
+    }
+}
+
+impl From<&DebugMessage> for String {
+    fn from(d: &DebugMessage) -> Self {
+        d.0.clone()
+    }
+}
+
 /// Description of the project change that triggered a build.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

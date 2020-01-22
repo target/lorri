@@ -4,7 +4,6 @@
 use crate::builder;
 use crate::builder::RunStatus;
 use crate::daemon::LoopHandlerEvent;
-use crate::notify;
 use crate::pathreduction::reduce_paths;
 use crate::project::roots;
 use crate::project::roots::Roots;
@@ -12,11 +11,11 @@ use crate::project::Project;
 use crate::watch::{DebugMessage, EventError, Reason, Watch};
 use crate::NixFile;
 use crossbeam_channel as chan;
-use slog_scope::{debug, warn};
 use serde::{
     de::{self, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
 };
+use slog_scope::{debug, warn};
 use std::path::PathBuf;
 
 /// Builder events sent back over `BuildLoop.tx`.
@@ -110,6 +109,12 @@ impl From<std::ffi::OsString> for LogLine {
     }
 }
 
+impl From<LogLine> for std::ffi::OsString {
+    fn from(ll: LogLine) -> Self {
+        ll.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{BuildExitFailure, Event, LogLine};
@@ -118,7 +123,7 @@ mod tests {
 
     fn build_failure() -> Event {
         Event::Failure {
-            nix_file: NixFile(std::path::PathBuf::from("/somewhere/shell.nix")),
+            nix_file: NixFile::Shell(std::path::PathBuf::from("/somewhere/shell.nix")),
             failure: BuildExitFailure {
                 log_lines: vec![
                     LogLine::from(std::ffi::OsString::from(

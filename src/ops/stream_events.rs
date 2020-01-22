@@ -1,12 +1,12 @@
 //! Run to output a stream of build events in a machine-parseable form.
 use crate::build_loop::Event;
-use crate::ops;
-use crate::ops::error::{ok, ExitError, OpResult};
-use crate::socket::{
-    communicate::client::{self, Error},
-    path::SocketPath,
-    ReadError, ReadWriteError, Timeout,
+use crate::ops::{
+    error::{ok, ExitError, OpResult},
+    get_paths,
 };
+use crate::rpc;
+use slog_scope::debug;
+use std::convert::TryInto;
 use std::str::FromStr;
 
 /// Options for the kinds of events to report
@@ -33,17 +33,30 @@ impl FromStr for EventKind {
     }
 }
 
+#[derive(Debug)]
+enum Error {
+    Varlink(rpc::Error),
+    Compat(String),
+}
+
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
 pub fn main(kind: EventKind) -> OpResult {
-    let events = client::stream_events(Timeout::Infinite)
-        .connect(&SocketPath::from(ops::get_paths()?.daemon_socket_file()))
-        .map_err(|e| ExitError::temporary(format!("connecting to daemon: {:?}", e)))?;
+    // TODO: set up socket path, make it settable by the user
+    let address = get_paths()?.daemon_socket_address();
+
+    use rpc::VarlinkClientInterface;
+    let mut client = rpc::VarlinkClient::new(
+        varlink::Connection::with_address(&address).expect("failed to connect to daemon server"),
+    );
 
     let mut snapshot_done = false;
 
-    loop {
-        match events.read() {
+    for event in client.monitor().more()? {
+        match event
+            .map_err(|err| Error::Varlink(err))
+            .and_then(|e| e.try_into().map_err(|err| Error::Compat(err)))
+        {
             Ok(Event::SectionEnd) => {
                 debug!("SectionEnd");
                 if let EventKind::Snapshot = kind {
@@ -61,16 +74,8 @@ pub fn main(kind: EventKind) -> OpResult {
                 }
                 _ => (),
             },
-            Err(Error::Message(ReadWriteError::R(ReadError::Timeout))) => {
-                return Err(ExitError::temporary("Server appears to have quit"));
-            }
-            Err(Error::Message(ReadWriteError::R(ReadError::Deserialize(_)))) => {
-                return Err(ExitError::temporary("Socket closed unexpectedly"));
-            }
-            otherwise => {
-                debug!("some other error!");
-                return Err(ExitError::panic(format!("{:?}", otherwise)));
-            }
+            Err(err) => return Err(ExitError::temporary(format!("{:?}", err))),
         }
     }
+    ok()
 }

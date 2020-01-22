@@ -1,6 +1,6 @@
 use lorri::build_loop;
 use lorri::cas::ContentAddressable;
-use lorri::daemon::Daemon;
+use lorri::daemon::{Daemon,LoopHandlerEvent};
 use lorri::rpc;
 use lorri::socket::SocketPath;
 use std::io::{Error, ErrorKind};
@@ -46,7 +46,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
 
     // Read the first build event, which should be a `Started` message
     match build_rx.recv_timeout(Duration::from_millis(100)).unwrap() {
-        build_loop::Event::Started(_) => Ok(()),
+        LoopHandlerEvent::BuildEvent(build_loop::Event::Started{..}) => Ok(()),
         ev => Err(Error::new(
             ErrorKind::Other,
             format!("didn’t expect event {:?}", ev),
