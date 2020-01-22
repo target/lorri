@@ -4,7 +4,7 @@ use crate::build_loop::BuildLoop;
 use crate::nix::CallOpts;
 use crate::ops::error::{ExitError, OpResult};
 use crate::project::Project;
-use slog_scope::{debug, warn};
+use slog_scope::debug;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -12,11 +12,6 @@ use std::process::Command;
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
 pub fn main(project: Project) -> OpResult {
-    warn!(
-        "lorri shell is very simplistic and not suppported at the moment. \
-         Please use the other commands."
-    );
-
     debug!("building project environment");
     let build = BuildLoop::new(&project)
         .once()
