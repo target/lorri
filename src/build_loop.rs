@@ -195,7 +195,10 @@ impl<'a> BuildLoop<'a> {
     /// still running, it is finished first before starting a new build.
     #[allow(clippy::drop_copy, clippy::zero_ptr)] // triggered by `select!`
     pub fn forever(&mut self, tx: chan::Sender<LoopHandlerEvent>, rx_ping: chan::Receiver<()>) {
-        let send = |msg| tx.send(msg).expect("Failed to send an event");
+        let send = |msg| {
+            println!("sending: {:#?}", msg);
+            tx.send(msg).expect("Failed to send an event")
+        };
         let translate_reason = |rsn| match rsn {
             Ok(rsn) => rsn,
             // we should continue and just cite an unknown reason
@@ -257,16 +260,16 @@ impl<'a> BuildLoop<'a> {
                             recv(rx_notify) -> msg => if let Ok(msg) = msg {
                                 if let Some(rsn) = self.watch.process(msg) {
                                     reason = Some(Event::Started{
-            nix_file: self.project.nix_file.clone(),
-            reason: translate_reason(rsn)
-            });
+                                        nix_file: self.project.nix_file.clone(),
+                                        reason: translate_reason(rsn)
+                                    });
                                 }
                             },
                             recv(rx_ping) -> msg => if let (Ok(()), Some(output_paths)) = (msg, &output_paths) {
                                 if !output_paths.shell_gc_root_is_dir() {
                                     reason = Some(Event::Started{
-            nix_file: self.project.nix_file.clone(),
-            reason: Reason::PingReceived});
+                                        nix_file: self.project.nix_file.clone(),
+                                        reason: Reason::PingReceived});
                                 }
                             },
                         }
@@ -279,6 +282,7 @@ impl<'a> BuildLoop<'a> {
     /// the evaluation.
     pub fn once(&mut self) -> Result<BuildResults, BuildError> {
         let (tx, rx) = chan::unbounded();
+        println!("nix_file: {:#?}", self.project.nix_file);
         let run_result = builder::run(tx, &self.project.nix_file, &self.project.cas)?;
 
         self.register_paths(&run_result.referenced_paths)?;
