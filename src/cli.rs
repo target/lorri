@@ -33,6 +33,10 @@ pub enum Command {
     #[structopt(name = "shell")]
     Shell(ShellOptions),
 
+    /// (plumbing) Internal command used to launch user shell
+    #[structopt(name = "start_user_shell_")]
+    StartUserShell_(StartUserShellOptions_),
+
     /// Build `shell.nix` whenever an input file changes
     #[structopt(name = "watch")]
     Watch(WatchOptions),
@@ -78,6 +82,17 @@ pub struct InfoOptions {
 pub struct ShellOptions {
     /// The .nix file in the current directory to use
     #[structopt(long = "shell-file", parse(from_os_str), default_value = "shell.nix")]
+    pub nix_file: PathBuf,
+}
+
+/// Options for the `start_user_shell_` subcommand.
+#[derive(StructOpt, Debug)]
+pub struct StartUserShellOptions_ {
+    /// The path of the parent shell's binary
+    #[structopt(long = "shell-path", parse(from_os_str))]
+    pub shell_path: PathBuf,
+    /// The .nix file in the current directory to use to instantiate the project
+    #[structopt(long = "shell-file", parse(from_os_str))]
     pub nix_file: PathBuf,
 }
 
