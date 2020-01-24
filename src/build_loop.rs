@@ -2,7 +2,7 @@
 //! evaluate and build a given Nix file.
 
 use crate::builder;
-use crate::builder::RunStatus;
+use crate::error::BuildError;
 use crate::pathreduction::reduce_paths;
 use crate::project::roots;
 use crate::project::roots::Roots;
@@ -20,7 +20,7 @@ pub enum Event {
     /// The build completed successfully
     Completed(BuildResults),
     /// The build command returned a failing exit status
-    Failure(BuildExitFailure),
+    Failure(BuildError),
 }
 
 /// Results of a single, successful build.
@@ -28,13 +28,6 @@ pub enum Event {
 pub struct BuildResults {
     /// See `build::Info.outputPaths
     pub output_paths: builder::OutputPaths<roots::RootPath>,
-}
-
-/// Results of a single, failing build.
-#[derive(Debug, Clone)]
-pub struct BuildExitFailure {
-    /// stderr log output
-    pub log_lines: Vec<std::ffi::OsString>,
 }
 
 /// The BuildLoop repeatedly builds the Nix expression in
@@ -102,9 +95,9 @@ impl<'a> BuildLoop<'a> {
                         output_paths = Some(result.output_paths.clone());
                         send(Event::Completed(result));
                     }
-                    Err(BuildError::Recoverable(failure)) => send(Event::Failure(failure)),
-                    Err(BuildError::Unrecoverable(err)) => {
-                        panic!("Unrecoverable error:\n{:#?}", err);
+                    Err(e) if e.is_actionable() => send(Event::Failure(e)),
+                    Err(e) => {
+                        panic!("Unrecoverable error:\n{}", e);
                     }
                 }
                 reason = None;
@@ -130,22 +123,9 @@ impl<'a> BuildLoop<'a> {
     /// This will create GC roots and expand the file watch list for
     /// the evaluation.
     pub fn once(&mut self) -> Result<BuildResults, BuildError> {
-        let (tx, rx) = chan::unbounded();
-        let run_result = builder::run(tx, &self.project.nix_file, &self.project.cas)?;
-
+        let run_result = builder::run(&self.project.nix_file, &self.project.cas)?;
         self.register_paths(&run_result.referenced_paths)?;
-
-        let lines = rx.iter().collect();
-
-        match run_result.status {
-            RunStatus::FailedAtInstantiation => Err(BuildError::Recoverable(BuildExitFailure {
-                log_lines: lines,
-            })),
-            RunStatus::FailedAtRealize => Err(BuildError::Recoverable(BuildExitFailure {
-                log_lines: lines,
-            })),
-            RunStatus::Complete(path) => self.root_result(path),
-        }
+        self.root_result(run_result.result)
     }
 
     fn register_paths(&mut self, paths: &[PathBuf]) -> Result<(), notify::Error> {
@@ -163,51 +143,7 @@ impl<'a> BuildLoop<'a> {
         let roots = Roots::from_project(&self.project);
 
         Ok(BuildResults {
-            output_paths: roots.create_roots(build)?,
+            output_paths: roots.create_roots(build).map_err(BuildError::io)?,
         })
-    }
-}
-
-/// Error classes returnable from a build.
-///
-/// Callers should probably exit on Unrecoverable errors, but retry
-/// with Recoverable errors.
-#[derive(Debug)]
-pub enum BuildError {
-    /// Recoverable errors are caused by failures to evaluate or build
-    /// the Nix expression itself.
-    Recoverable(BuildExitFailure),
-
-    /// Unrecoverable errors are anything else: a broken Nix,
-    /// permission problems, etc.
-    Unrecoverable(UnrecoverableErrors),
-}
-
-/// Unrecoverable errors due to internal failures of the plumbing.
-/// For example `exec` failing, permissions problems, kernel faults,
-/// etc.
-///
-/// See the corresponding Error struct documentation for further
-/// information.
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub enum UnrecoverableErrors {
-    Build(builder::Error),
-    AddRoot(roots::AddRootError),
-    Notify(notify::Error),
-}
-impl From<builder::Error> for BuildError {
-    fn from(e: builder::Error) -> BuildError {
-        BuildError::Unrecoverable(UnrecoverableErrors::Build(e))
-    }
-}
-impl From<roots::AddRootError> for BuildError {
-    fn from(e: roots::AddRootError) -> BuildError {
-        BuildError::Unrecoverable(UnrecoverableErrors::AddRoot(e))
-    }
-}
-impl From<notify::Error> for BuildError {
-    fn from(e: notify::Error) -> BuildError {
-        BuildError::Unrecoverable(UnrecoverableErrors::Notify(e))
     }
 }

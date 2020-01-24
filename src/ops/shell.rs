@@ -1,17 +1,17 @@
 //! Open up a project shell
 
 use crate::builder;
-use crate::builder::RunStatus;
 use crate::nix::CallOpts;
 use crate::ops::error::{ExitError, OpResult};
 use crate::project::{roots::Roots, Project};
-use crossbeam_channel as chan;
 use slog_scope::debug;
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
-use std::time::{Duration, Instant};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
 use std::{env, thread};
 
 /// This is the entry point for the `lorri shell` command.
@@ -61,30 +61,30 @@ pub fn main(project: Project) -> OpResult {
 
 /// Instantiates a `Command` to start bash.
 pub fn bash_cmd(project: &Project) -> Result<Command, ExitError> {
-    let (tx, rx) = chan::unbounded();
-    thread::spawn(move || {
+    let building = Arc::new(AtomicBool::new(true));
+    let building_clone = building.clone();
+    let progress_thread = thread::spawn(move || {
         eprint!("lorri: building environment");
-        let mut last = Instant::now();
-        for msg in rx {
-            // Set the maximum rate of the "progress bar"
-            if last.elapsed() >= Duration::from_millis(500) {
-                eprint!(".");
-                io::stderr().flush().unwrap();
-                last = Instant::now();
-            }
-            debug!("build"; "message" => ?msg);
+        // Indicate progress
+        while building_clone.load(Ordering::SeqCst) {
+            thread::sleep(Duration::from_millis(500));
+            eprint!(".");
+            io::stderr().flush().unwrap();
         }
         eprintln!(". done");
     });
 
-    let run_result = builder::run(tx, &project.nix_file, &project.cas)
-        .map_err(|e| ExitError::temporary(format!("build failed: {:?}", e)))?;
-    let build = match run_result.status {
-        RunStatus::Complete(build) => Roots::from_project(&project)
-            .create_roots(build)
-            .map_err(|e| ExitError::temporary(format!("rooting the environment failed: {:?}", e))),
-        e => Err(ExitError::temporary(format!("build failed: {:?}", e))),
-    }?;
+    let run_result = builder::run(&project.nix_file, &project.cas);
+    building.store(false, Ordering::SeqCst);
+    progress_thread.join().unwrap();
+
+    let build = Roots::from_project(&project)
+        .create_roots(
+            run_result
+                .map_err(|e| ExitError::temporary(format!("build failed: {}", e)))?
+                .result,
+        )
+        .map_err(|e| ExitError::temporary(format!("rooting the environment failed: {:?}", e)))?;
 
     let init_file = project
         .cas

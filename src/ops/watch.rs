@@ -1,7 +1,7 @@
 //! Run a BuildLoop for `shell.nix`, watching for input file changes.
 //! Can be used together with `direnv`.
 
-use crate::build_loop::{BuildError, BuildLoop};
+use crate::build_loop::BuildLoop;
 use crate::cli::WatchOptions;
 use crate::ops::error::{ok, ExitError, OpResult};
 use crate::project::Project;
@@ -27,10 +27,8 @@ fn main_run_once(project: Project) -> OpResult {
             print_build_message(msg);
             ok()
         }
-        Err(BuildError::Unrecoverable(err)) => Err(ExitError::temporary(format!("{:?}", err))),
-        Err(BuildError::Recoverable(exit_failure)) => {
-            Err(ExitError::expected_error(format!("{:#?}", exit_failure)))
-        }
+        Err(e) if e.is_actionable() => Err(ExitError::expected_error(format!("{:#?}", e))),
+        Err(e) => Err(ExitError::temporary(format!("{:?}", e))),
     }
 }
 

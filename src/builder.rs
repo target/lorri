@@ -8,13 +8,12 @@
 //! `stderr`, like which source files are used by the evaluator.
 
 use crate::cas::ContentAddressable;
+use crate::error::BuildError;
 use crate::nix::StorePath;
 use crate::osstrlines;
 use crate::{DrvFile, NixFile};
-use crossbeam_channel as chan;
 use regex::Regex;
 use slog_scope::debug;
-use std::any::Any;
 use std::ffi::{OsStr, OsString};
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -40,28 +39,13 @@ pub struct RootedPath {
 
 struct InstantiateOutput {
     referenced_paths: Vec<PathBuf>,
-    output: Option<RootedDrv>,
-}
-
-/// Wraps io::Error with a special case for the nix executable
-#[derive(Debug)]
-enum NixNotFoundError {
-    /// one of the nix executables not found
-    NixNotFound,
-    Io(std::io::Error),
-}
-
-impl From<std::io::Error> for NixNotFoundError {
-    fn from(e: std::io::Error) -> NixNotFoundError {
-        NixNotFoundError::Io(e)
-    }
+    output: RootedDrv,
 }
 
 fn instrumented_instantiation(
-    tx: chan::Sender<OsString>,
     nix_file: &NixFile,
     cas: &ContentAddressable,
-) -> Result<InstantiateOutput, NixNotFoundError> {
+) -> Result<InstantiateOutput, BuildError> {
     // We're looking for log lines matching:
     //
     //     copied source '...' -> '/nix/store/...'
@@ -107,8 +91,8 @@ fn instrumented_instantiation(
     debug!("nix-instantiate"; "command" => ?cmd);
 
     let mut child = cmd.spawn().map_err(|e| match e.kind() {
-        std::io::ErrorKind::NotFound => NixNotFoundError::NixNotFound,
-        _ => NixNotFoundError::from(e),
+        std::io::ErrorKind::NotFound => BuildError::spawn(e),
+        _ => BuildError::io(e),
     })?;
 
     let stdout = child
@@ -120,24 +104,17 @@ fn instrumented_instantiation(
         .take()
         .expect("we must be able to access the stderr of nix-instantiate");
 
-    let stderr_results: thread::JoinHandle<std::io::Result<Vec<LogDatum>>> =
-        thread::spawn(move || {
-            osstrlines::Lines::from(BufReader::new(stderr))
-                .map(|line| {
-                    line.map(|l| {
-                        tx.send(l.clone()).expect("Receiver hung up!");
-                        parse_evaluation_line(l)
-                    })
-                })
-                .collect::<Result<Vec<LogDatum>, _>>()
-        });
+    let stderr_results = thread::spawn(move || {
+        osstrlines::Lines::from(BufReader::new(stderr))
+            .map(|line| line.map(parse_evaluation_line))
+            .collect::<Result<Vec<LogDatum>, _>>()
+    });
 
-    let build_products: thread::JoinHandle<std::io::Result<Vec<DrvFile>>> =
-        thread::spawn(move || {
-            osstrlines::Lines::from(BufReader::new(stdout))
-                .map(|line| line.map(|os_string| DrvFile::from(PathBuf::from(os_string))))
-                .collect::<Result<Vec<DrvFile>, _>>()
-        });
+    let build_products = thread::spawn(move || {
+        osstrlines::Lines::from(BufReader::new(stdout))
+            .map(|line| line.map(|os_string| DrvFile::from(PathBuf::from(os_string))))
+            .collect::<Result<Vec<DrvFile>, _>>()
+    });
 
     let (exec_result, mut build_products, results) = (
         child.wait()?,
@@ -153,7 +130,7 @@ fn instrumented_instantiation(
     // meaning we don’t have to keep the outputs in memory (fold directly)
 
     // iterate over all lines, parsing out the ones we are interested in
-    let (paths, _log_lines): (Vec<PathBuf>, Vec<OsString>) =
+    let (paths, log_lines): (Vec<PathBuf>, Vec<OsString>) =
         results
             .into_iter()
             .fold((vec![], vec![]), |(mut paths, mut log_lines), result| {
@@ -183,10 +160,7 @@ fn instrumented_instantiation(
             });
 
     if !exec_result.success() {
-        return Ok(InstantiateOutput {
-            referenced_paths: paths,
-            output: None,
-        });
+        return Err(BuildError::exit(exec_result, log_lines));
     }
 
     assert!(
@@ -198,51 +172,25 @@ fn instrumented_instantiation(
 
     Ok(InstantiateOutput {
         referenced_paths: paths,
-        output: Some(RootedDrv {
+        output: RootedDrv {
             _gc_handle: GcRootTempDir(gc_root_dir),
             path: shell_gc_root,
-        }),
+        },
     })
 }
 
 struct BuildOutput {
-    output: Option<RootedPath>,
+    output: RootedPath,
 }
 
 /// Builds the Nix expression in `root_nix_file`.
 ///
-/// Instruments the nix file to gain extra information,
-/// which is valuable even if the build fails.
-fn build(tx: chan::Sender<OsString>, drv_path: DrvFile) -> Result<BuildOutput, NixNotFoundError> {
-    //let drv_path = s.path.clone();
-    match crate::nix::CallOpts::file(drv_path.as_path())
-        .set_stderr_sender(tx)
-        .path()
-    {
-        Ok(realized) => Ok(BuildOutput {
-            output: Some(RootedPath {
-                gc_handle: realized.1,
-                path: realized.0,
-            }),
-        }),
-        Err(crate::nix::OnePathError::TooManyResults) => {
-            panic!(
-                "Too many results from building the instrumented, instantiated, shell environment."
-            );
-        }
-        Err(crate::nix::OnePathError::Build(crate::nix::BuildError::NoResult)) => {
-            panic!("No results from building the instrumented, instantiated, shell environment.");
-        }
-        Err(crate::nix::OnePathError::Build(crate::nix::BuildError::Io(e))) => {
-            Err(NixNotFoundError::from(e))
-        }
-        Err(crate::nix::OnePathError::Build(crate::nix::BuildError::ExecutionFailed(_))) => {
-            Ok(BuildOutput { output: None })
-        }
-        Err(crate::nix::OnePathError::Build(crate::nix::BuildError::NixNotFound)) => {
-            Err(NixNotFoundError::NixNotFound)
-        }
-    }
+/// Instruments the nix file to gain extra information, which is valuable even if the build fails.
+fn build(drv_path: DrvFile) -> Result<BuildOutput, BuildError> {
+    let (path, gc_handle) = crate::nix::CallOpts::file(drv_path.as_path()).path()?;
+    Ok(BuildOutput {
+        output: RootedPath { gc_handle, path },
+    })
 }
 
 /// Opaque type to keep a temporary GC root directory alive.
@@ -257,50 +205,20 @@ pub struct RunResult {
     /// All the paths identified during the instantiation
     pub referenced_paths: Vec<PathBuf>,
     /// The status of the build attempt
-    pub status: RunStatus,
-}
-
-/// How far along we got in the instantiate then realize.
-#[derive(Debug)]
-pub enum RunStatus {
-    /// The instantiation was attempted, but failed.
-    FailedAtInstantiation,
-    /// The instantiation succeded. The realize was attempted, but failed.
-    FailedAtRealize,
-    /// The instantiation and realize succeeded and yielded a result path.
-    Complete(RootedPath),
+    pub result: RootedPath,
 }
 
 /// Builds the Nix expression in `root_nix_file`.
 ///
 /// Instruments the nix file to gain extra information,
 /// which is valuable even if the build fails.
-pub fn run(
-    tx: chan::Sender<OsString>,
-    root_nix_file: &NixFile,
-    cas: &ContentAddressable,
-) -> Result<RunResult, Error> {
-    let inst_info = instrumented_instantiation(tx.clone(), root_nix_file, cas)?;
-    if let Some(inst_output) = inst_info.output {
-        let buildoutput = build(tx, inst_output.path)?;
-
-        if let Some(build_output) = buildoutput.output {
-            Ok(RunResult {
-                referenced_paths: inst_info.referenced_paths,
-                status: RunStatus::Complete(build_output),
-            })
-        } else {
-            Ok(RunResult {
-                referenced_paths: inst_info.referenced_paths,
-                status: RunStatus::FailedAtRealize,
-            })
-        }
-    } else {
-        Ok(RunResult {
-            referenced_paths: inst_info.referenced_paths,
-            status: RunStatus::FailedAtInstantiation,
-        })
-    }
+pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<RunResult, BuildError> {
+    let inst_info = instrumented_instantiation(root_nix_file, cas)?;
+    let buildoutput = build(inst_info.output.path)?;
+    Ok(RunResult {
+        referenced_paths: inst_info.referenced_paths,
+        result: buildoutput.output,
+    })
 }
 
 /// Classifies the output of nix-instantiate -vv.
@@ -368,45 +286,10 @@ pub struct OutputPaths<T> {
     pub shell_gc_root: T,
 }
 
-/// Possible errors from an individual evaluation
-#[derive(Debug)]
-pub enum Error {
-    /// Executing nix-instantiate failed
-    Instantiate(std::io::Error),
-
-    /// Nix commands not on PATH
-    NixNotFound,
-
-    /// Failed to spawn a log processing thread
-    ThreadFailure(std::boxed::Box<(dyn std::any::Any + std::marker::Send + 'static)>),
-}
-impl From<std::io::Error> for Error {
-    fn from(e: std::io::Error) -> Error {
-        Error::Instantiate(e)
-    }
-}
-
-impl From<NixNotFoundError> for Error {
-    fn from(e: NixNotFoundError) -> Error {
-        match e {
-            NixNotFoundError::Io(e) => Error::Instantiate(e),
-            NixNotFoundError::NixNotFound => Error::NixNotFound,
-        }
-    }
-}
-
-impl From<Box<dyn Any + Send + 'static>> for Error {
-    fn from(e: std::boxed::Box<(dyn std::any::Any + std::marker::Send + 'static)>) -> Error {
-        Error::ThreadFailure(e)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::cas::ContentAddressable;
-    use std::ffi::OsString;
-    use std::os::unix::ffi::OsStrExt;
     use std::path::PathBuf;
 
     /// Parsing of `LogDatum`.
@@ -492,35 +375,11 @@ in {}
         print!("{}", nix_drv);
 
         // build, because instantiate doesn’t return the build output (obviously …)
-        let (tx, rx) = chan::unbounded();
-        let info = run(
-            tx,
+        run(
             &crate::NixFile::Shell(cas.file_from_string(&nix_drv)?),
             &cas,
         )
-        .unwrap();
-        let stderr = rx.iter().collect::<Vec<OsString>>();
-        println!("stderr:");
-        for line in &stderr {
-            println!("{:?}", line)
-        }
-
-        match info.status {
-            RunStatus::Complete(_) => {}
-            _ => {
-                panic!("could not run() the drv:\n{:?}", info,);
-            }
-        }
-
-        let expect: &[u8] = b"\"\xAB\xBC\xCD\xDE\xDE\xEF\"";
-        assert!(
-            stderr.iter().any(|line| {
-                line.as_bytes()
-                    .windows(expect.len())
-                    .any(|bytes| bytes == expect)
-            }),
-            "Couldn’t find the byte output in the realize stderr",
-        );
+        .expect("should not crash!");
         Ok(())
     }
 
@@ -535,8 +394,13 @@ in {}
             &format!("dep = {};", drv("dep", r##"args = [ "-c" "exit 1" ];"##)),
         ))?);
 
-        let (tx, _rx) = chan::unbounded();
-        run(tx, &d, &cas).expect("build can fail, but must not panic");
+        if let Err(BuildError::Exit(..)) = run(&d, &cas) {
+        } else {
+            assert!(
+                false,
+                "builder::run should have failed with BuildError::Exit"
+            );
+        }
         Ok(())
     }
 
@@ -587,13 +451,8 @@ dir-as-source = ./dir;
 
         let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
 
-        let (tx, rx) = chan::unbounded();
-        let inst_info = instrumented_instantiation(tx, &NixFile::Shell(shell), &cas).unwrap();
+        let inst_info = instrumented_instantiation(&NixFile::Shell(shell), &cas).unwrap();
         let ends_with = |end| inst_info.referenced_paths.iter().any(|p| p.ends_with(end));
-        assert!(
-            inst_info.output.is_some(),
-            "instantiation failed to produce an output"
-        );
         assert!(
             ends_with("foo/default.nix"),
             "foo/default.nix should be watched!"
@@ -606,9 +465,6 @@ dir-as-source = ./dir;
             "No imported directories must exist in watched paths: {:#?}",
             inst_info.referenced_paths
         );
-        // unused
-        drop(rx);
-
         Ok(())
     }
 
@@ -642,16 +498,12 @@ in
 
         let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
 
-        let (tx, rx) = chan::unbounded();
         let RunResult {
-            status,
+            result: RootedPath { path, .. },
             referenced_paths: _,
-        } = run(tx, &NixFile::Services(services), &cas).unwrap();
+        } = run(&NixFile::Services(services), &cas).unwrap();
 
-        let path = match &status {
-            RunStatus::Complete(RootedPath { path, gc_handle: _ }) => path.as_path(),
-            _ => panic!("build failed"),
-        };
+        let path = path.as_path();
 
         let services_json = path.join("services.json");
         assert!(services_json.is_file(), "services.json must be a file");
@@ -666,8 +518,6 @@ in
             r##"[{"args":["--fast"],"name":"service1","program":"program1_path"},{"args":["--faster"],"name":"service2","program":"program2_path"}]"##,
             String::from_utf8(writer).unwrap().trim()
         );
-
-        drop(rx);
         Ok(())
     }
 
@@ -701,12 +551,7 @@ in
 
         let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
 
-        let (tx, rx) = chan::unbounded();
-        let inst_info = instrumented_instantiation(tx, &NixFile::Services(services), &cas).unwrap();
-        assert!(
-            inst_info.output.is_some(),
-            "instantiation failed to produce an output"
-        );
+        let inst_info = instrumented_instantiation(&NixFile::Services(services), &cas).unwrap();
 
         let ends_with = |end| inst_info.referenced_paths.iter().any(|p| p.ends_with(end));
         assert!(
@@ -717,7 +562,6 @@ in
             ends_with("program2/custom.nix"),
             "program2/custom.nix should be watched!"
         );
-        drop(rx);
         Ok(())
     }
 }
