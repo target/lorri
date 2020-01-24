@@ -29,6 +29,10 @@ pub enum Command {
     #[structopt(name = "info", alias = "information")]
     Info(InfoOptions),
 
+    /// Open a new shell
+    #[structopt(name = "shell")]
+    Shell(ShellOptions),
+
     /// Build `shell.nix` whenever an input file changes
     #[structopt(name = "watch")]
     Watch(WatchOptions),
@@ -50,7 +54,7 @@ pub enum Command {
     Init,
 }
 
-/// Options for `watch` subcommand.
+/// Options for the `direnv` subcommand.
 #[derive(StructOpt, Debug)]
 pub struct DirenvOptions {
     /// The .nix file in the current directory to use
@@ -58,7 +62,7 @@ pub struct DirenvOptions {
     pub nix_file: PathBuf,
 }
 
-/// Options for `watch` subcommand.
+/// Options for the `info` subcommand.
 #[derive(StructOpt, Debug)]
 pub struct InfoOptions {
     /// The .nix file in the current directory to use
@@ -69,7 +73,15 @@ pub struct InfoOptions {
     pub nix_file: PathBuf,
 }
 
-/// Options for `watch` subcommand.
+/// Options for the `shell` subcommand.
+#[derive(StructOpt, Debug)]
+pub struct ShellOptions {
+    /// The .nix file in the current directory to use
+    #[structopt(long = "shell-file", parse(from_os_str), default_value = "shell.nix")]
+    pub nix_file: PathBuf,
+}
+
+/// Options for the `watch` subcommand.
 #[derive(StructOpt, Debug)]
 pub struct WatchOptions {
     /// The .nix file in the current directory to use
