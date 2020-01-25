@@ -196,7 +196,7 @@ impl<'a> BuildLoop<'a> {
     #[allow(clippy::drop_copy, clippy::zero_ptr)] // triggered by `select!`
     pub fn forever(&mut self, tx: chan::Sender<LoopHandlerEvent>, rx_ping: chan::Receiver<()>) {
         let send = |msg| {
-            println!("sending: {:#?}", msg);
+            debug!("BuildLoop sending"; "message" => format!("{:#?}", msg));
             tx.send(msg).expect("Failed to send an event")
         };
         let translate_reason = |rsn| match rsn {
@@ -282,7 +282,7 @@ impl<'a> BuildLoop<'a> {
     /// the evaluation.
     pub fn once(&mut self) -> Result<BuildResults, BuildError> {
         let (tx, rx) = chan::unbounded();
-        println!("nix_file: {:#?}", self.project.nix_file);
+        debug!("BuildLoop running"; "nix_file" => self.project.nix_file.clone());
         let run_result = builder::run(tx, &self.project.nix_file, &self.project.cas)?;
 
         self.register_paths(&run_result.referenced_paths)?;

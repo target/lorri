@@ -94,8 +94,8 @@ impl rpc::VarlinkInterface for Server {
         for event in rx {
             match event.try_into() {
                 Ok(ev) => call.reply(ev),
-                Err(e) => return call.reply_invalid_parameter(e.to_string()),
-            };
+                Err(e) => call.reply_invalid_parameter(e.to_string()),
+            }?;
         }
         Ok(())
     }

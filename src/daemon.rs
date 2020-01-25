@@ -57,6 +57,7 @@ pub struct Daemon {
     // TODO: this needs to transmit information to identify the builder with
     build_events_tx: chan::Sender<LoopHandlerEvent>,
     build_events_rx: chan::Receiver<LoopHandlerEvent>,
+    mon_tx: chan::Sender<LoopHandlerEvent>,
 }
 
 impl Daemon {
@@ -65,13 +66,15 @@ impl Daemon {
     /// supervises.
     pub fn new() -> (Daemon, chan::Receiver<LoopHandlerEvent>) {
         let (tx, rx) = chan::unbounded();
+        let (mon_tx, mon_rx) = chan::unbounded();
         (
             Daemon {
                 handler_threads: HashMap::new(),
                 build_events_tx: tx,
                 build_events_rx: rx.clone(),
+                mon_tx
             },
-            rx,
+            mon_rx,
         )
     }
 
@@ -92,11 +95,13 @@ impl Daemon {
                 .expect("failed to serve daemon server endpoint");
         })?;
         let build_events_rx = self.build_events_rx.clone();
-        pool.spawn("build-loop", || {
+        let mon_tx = self.mon_tx.clone();
+        pool.spawn("build-loop", move || {
             let mut project_states: HashMap<NixFile, Event> = HashMap::new();
             let mut event_listeners: Vec<chan::Sender<Event>> = Vec::new();
 
             for msg in build_events_rx {
+                mon_tx.send(msg.clone()).expect("listener still to be there");
                 debug!("Build loop message"; "message" => ?msg);
                 match &msg {
                     LoopHandlerEvent::BuildEvent(ev) => match ev {
