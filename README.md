@@ -79,7 +79,7 @@ the following instructions will help you get started with lorri.
    Otherwise, install lorri from the repository as follows:
 
    ```console
-   $ nix-env -if https://github.com/target/lorri/archive/rolling-release.tar.gz
+   $ nix-env -if https://github.com/target/lorri/archive/master.tar.gz
    ```
 
 2. **Start the daemon.** For testing, you can start the daemon in a separate
@@ -193,8 +193,7 @@ not expect. This can happen for a number of reasons:
 
 Upgrading lorri is easy with the `lorri self-upgrade` command.
 
-By default, the upgrade command will upgrade from the
-`rolling-release` branch.
+By default, the upgrade command will upgrade from the `master` branch.
 
 Other upgrade options are available, including upgrading from a
 local clone. See `lorri self-upgrade --help` for more details.

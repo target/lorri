@@ -257,22 +257,22 @@ impl<'a> BuildLoop<'a> {
             }
 
             chan::select! {
-                            recv(rx_notify) -> msg => if let Ok(msg) = msg {
-                                if let Some(rsn) = self.watch.process(msg) {
-                                    reason = Some(Event::Started{
-                                        nix_file: self.project.nix_file.clone(),
-                                        reason: translate_reason(rsn)
-                                    });
-                                }
-                            },
-                            recv(rx_ping) -> msg => if let (Ok(()), Some(output_paths)) = (msg, &output_paths) {
-                                if !output_paths.shell_gc_root_is_dir() {
-                                    reason = Some(Event::Started{
-                                        nix_file: self.project.nix_file.clone(),
-                                        reason: Reason::PingReceived});
-                                }
-                            },
-                        }
+                recv(rx_notify) -> msg => if let Ok(msg) = msg {
+                    if let Some(rsn) = self.watch.process(msg) {
+                        reason = Some(Event::Started{
+                            nix_file: self.project.nix_file.clone(),
+                            reason: translate_reason(rsn)
+                        });
+                    }
+                },
+                recv(rx_ping) -> msg => if let (Ok(()), Some(output_paths)) = (msg, &output_paths) {
+                    if !output_paths.shell_gc_root_is_dir() {
+                        reason = Some(Event::Started{
+                            nix_file: self.project.nix_file.clone(),
+                            reason: Reason::PingReceived});
+                    }
+                },
+            }
         }
     }
 

@@ -33,7 +33,7 @@ vec1 = "1.1.0"
 
 # pinned to a git commit pending v2.0 release
 # see: https://github.com/rust-cli/human-panic/issues/46
-human-panic = { git = "https://github.com/rust-cli/human-panic.git", rev = "70db9489" }
+human-panic = { git = "https://github.com/rust-cli/human-panic.git", rev = "5195002d89b7f54cc68eb42255879654965bb175" }
 
 [build-dependencies]
 varlink_generator = "9.0.0"

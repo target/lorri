@@ -22,5 +22,5 @@ pub fn root(verbosity: u8, command: &Command) -> slog::Logger {
         .overflow_strategy(slog_async::OverflowStrategy::Block)
         .build()
         .fuse();
-    slog::Logger::root(drain, slog::o!("lorri_version" => crate::VERSION_BUILD_REV))
+    slog::Logger::root(drain, slog::o!())
 }

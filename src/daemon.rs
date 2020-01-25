@@ -72,7 +72,7 @@ impl Daemon {
                 handler_threads: HashMap::new(),
                 build_events_tx: tx,
                 build_events_rx: rx.clone(),
-                mon_tx
+                mon_tx,
             },
             mon_rx,
         )
@@ -101,7 +101,9 @@ impl Daemon {
             let mut event_listeners: Vec<chan::Sender<Event>> = Vec::new();
 
             for msg in build_events_rx {
-                mon_tx.send(msg.clone()).expect("listener still to be there");
+                mon_tx
+                    .send(msg.clone())
+                    .expect("listener still to be there");
                 debug!("Build loop message"; "message" => ?msg);
                 match &msg {
                     LoopHandlerEvent::BuildEvent(ev) => match ev {

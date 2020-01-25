@@ -3,7 +3,7 @@ use lorri::constants;
 use lorri::locate_file;
 use lorri::logging;
 use lorri::ops::error::{ExitError, OpResult};
-use lorri::ops::{daemon, direnv, info, init, ping, stream_events, upgrade, watch};
+use lorri::ops::{daemon, direnv, info, init, ping, shell, stream_events, upgrade, watch};
 use lorri::project::Project;
 use lorri::NixFile;
 use slog::{debug, error, o};
@@ -77,18 +77,22 @@ fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
     let without_project = || slog_scope::set_global_logger(log.clone());
     let with_project = |nix_file| -> std::result::Result<(Project, GlobalLoggerGuard), ExitError> {
         let project = create_project(&lorri::ops::get_paths()?, get_shell_nix(nix_file)?)?;
-        let guard = slog_scope::set_global_logger(log.new(o!("root" => project.nix_file.clone())));
+        let guard = slog_scope::set_global_logger(log.new(o!("expr" => project.nix_file.clone())));
         Ok((project, guard))
     };
 
     match opts.command {
         Command::Info(opts) => {
-            let (_project, _guard) = with_project(&opts.nix_file)?;
-            info::main(opts.nix_file)
+            let (project, _guard) = with_project(&opts.nix_file)?;
+            info::main(project)
         }
         Command::Direnv(opts) => {
             let (project, _guard) = with_project(&opts.nix_file)?;
             direnv::main(project, /* shell_output */ std::io::stdout())
+        }
+        Command::Shell(opts) => {
+            let (project, _guard) = with_project(&opts.nix_file)?;
+            shell::main(project)
         }
         Command::Watch(opts) => {
             let (project, _guard) = with_project(&opts.nix_file)?;

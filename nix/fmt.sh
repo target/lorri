@@ -14,7 +14,6 @@ IFS=$'\n'
 ignore=(
 ./Cargo.nix
 ./nix/carnix/crates-io.nix
-./.travis.yml.nix
 )
 all=($(find . -name '*.nix'))
 check=()

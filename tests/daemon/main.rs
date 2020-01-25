@@ -47,12 +47,10 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     // Read the first build event, which should be a `Started` message
     match build_rx.recv_timeout(Duration::from_millis(1000)).unwrap() {
         LoopHandlerEvent::BuildEvent(build_loop::Event::Started { .. }) => Ok(()),
-        ev => {
-            Err(Error::new(
-                    ErrorKind::Other,
-                    format!("didn’t expect event {:?}", ev),
-                    ))
-        },
+        ev => Err(Error::new(
+            ErrorKind::Other,
+            format!("didn’t expect event {:?}", ev),
+        )),
     }?;
 
     drop(accept_handle);

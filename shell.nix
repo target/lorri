@@ -38,16 +38,12 @@ let
 
   buildInputs = [
     pkgs.cargo
-    pkgs.rustPackages.clippy
     pkgs.rustc
     pkgs.rustfmt
-    pkgs.bashInteractive
     pkgs.git
     pkgs.direnv
     pkgs.shellcheck
-    pkgs.carnix
     pkgs.nix-prefetch-git
-    pkgs.nixpkgs-fmt
 
     # To ensure we always have a compatible nix in our shells.
     # Travis doesn’t know `nix-env` otherwise.
@@ -56,6 +52,19 @@ let
     pkgs.darwin.Security
     pkgs.darwin.apple_sdk.frameworks.CoreServices
     pkgs.darwin.apple_sdk.frameworks.CoreFoundation
+  ] ++ pkgs.stdenv.lib.optionals (!pkgs.stdenv.isDarwin) [
+    # Cachix is broken on macOS [1] and clippy is not built by Hydra [2].
+    # Building clippy and carnix on macOS in CI takes about 25 minutes, so we
+    # don't run lints (which require clippy) on macOS.
+    #
+    # [1] https://github.com/cachix/cachix/issues/228#issuecomment-533634704
+    # [2] https://github.com/NixOS/nixpkgs/issues/77358
+    pkgs.rustPackages.clippy
+    pkgs.carnix
+
+    # These other tools are also used only for linting, and are thus not
+    # required on macOS.
+    pkgs.nixpkgs-fmt
   ];
 
   # we manually collect all build inputs,
@@ -82,12 +91,6 @@ pkgs.mkShell (
       exec 3>&1 # store stdout (1) in fd 3
       exec 1>&2 # make stdout (1) an alias for stderr (2)
 
-      # this is needed so `lorri shell` runs the proper shell from
-      # inside this project's nix-shell. If you run `lorri` within a
-      # nix-shell, you don't need this.
-      export SHELL="${pkgs.bashInteractive}/bin/bash";
-
-      alias newlorri="(cd $LORRI_ROOT; cargo run -- shell)"
       alias ci="ci_check"
 
       # this is mirrored from .envrc to make available from nix-shell
@@ -96,7 +99,7 @@ pkgs.mkShell (
       # watch the output to add lorri once it's built
       export PATH="$LORRI_ROOT/target/debug:$PATH"
 
-      function ci_check() (
+      function ci_lint() (
         cd "$LORRI_ROOT";
         source ./.travis_fold.sh
 
@@ -107,12 +110,6 @@ pkgs.mkShell (
 
         lorri_travis_fold carnix-update ./nix/update-carnix.sh
         carnixupdate=$?
-
-        lorri_travis_fold script-tests ./script-tests/run-all.sh
-        scripttests=$?
-
-        lorri_travis_fold cargo-test cargo test
-        cargotestexit=$?
 
         lorri_travis_fold cargo-fmt \
           cargo fmt -- --check
@@ -125,12 +122,45 @@ pkgs.mkShell (
         set +x
         echo "./nix/fmt.sh --check: $nix_fmt"
         echo "carnix update: $carnixupdates"
-        echo "script tests: $scripttests"
-        echo "cargo test: $cargotestexit"
         echo "cargo fmt: $cargofmtexit"
         echo "cargo clippy: $cargoclippyexit"
 
-        sum=$((nix_fmt + carnixupdate + scripttest + cargotestexit + cargofmtexit + cargoclippyexit))
+        sum=$((nix_fmt + carnixupdate + cargofmtexit + cargoclippyexit))
+        if [ "$sum" -gt 0 ]; then
+          return 1
+        fi
+      )
+
+      function ci_test() (
+        cd "$LORRI_ROOT";
+        source ./.travis_fold.sh
+
+        set -x
+
+        lorri_travis_fold script-tests ./script-tests/run-all.sh
+        scripttests=$?
+
+        lorri_travis_fold cargo-test cargo test
+        cargotestexit=$?
+
+        set +x
+        echo "script tests: $scripttests"
+        echo "cargo test: $cargotestexit"
+
+        sum=$((scripttest + cargotestexit))
+        if [ "$sum" -gt 0 ]; then
+          return 1
+        fi
+      )
+
+      function ci_check() (
+        ci_lint
+        lint=$?
+
+        ci_test
+        test=$?
+
+        sum=$((lint + test))
         if [ "$sum" -gt 0 ]; then
           return 1
         fi

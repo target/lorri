@@ -1,195 +1,117 @@
-"git":
-  "depth": !!bool >-
-    false
-"language": >-
-  minimal
-"matrix":
-  "include":
-  - "before_cache":
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/lorri*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/build/lorri-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/lorri-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/liblorri-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/lorri-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/.fingerprint/lorri-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/build_script_build-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/direnv-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/direnv-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/direnv-*"
-    "cache":
-      "directories":
-      - >-
-        $HOME/.cargo
-      - >-
-        $TRAVIS_BUILD_DIR/target
-    "env":
-    - >-
-      CACHE_NAME=linux
-    "install":
-    - >-
-      nix-env -iA cachix -f https://cachix.org/api/v1/install
-    - >-
-      cachix use lorri-test
-    "language": >-
-      nix
-    "name": >-
-      cargo build & linters
-    "nix": >-
-      2.3.1
-    "os": >-
-      linux
-    "script":
-    - >-
-      set -e
-    - >-
-      nix-build -A allBuildInputs shell.nix > ./shell-inputs
-    - >-
-      echo "pushing these paths to cachix:"
-    - >-
-      cat ./shell-inputs
-    - >
+git:
+  depth: false
+language: minimal
+matrix:
+  include:
+  - before_cache:
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/lorri*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/build/lorri-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/lorri-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/liblorri-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/lorri-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/.fingerprint/lorri-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/build_script_build-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/direnv-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/direnv-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/direnv-*"
+    cache:
+      directories:
+      - $HOME/.cargo
+      - $TRAVIS_BUILD_DIR/target
+    env:
+    - CACHE_NAME=linux
+    install:
+    - nix-env -iA cachix -f https://cachix.org/api/v1/install
+    - cachix use lorri-test
+    language: nix
+    name: cargo build & linters
+    nix: 2.3.1
+    os: linux
+    script:
+    - set -e
+    - nix-build -A allBuildInputs shell.nix > ./shell-inputs
+    - echo "pushing these paths to cachix:"
+    - cat ./shell-inputs
+    - |
       if [ -n "$CACHIX_SIGNING_KEY" ]; then
         cachix push lorri-test < ./shell-inputs
       fi
-    - >-
-      nix-shell --quiet --arg isDevelopmentShell false --run ci_check
-    - >-
-      cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
-    - >-
-      git diff -q ./.travis.yml
-    - >-
-      git diff -q ./Cargo.nix
-    - >-
-      git diff -q ./src/com_target_lorri.rs
-  - "before_cache":
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/lorri*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/build/lorri-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/lorri-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/liblorri-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/lorri-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/.fingerprint/lorri-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/build_script_build-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/direnv-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/direnv-*"
-    - >-
-      rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/direnv-*"
-    "before_install":
-    - >-
-      wget --retry-connrefused --waitretry=1 -O /tmp/nix-install https://nixos.org/releases/nix/nix-2.3.1/install
-    - >-
-      yes | sh /tmp/nix-install --daemon
-    - >
+    - nix-shell --quiet --arg isDevelopmentShell false --run ci_check
+    - cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
+    - git diff -q ./.travis.yml
+    - git diff -q ./Cargo.nix
+    - git diff -q ./src/com_target_lorri.rs
+  - before_cache:
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/lorri*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/build/lorri-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/lorri-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/liblorri-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/lorri-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/.fingerprint/lorri-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/build_script_build-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/direnv-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/deps/direnv-*"
+    - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/incremental/direnv-*"
+    before_install:
+    - wget --retry-connrefused --waitretry=1 -O /tmp/nix-install https://nixos.org/releases/nix/nix-2.3.1/install
+    - yes | sh /tmp/nix-install --daemon
+    - |
       if [ -f /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then
         source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       elif [ -f ${TRAVIS_HOME}/.nix-profile/etc/profile.d/nix.sh ]; then
         source source ${TRAVIS_HOME}/.nix-profile/etc/profile.d/nix.sh
       fi
-    "cache":
-      "directories":
-      - >-
-        $HOME/.cargo
-      - >-
-        $TRAVIS_BUILD_DIR/target
-    "env":
-    - >-
-      CACHE_NAME=macos
-    "name": >-
-      cargo build & linters
-    "os": >-
-      osx
-    "script":
-    - >-
-      set -e
-    - >-
-      nix-build -A allBuildInputs shell.nix > ./shell-inputs
-    - >-
-      nix-shell --quiet --arg isDevelopmentShell false --run ci_check
-    - >-
-      cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
-    - >-
-      git diff -q ./.travis.yml
-    - >-
-      git diff -q ./Cargo.nix
-    - >-
-      git diff -q ./src/com_target_lorri.rs
-  - "install":
-    - >-
-      nix-env -iA cachix -f https://cachix.org/api/v1/install
-    - >-
-      cachix use lorri-test
-    "language": >-
-      nix
-    "name": >-
-      nix-build
-    "nix": >-
-      2.3.1
-    "os": >-
-      linux
-    "script":
-    - >-
-      set -e
-    - >-
-      nix-build
-    - >-
-      nix-env -i ./result
-    - >-
-      readlink ./result > ./cachix-file
-    - >-
-      echo "pushing these paths to cachix:"
-    - >-
-      cat ./cachix-file
-    - >
+    cache:
+      directories:
+      - $HOME/.cargo
+      - $TRAVIS_BUILD_DIR/target
+    env:
+    - CACHE_NAME=macos
+    name: cargo build & linters
+    os: osx
+    script:
+    - set -e
+    - nix-build -A allBuildInputs shell.nix > ./shell-inputs
+    - nix-shell --quiet --arg isDevelopmentShell false --run ci_test
+    - cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
+    - git diff -q ./.travis.yml
+    - git diff -q ./Cargo.nix
+    - git diff -q ./src/com_target_lorri.rs
+  - install:
+    - nix-env -iA cachix -f https://cachix.org/api/v1/install
+    - cachix use lorri-test
+    language: nix
+    name: nix-build
+    nix: 2.3.1
+    os: linux
+    script:
+    - set -e
+    - nix-build
+    - nix-env -i ./result
+    - readlink ./result > ./cachix-file
+    - echo "pushing these paths to cachix:"
+    - cat ./cachix-file
+    - |
       if [ -n "$CACHIX_SIGNING_KEY" ]; then
         cachix push lorri-test < ./cachix-file
       fi
-    - >-
-      lorri self-upgrade local $(pwd)
-  - "before_install":
-    - >-
-      wget --retry-connrefused --waitretry=1 -O /tmp/nix-install https://nixos.org/releases/nix/nix-2.3.1/install
-    - >-
-      yes | sh /tmp/nix-install --daemon
-    - >
+    - lorri self-upgrade local $(pwd)
+  - before_install:
+    - wget --retry-connrefused --waitretry=1 -O /tmp/nix-install https://nixos.org/releases/nix/nix-2.3.1/install
+    - yes | sh /tmp/nix-install --daemon
+    - |
       if [ -f /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh ]; then
         source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
       elif [ -f ${TRAVIS_HOME}/.nix-profile/etc/profile.d/nix.sh ]; then
         source source ${TRAVIS_HOME}/.nix-profile/etc/profile.d/nix.sh
       fi
-    "name": >-
-      nix-build
-    "os": >-
-      osx
-    "script":
-    - >-
-      set -e
-    - >-
-      nix-build
-    - >-
-      nix-env -i ./result
-    - >-
-      readlink ./result > ./cachix-file
-    - >-
-      lorri self-upgrade local $(pwd)
+    name: nix-build
+    os: osx
+    script:
+    - set -e
+    - nix-build
+    - nix-env -i ./result
+    - readlink ./result > ./cachix-file
+    - lorri self-upgrade local $(pwd)
