@@ -11,6 +11,7 @@ use crate::NixFile;
 use crossbeam_channel as chan;
 use std::convert::TryFrom;
 use std::path::PathBuf;
+use slog_scope::debug;
 
 /// The daemon server.
 pub struct Server {
@@ -48,7 +49,7 @@ impl Server {
             vec![Box::new(rpc::new(Box::new(self)))],
         );
         let initial_worker_threads = 1;
-        let max_worker_threads = 1;
+        let max_worker_threads = 100;
         let idle_timeout = 0;
         varlink::listen(
             service,
@@ -92,8 +93,12 @@ impl rpc::VarlinkInterface for Server {
 
         call.set_continues(true);
         for event in rx {
+            debug!("event for varlink"; "event" => format!("{:#?}", &event));
             match event.try_into() {
-                Ok(ev) => call.reply(ev),
+                Ok(ev) => {
+                    debug!("translated"; "varlink event" => format!("{:#?}", &ev));
+                    call.reply(ev)
+                },
                 Err(e) => call.reply_invalid_parameter(e.to_string()),
             }?;
         }

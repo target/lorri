@@ -101,10 +101,10 @@ impl Daemon {
             let mut event_listeners: Vec<chan::Sender<Event>> = Vec::new();
 
             for msg in build_events_rx {
+                debug!("Build loop message"; "message" => ?msg);
                 mon_tx
                     .send(msg.clone())
                     .expect("listener still to be there");
-                debug!("Build loop message"; "message" => ?msg);
                 match &msg {
                     LoopHandlerEvent::BuildEvent(ev) => match ev {
                         Event::SectionEnd => (),
@@ -112,13 +112,22 @@ impl Daemon {
                         | Event::Completed { nix_file, .. }
                         | Event::Failure { nix_file, .. } => {
                             project_states.insert(nix_file.clone(), ev.clone());
-                            event_listeners.retain(|tx| tx.send(ev.clone()).is_ok())
+                            event_listeners.retain(|tx| {
+                                let keep = tx.send(ev.clone()).is_ok();
+                                debug!("Sending"; "event" => format!("{:#?}", ev), "keep" => keep);
+                                keep
+                            })
                         }
                     },
                     LoopHandlerEvent::NewListener(tx) => {
+                        debug!("adding listener");
                         let keep = project_states
                             .values()
-                            .all(|event| tx.send(event.clone()).is_ok());
+                            .all(|event| {
+                                debug!("Sending snapshot"; "event" => format!("{:#?}", &event));
+                                tx.send(event.clone()).is_ok()
+                            });
+                        debug!("Finished snapshot"; "keep" => keep);
                         if keep && tx.send(Event::SectionEnd).is_ok() {
                             event_listeners.push(tx.clone());
                         }

@@ -112,8 +112,10 @@ fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
             get_shell_nix(&opts.nix_file).and_then(ping::main)
         }
 
-        // XXX jdl
-        Command::StreamEvents_(se) => stream_events::main(se.kind),
+        Command::StreamEvents_(se) => {
+            let _guard = without_project();
+            stream_events::main(se.kind)
+        },
 
         Command::Init => {
             let _guard = without_project();

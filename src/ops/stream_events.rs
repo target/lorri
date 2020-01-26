@@ -43,6 +43,7 @@ enum Error {
 /// details.
 pub fn main(kind: EventKind) -> OpResult {
     // TODO: set up socket path, make it settable by the user
+    debug!("Starting stream_events");
     let address = get_paths()?.daemon_socket_address();
 
     use rpc::VarlinkClientInterface;
@@ -53,6 +54,7 @@ pub fn main(kind: EventKind) -> OpResult {
     let mut snapshot_done = false;
 
     for event in client.monitor().more()? {
+        debug!("Received"; "event" => format!("{:#?}", &event));
         match event
             .map_err(|err| Error::Varlink(err))
             .and_then(|e| e.try_into().map_err(|err| Error::Compat(err)))
