@@ -433,38 +433,6 @@ rec {
 
 
 # end
-# bincode-1.2.0
-
-  crates.bincode."1.2.0" = deps: { features?(features_.bincode."1.2.0" deps {}) }: buildRustCrate {
-    crateName = "bincode";
-    version = "1.2.0";
-    description = "A binary serialization / deserialization strategy that uses Serde for transforming structs into bytes and vice versa!";
-    authors = [ "Ty Overby <ty@pre-alpha.com>" "Francesco Mazzoli <f@mazzo.li>" "David Tolnay <dtolnay@gmail.com>" "Daniel Griffen" ];
-    sha256 = "0sfk6drrivn6xij8w6krskhn7fa5bq2jjvlvl7ipnsvjz3l1l949";
-    build = "build.rs";
-    dependencies = mapFeatures features ([
-      (crates."byteorder"."${deps."bincode"."1.2.0"."byteorder"}" deps)
-      (crates."serde"."${deps."bincode"."1.2.0"."serde"}" deps)
-    ]);
-
-    buildDependencies = mapFeatures features ([
-      (crates."autocfg"."${deps."bincode"."1.2.0"."autocfg"}" deps)
-    ]);
-    features = mkFeatures (features."bincode"."1.2.0" or {});
-  };
-  features_.bincode."1.2.0" = deps: f: updateFeatures f (rec {
-    autocfg."${deps.bincode."1.2.0".autocfg}".default = true;
-    bincode."1.2.0".default = (f.bincode."1.2.0".default or true);
-    byteorder."${deps.bincode."1.2.0".byteorder}".default = true;
-    serde."${deps.bincode."1.2.0".serde}".default = true;
-  }) [
-    (features_.byteorder."${deps."bincode"."1.2.0"."byteorder"}" deps)
-    (features_.serde."${deps."bincode"."1.2.0"."serde"}" deps)
-    (features_.autocfg."${deps."bincode"."1.2.0"."autocfg"}" deps)
-  ];
-
-
-# end
 # bit-set-0.5.1
 
   crates.bit_set."0.5.1" = deps: { features?(features_.bit_set."0.5.1" deps {}) }: buildRustCrate {
