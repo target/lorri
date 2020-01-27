@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 fn loads_env() {
     let tempdir = tempfile::tempdir().expect("tempfile::tempdir() failed us!");
     let project = project("loads_env", tempdir.path());
-    let output = shell::bash_cmd(&project, tempdir.path())
+    let output = shell::bash_cmd(&project)
         .unwrap()
         .args(&["-c", "echo $MY_ENV_VAR"])
         .output()
