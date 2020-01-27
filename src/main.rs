@@ -92,7 +92,7 @@ fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
         }
         Command::Shell(opts) => {
             let (project, _guard) = with_project(&opts.nix_file)?;
-            shell::main(project)
+            shell::main(project, opts)
         }
         Command::StartUserShell_(opts) => {
             let (project, _guard) = with_project(&opts.nix_file)?;

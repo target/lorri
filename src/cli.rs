@@ -83,6 +83,9 @@ pub struct ShellOptions {
     /// The .nix file in the current directory to use
     #[structopt(long = "shell-file", parse(from_os_str), default_value = "shell.nix")]
     pub nix_file: PathBuf,
+    /// If true, load environment from cache
+    #[structopt(long = "cached")]
+    pub cached: bool,
 }
 
 /// Options for the `start_user_shell_` subcommand.
