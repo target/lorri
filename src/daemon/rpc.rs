@@ -9,9 +9,9 @@ use crate::socket::{BindLock, SocketPath};
 use crate::watch;
 use crate::NixFile;
 use crossbeam_channel as chan;
+use slog_scope::debug;
 use std::convert::TryFrom;
 use std::path::PathBuf;
-use slog_scope::debug;
 
 /// The daemon server.
 pub struct Server {
@@ -98,7 +98,7 @@ impl rpc::VarlinkInterface for Server {
                 Ok(ev) => {
                     debug!("translated"; "varlink event" => format!("{:#?}", &ev));
                     call.reply(ev)
-                },
+                }
                 Err(e) => call.reply_invalid_parameter(e.to_string()),
             }?;
         }
@@ -211,7 +211,7 @@ impl TryFrom<&watch::Reason> for rpc::Reason {
                 project: None,
                 files: Some(
                     changed
-                        .into_iter()
+                        .iter()
                         .map(|pb| Ok(pb.to_str().ok_or("cannot convert path!")?.to_string()))
                         .collect::<Result<Vec<String>, &'static str>>()?,
                 ),

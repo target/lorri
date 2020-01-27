@@ -56,8 +56,8 @@ pub fn main(kind: EventKind) -> OpResult {
     for event in client.monitor().more()? {
         debug!("Received"; "event" => format!("{:#?}", &event));
         match event
-            .map_err(|err| Error::Varlink(err))
-            .and_then(|e| e.try_into().map_err(|err| Error::Compat(err)))
+            .map_err(Error::Varlink)
+            .and_then(|e| e.try_into().map_err(Error::Compat))
         {
             Ok(Event::SectionEnd) => {
                 debug!("SectionEnd");
