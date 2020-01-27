@@ -9,10 +9,10 @@ use crossbeam_channel as chan;
 use slog_scope::debug;
 use std::io;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 use std::time::{Duration, Instant};
-use std::{env, fs, thread};
+use std::{env, thread};
 
 /// This is the entry point for the `lorri shell` command.
 ///
@@ -39,8 +39,7 @@ pub fn main(project: Project) -> OpResult {
     let shell = env::var("SHELL").expect("lorri shell requires $SHELL to be set");
     debug!("using shell path {}", shell);
 
-    let tempdir = tempfile::tempdir().expect("failed to create temporary directory");
-    let mut bash_cmd = bash_cmd(&project, tempdir.path())?;
+    let mut bash_cmd = bash_cmd(&project)?;
     debug!("bash"; "command" => ?bash_cmd);
     bash_cmd
         .args(&[
@@ -61,7 +60,7 @@ pub fn main(project: Project) -> OpResult {
 }
 
 /// Instantiates a `Command` to start bash.
-pub fn bash_cmd(project: &Project, tempdir: &Path) -> Result<Command, ExitError> {
+pub fn bash_cmd(project: &Project) -> Result<Command, ExitError> {
     let (tx, rx) = chan::unbounded();
     thread::spawn(move || {
         eprint!("lorri: building environment");
@@ -87,19 +86,17 @@ pub fn bash_cmd(project: &Project, tempdir: &Path) -> Result<Command, ExitError>
         e => Err(ExitError::temporary(format!("build failed: {:?}", e))),
     }?;
 
-    let init_file = tempdir.join("init");
-    fs::write(
-        &init_file,
-        format!(
+    let init_file = project
+        .cas
+        .file_from_string(&format!(
             r#"
 EVALUATION_ROOT="{}"
 
 {}"#,
             build.shell_gc_root,
             include_str!("direnv/envrc.bash")
-        ),
-    )
-    .expect("failed to write shell output");
+        ))
+        .expect("failed to write shell output");
 
     debug!("building bash via runtime closure"; "closure" => crate::RUN_TIME_CLOSURE);
     let bash_path = CallOpts::expression(&format!("(import {}).path", crate::RUN_TIME_CLOSURE))
