@@ -15,6 +15,7 @@ use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+use std::time::Instant;
 use std::{env, thread};
 
 /// This is the entry point for the `lorri shell` command.
@@ -42,11 +43,12 @@ pub fn main(project: Project, opts: ShellOptions) -> OpResult {
     let shell = env::var("SHELL").expect("lorri shell requires $SHELL to be set");
     debug!("using shell path {}", shell);
 
+    let cached = cached_root(&project);
     let mut bash_cmd = bash_cmd(
         if opts.cached {
-            cached_root(&project)?
+            cached?
         } else {
-            build_root(&project)?
+            build_root(&project, cached.is_ok())?
         },
         &project.cas,
     )?;
@@ -69,14 +71,29 @@ pub fn main(project: Project, opts: ShellOptions) -> OpResult {
     Ok(())
 }
 
-fn build_root(project: &Project) -> Result<PathBuf, ExitError> {
+fn build_root(project: &Project, cached: bool) -> Result<PathBuf, ExitError> {
     let building = Arc::new(AtomicBool::new(true));
     let building_clone = building.clone();
     let progress_thread = thread::spawn(move || {
+        // Keep track of the start time to display a hint to the user that they can use `--cached`,
+        // but only if a cached version of the environment exists
+        let mut start = if cached { Some(Instant::now()) } else { None };
+
         eprint!("lorri: building environment");
-        // Indicate progress
         while building_clone.load(Ordering::SeqCst) {
+            // Show `--cached` hint once after some time has passed
+            if let Some(start_time) = start {
+                if start_time.elapsed() >= Duration::from_millis(10_000) {
+                    eprintln!(
+                        "\nHint: you can use `lorri shell --cached` to use the most recent \
+                         environment that was built successfully."
+                    );
+                    start = None; // Don't show the hint again
+                }
+            }
             thread::sleep(Duration::from_millis(500));
+
+            // Indicate progress
             eprint!(".");
             io::stderr().flush().unwrap();
         }
@@ -87,14 +104,29 @@ fn build_root(project: &Project) -> Result<PathBuf, ExitError> {
     building.store(false, Ordering::SeqCst);
     progress_thread.join().unwrap();
 
+    let run_result = run_result
+        .map_err(|e| {
+            if cached {
+                ExitError::temporary(format!(
+                    "Build failed. Hint: try running `lorri shell --cached` to use the most \
+                     recent environment that was built successfully.\n\
+                     Build error: {}",
+                    e
+                ))
+            } else {
+                ExitError::temporary(format!(
+                    "Build failed. No cached environment available.\n\
+                     Build error: {}",
+                    e
+                ))
+            }
+        })?
+        .result;
+
     Ok(Path::new(
         Roots::from_project(&project)
-            .create_roots(
-                run_result
-                    .map_err(|e| ExitError::temporary(format!("build failed: {}", e)))?
-                    .result,
-            )
-            .map_err(|e| ExitError::temporary(format!("rooting the environment failed: {:?}", e)))?
+            .create_roots(run_result)
+            .map_err(|e| ExitError::temporary(format!("rooting the environment failed: {}", e)))?
             .shell_gc_root
             .as_os_str(),
     )
