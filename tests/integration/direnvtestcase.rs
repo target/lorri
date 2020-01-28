@@ -3,8 +3,9 @@
 
 use crate::direnv::DirenvEnv;
 use lorri::{
-    build_loop::{BuildError, BuildLoop, BuildResults},
+    build_loop::{BuildLoop, BuildResults},
     cas::ContentAddressable,
+    error::BuildError,
     ops::direnv,
     project::Project,
     NixFile,

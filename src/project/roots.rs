@@ -6,6 +6,7 @@ use crate::nix::StorePath;
 use crate::project::Project;
 use slog_scope::debug;
 use std::env;
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 /// Roots manipulation
@@ -165,5 +166,13 @@ impl AddRootError {
             err,
             format!("Failed to symlink {} to {}", src.display(), dest.display()),
         )
+    }
+}
+
+impl fmt::Display for AddRootError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AddRootError::Io(e, msg) => write!(f, "{}: {}", msg, e),
+        }
     }
 }
