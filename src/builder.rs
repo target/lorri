@@ -91,7 +91,7 @@ fn instrumented_instantiation(
     debug!("nix-instantiate"; "command" => ?cmd);
 
     let mut child = cmd.spawn().map_err(|e| match e.kind() {
-        std::io::ErrorKind::NotFound => BuildError::spawn(e),
+        std::io::ErrorKind::NotFound => BuildError::spawn(&cmd, e),
         _ => BuildError::io(e),
     })?;
 
@@ -160,7 +160,7 @@ fn instrumented_instantiation(
             });
 
     if !exec_result.success() {
-        return Err(BuildError::exit(exec_result, log_lines));
+        return Err(BuildError::exit(&cmd, exec_result, log_lines));
     }
 
     assert!(
@@ -394,7 +394,7 @@ in {}
             &format!("dep = {};", drv("dep", r##"args = [ "-c" "exit 1" ];"##)),
         ))?);
 
-        if let Err(BuildError::Exit(..)) = run(&d, &cas) {
+        if let Err(BuildError::Exit { .. }) = run(&d, &cas) {
         } else {
             assert!(
                 false,
