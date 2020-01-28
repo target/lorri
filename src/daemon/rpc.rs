@@ -49,7 +49,7 @@ impl Server {
             vec![Box::new(rpc::new(Box::new(self)))],
         );
         let initial_worker_threads = 1;
-        let max_worker_threads = 100;
+        let max_worker_threads = 10;
         let idle_timeout = 0;
         varlink::listen(
             service,
@@ -82,6 +82,7 @@ impl rpc::VarlinkInterface for Server {
     }
 
     fn monitor(&self, call: &mut dyn rpc::Call_Monitor) -> varlink::Result<()> {
+        debug!("starting monitor worker loop");
         if !call.wants_more() {
             return call.reply_invalid_parameter("wants_more".into());
         }
@@ -99,9 +100,13 @@ impl rpc::VarlinkInterface for Server {
                     debug!("translated"; "varlink event" => format!("{:#?}", &ev));
                     call.reply(ev)
                 }
-                Err(e) => call.reply_invalid_parameter(e.to_string()),
+                Err(e) => {
+                    debug!("receiving event"; "error" => format!("{:#?}", &e));
+                    call.reply_invalid_parameter(e.to_string())
+                }
             }?;
         }
+        debug!("worker loop done for monitor");
         Ok(())
     }
 }

@@ -122,13 +122,19 @@ impl Daemon {
                     LoopHandlerEvent::NewListener(tx) => {
                         debug!("adding listener");
                         let keep = project_states.values().all(|event| {
-                            debug!("Sending snapshot"; "event" => format!("{:#?}", &event));
-                            tx.send(event.clone()).is_ok()
+                            let keeping = tx.send(event.clone()).is_ok();
+                            debug!("Sending snapshot"; "event" => format!("{:#?}", &event), "ok" => keeping);
+                            keeping
                         });
                         debug!("Finished snapshot"; "keep" => keep);
-                        if keep && tx.send(Event::SectionEnd).is_ok() {
+                        if keep {
                             event_listeners.push(tx.clone());
                         }
+                        event_listeners.retain(|tx| {
+                            let keep = tx.send(Event::SectionEnd).is_ok();
+                            debug!("Sending new listener sectionend"; "keep" => keep);
+                            keep
+                        })
                     }
                 }
             }
