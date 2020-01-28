@@ -5,9 +5,12 @@ use crate::ops::{
     get_paths,
 };
 use crate::rpc;
+use crossbeam_channel::{select, unbounded};
 use slog_scope::debug;
 use std::convert::TryInto;
 use std::str::FromStr;
+use std::thread;
+use std::time::Duration;
 
 /// Options for the kinds of events to report
 #[derive(Debug)]
@@ -52,8 +55,21 @@ pub fn main(kind: EventKind) -> OpResult {
     );
 
     let mut snapshot_done = false;
+    let (tx, rx) = unbounded();
+    let recycle = tx.clone();
 
-    for event in client.monitor().more()? {
+    let th = thread::spawn(move || {
+        for res in client.monitor().more().expect("couldn't connect to server") {
+            tx.send(res).expect("local channel couldn't send")
+        }
+    });
+
+    select! {
+        recv(rx) -> event => recycle.send(event.expect("local channel couldn't receive")).expect("local channel couldn't resend"),
+        default(Duration::from_millis(250)) => return Err(ExitError::temporary("server timeout"))
+    }
+
+    for event in rx.iter() {
         debug!("Received"; "event" => format!("{:#?}", &event));
         match event
             .map_err(Error::Varlink)
@@ -79,5 +95,7 @@ pub fn main(kind: EventKind) -> OpResult {
             Err(err) => return Err(ExitError::temporary(format!("{:?}", err))),
         }
     }
+
+    drop(th);
     ok()
 }
