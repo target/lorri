@@ -257,7 +257,7 @@ impl<'a> CallOpts<'a> {
     ///         .path();
     ///
     /// match paths {
-    ///    Err(BuildError::Output(_)) => {},
+    ///    Err(BuildError::Output { .. }) => {},
     ///    otherwise => panic!(otherwise)
     /// }
     /// ```
@@ -267,7 +267,7 @@ impl<'a> CallOpts<'a> {
 
         match (paths.pop(), paths.pop()) {
             // Exactly zero
-            (None, _) => Err(BuildError::Output(
+            (None, _) => Err(BuildError::output(
                 "expected exactly one build output, got zero".to_string(),
             )),
 
@@ -275,7 +275,7 @@ impl<'a> CallOpts<'a> {
             (Some(path), None) => Ok((path, gc_root)),
 
             // More than one
-            (Some(_), Some(_)) => Err(BuildError::Output(
+            (Some(_), Some(_)) => Err(BuildError::output(
                 "expected exactly one build output, got more".to_string(),
             )),
         }
@@ -353,7 +353,7 @@ impl<'a> CallOpts<'a> {
 
         // 0. spawn the process
         let mut nix_proc = cmd.spawn().map_err(|e| match e.kind() {
-            std::io::ErrorKind::NotFound => BuildError::spawn(e),
+            std::io::ErrorKind::NotFound => BuildError::spawn(&cmd, e),
             _ => BuildError::io(e),
         })?;
 
@@ -388,6 +388,7 @@ impl<'a> CallOpts<'a> {
 
         if !nix_proc_result.success() {
             Err(BuildError::exit(
+                &cmd,
                 nix_proc_result,
                 stderr_rx.iter().collect::<Vec<_>>(),
             ))
