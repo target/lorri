@@ -6,6 +6,13 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 450;
+        changes = ''
+          - Re-introduce `lorri shell`, which builds a project environment and
+            launches a shell in it with no direnv setup required.
+        '';
+      }
+      {
         version = 309;
         changes = ''
           - The deprecated `lorri shell` command was removed.
