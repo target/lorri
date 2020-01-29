@@ -151,11 +151,44 @@ The tricky part of protecting a project environment from Nix GC is to capture
 all the environment's dependencies in a _closure_.
 
 The goal of lorri's GC protection mechanism is to keep outputs paths of
-build-time dependencies for your development environments without forcing you
-to set `keep-outputs = true` globally.
+build-time dependencies for your development environments.
+
+Any package that is a (transitive) runtime dependency of some other package that
+has a GC root is itself also protected from GC. So to protect build-time
+dependencies from GC, lorri pretends that they are runtime dependencies.
+
+For Nix, every runtime dependency is a build-time dependency, but not every
+build-time dependency is a runtime dependency. As an example, `gcc` is a
+build-time dependency for many packages but few packages need it at runtime.
+
+The way Nix [determines][build-vs-runtime-deps] whether a build-time dependency
+is also a runtime dependency is as follows: once a build has completed, it
+[scans][nix-deps-scan] through the build result, looking for the store paths of
+build-time dependencies. Any build-time dependency whose store path is found in
+the build result is considered a runtime dependency.
+
+To make Nix believe that all build-time dependencies are also runtime
+dependencies, lorri exports the value of all environment variables into a file
+in the output directory of the project closure. This includes `PATH` as well as
+environment variables exported by the project environment declaration itself,
+like `buildInputs`.
+
+As an example, the environment export file for the example `shell.nix` from
+above contains the following line:
+
+```console
+$ grep -F 'buildInputs' bash-export
+declare -x buildInputs="/nix/store/4w99qz14nsahk0s798a5rw5l7qk1zwwf-hello-2.10"
+```
+
+As a result, Nix will pick up this version of the `hello` package as a runtime
+dependency. The GC root for the project environment will thus protect `hello`
+from being garbage collected.
 
 [blog-post]: https://www.tweag.io/posts/2019-03-28-introducing-lorri.html
+[build-vs-runtime-deps]: https://stackoverflow.com/a/34837585/3507119
 [cache-dir]: https://docs.rs/directories/1.0.2/directories/struct.ProjectDirs.html#method.cache_dir
 [nix-conf-man]: https://www.mankier.com/5/nix.conf
+[nix-deps-scan]: https://github.com/NixOS/nix/blob/2242be83c61788b9c0736a92bb0b5c7bbfc40803/src/libstore/references.cc#L82-L118
 [nix-gc-roots]: https://nixos.org/nix/manual/#ssec-gc-roots
 [nix-gc]: https://nixos.org/nix/manual/#sec-garbage-collection
