@@ -2,24 +2,21 @@
 
 ## Versioning scheme
 
-Given a version number `MAJOR.MINOR`, increment the:
-- `MAJOR` version when you make an incompatible change,
-- `MINOR` version otherwise.
+The versioning scheme for lorri is `MAJOR.MINOR`, where `MAJOR` and `MINOR` are
+non-negative integers without leading zeroes.
 
-In order to apply this scheme to lorri, we need to define what "incompatible
-change" means for lorri, a command line tool.
+### Terminology
 
-Let's clarify some terminology. lorri is a command line tool with multiple
-**subcommands**. Those subcommands are either _external_ or _internal_.
-Internal subcommands' names end in an underscore. There are _mandatory_ and
-_optional_ **command line options**, which can be attached to the top-level
-command or to subcommands.
+lorri is a command line tool with multiple **subcommands**. Those subcommands
+are either _external_ or _internal_.  Internal subcommands' names end in an
+underscore. There are _mandatory_ and _optional_ **command line options**,
+which can be attached to the top-level command or to subcommands.
 
 Subcommands fall into two categories based on the intended consumer of their
 outputs: their **outputs** may be for _human consumption_ or
 _machine-readable_.
 
-### When to make a major release
+### Major or minor release?
 
 Increment the `MAJOR` version if since the last released version,
 - for any _top-level_ command line option:
