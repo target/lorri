@@ -18,7 +18,10 @@ _machine-readable_.
 
 ### Major or minor release?
 
-Increment the `MAJOR` version if since the last released version,
+**Basic rule:** increment the `MAJOR` version when it is conceivable that a
+user is _forced to change how they interact_ with lorri.
+
+For example: it's a major release if since the last released version,
 - for any _top-level_ command line option:
   - the command line option was removed or renamed, or
   - the command line option changed from being optional to being mandatory, or
@@ -27,16 +30,21 @@ Increment the `MAJOR` version if since the last released version,
   - a command line option for the subcommand was removed or renamed, or
   - a previously optional command line option for the subcommand was made
     mandatory, or
-  - the subcommand has machine-readable output and the output format changed,
-    or
+  - the subcommand has machine-readable output and the output format changed
+    (\*), or
 - it is conceivable that a project that could previously be built successfully
   now fails to build with lorri, unless the previous behaviour is considered a
   bug.
 
 In any other case, increment the `MINOR` version.
 
+(\*) The exception to this rule is `lorri direnv`: it is an external command
+with machine-readable output whose output may change between minor releases,
+subject to the basic rule.
+
 A change to an _internal_ subcommand is not considered an incompatible change
-and thus does not in itself necessitate a major release.
+and thus does not in itself necessitate a major release. This includes internal
+subcommands with machine-readable output.
 
 Since lorri is exclusively built with Nix and its runtime dependencies are
 captured in its runtime closure, changing a build-time or runtime dependency
