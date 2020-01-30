@@ -1,5 +1,42 @@
 # Maintaining lorri
 
+## Versioning scheme
+
+Given a version number `MAJOR.MINOR`, increment the:
+- `MAJOR` version when you make an incompatible change,
+- `MINOR` version otherwise.
+
+In order to apply this scheme to lorri, we need to define what "incompatible
+change" means for lorri, a command line tool.
+
+Let's clarify some terminology. lorri is a command line tool with multiple
+**subcommands**. Some of them are **internal**. There are mandatory and
+optional **command line options**, which can be attached to the top-level
+command or to subcommands.
+
+Subcommands fall into two categories based on the intended consumer of their
+outputs: their **outputs** may be for human consumption or machine-readable.
+
+**When to release a new major version**
+
+Increment the `MAJOR` version if since the last released version,
+- a non-internal subcommand was removed or renamed, or
+- a top-level command line option was removed or renamed, or
+- a previously optional top-level command line option was made mandatory, or
+- a command line option of a non-internal subcommand was removed or renamed, or
+- a previously optional command line option of a non-internal subcommand was
+  made mandatory, or
+- the output of a non-internal machine-readable subcommand changed, or
+- it is conceivable that a project that could previously be built successfully
+  now fails to build with lorri, unless the previous behaviour is considered a
+  bug.
+
+In any other case, increment the `MINOR` version.
+
+Since lorri is exclusively built with Nix and its runtime dependencies are
+captured in its runtime closure, changing a build-time or runtime dependency
+does not in itself necessitate a major release.
+
 ## Cutting a release
 
 TODO: https://github.com/target/lorri/issues/269
