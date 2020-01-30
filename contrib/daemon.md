@@ -45,8 +45,9 @@ setup](#verify-the-setup) to check that everything works as expected.
 
 ## Run `lorri daemon` on macOS with Nix
 
-Please take a look at [@pawlowsklalaex]'s [suggested
-`darwin-configuration.nix`](https://github.com/target/lorri/issues/96#issuecomment-545152525).
+The following user contributions should help you get started:
+- [@jkachmar]'s [suggested `darwin-configuration.nix`](https://github.com/target/lorri/issues/96#issuecomment-579931485)
+- [@pawlowskialex]'s [suggested `darwin-configuration.nix`](https://github.com/target/lorri/issues/96#issuecomment-545152525)
 
 ## Verify the setup
 
@@ -74,6 +75,7 @@ $ launchctl list | grep lorri
 
 [`lorri.socket`]: ./lorri.socket
 [`lorri.service`]: ./lorri.service
-[@pawlowsklalaex]: https://github.com/pawlowskialex
+[@jkachmar]: https://github.com/jkachmar
+[@pawlowskialex]: https://github.com/pawlowskialex
 [setup-nixos-or-home-manager]: ../README.md#setup-on-nixos-or-with-home-manager-on-linux
 [systemd]: https://www.freedesktop.org/wiki/Software/systemd/
