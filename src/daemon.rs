@@ -16,7 +16,7 @@ mod rpc;
 /// so the user editor would send this message when a file
 /// in the project is opened, through `lorri direnv` for example.
 ///
-/// `lorri ping_` is the plumbing command which triggers this signal.
+/// `lorri internal__ping` is the internal command which triggers this signal.
 ///
 /// Note especially that we don’t want to fix the server reaction to
 /// this signal yet, sending `IndicateActivity` does not necessarily
