@@ -70,7 +70,9 @@ impl Daemon {
         (
             Daemon {
                 handler_threads: HashMap::new(),
-                build_events_tx, build_events_rx, mon_tx,
+                build_events_tx,
+                build_events_rx,
+                mon_tx,
             },
             mon_rx,
         )

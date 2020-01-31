@@ -90,7 +90,7 @@ pub fn main(kind: EventKind) -> OpResult {
                     )
                 }
                 _ => (),
-            }
+            },
         }
     }
 

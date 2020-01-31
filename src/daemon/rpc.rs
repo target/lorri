@@ -96,12 +96,8 @@ impl rpc::VarlinkInterface for Server {
         for event in rx {
             debug!("event for varlink"; "event" => ?&event);
             match event.try_into() {
-                Ok(ev) => {
-                    call.reply(ev)
-                }
-                Err(e) => {
-                    call.reply_invalid_parameter(e.to_string())
-                }
+                Ok(ev) => call.reply(ev),
+                Err(e) => call.reply_invalid_parameter(e.to_string()),
             }?;
         }
         Ok(())
@@ -312,7 +308,7 @@ impl TryFrom<&error::BuildError> for rpc::Failure {
                 cmd: Some(cmd.into()),
                 logs: Some(logs.iter().map(|line| line.to_string()).collect()),
                 msg: None,
-                status: status.map(|c| c as i64),
+                status: status.map(i64::from),
             },
             BuildError::Output { msg } => rpc::Failure {
                 kind: output,
