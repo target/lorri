@@ -19,17 +19,17 @@ method Monitor() -> (event: Event)
 
 type Event (
     kind: (section_end, started, completed, failure),
-    nix_file: ?ShellNix, # not in sectionend
-    reason: ?Reason,     # only if started
-    result: ?Outcome,     # only if completed
-    failure: ?Failure    # only if failure
+    nix_file: ?ShellNix, # only present if kind != section_end
+    reason: ?Reason,     # only present if kind == started
+    result: ?Outcome,    # only present if kind == completed
+    failure: ?Failure    # only present if kind == failure
 )
 
 type Reason (
     kind: (project_added, ping_received, files_changed, unknown),
-    project: ?ShellNix,
-    files: ?[]string,
-    debug: ?string
+    project: ?ShellNix, # only present if kind == project_added
+    files: ?[]string,   # only present if kind == files_changed
+    debug: ?string      # only present if kind == unknown
 )
 
 type Outcome (
@@ -38,10 +38,10 @@ type Outcome (
 
 type Failure (
     kind: (io, spawn, exit, output),
-    msg: ?string,
-    cmd: ?string,
-    status: ?int,
-    logs: ?[]string
+    msg: ?string,   # only present if kind in (io, spawn)
+    cmd: ?string,   # only present if kind in (spawn, exit)
+    status: ?int,   # only present if kind == exit
+    logs: ?[]string # only present if kind == exit
 )
 
 # WatchServices establishes a stream with the daemon. Initially, the daemon
