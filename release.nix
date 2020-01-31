@@ -6,6 +6,14 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 467;
+        changes = ''
+          - Rename internal subcommand `lorri ping_` to `lorri internal__ping`
+          - Rename internal subcommand `lorri start_user_shell_` to
+            `lorri internal__start_user_shell`
+        '';
+      }
+      {
         version = 450;
         changes = ''
           - Re-introduce `lorri shell`, which builds a project environment and

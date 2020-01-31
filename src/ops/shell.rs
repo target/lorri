@@ -29,7 +29,7 @@ use std::{env, thread};
 /// ├── builds the project environment if --cached is false
 /// ├── writes a bash init script that loads the project environment
 /// ├── SPAWNS bash with the init script as its `--rcfile`
-/// │   └── EXECS `lorri start_user_shell_`
+/// │   └── EXECS `lorri internal__start_user_shell`
 /// │       ├── (*) performs shell-specific setup for $SHELL
 /// │       └── EXECS into user shell $SHELL
 /// │           └── interactive user shell
@@ -56,7 +56,7 @@ pub fn main(project: Project, opts: ShellOptions) -> OpResult {
     bash_cmd
         .args(&[
             "-c",
-            "exec \"$1\" start_user_shell_ --shell-path=\"$2\" --shell-file=\"$3\"",
+            "exec \"$1\" internal__start_user_shell --shell-path=\"$2\" --shell-file=\"$3\"",
             "--",
             &lorri
                 .to_str()
