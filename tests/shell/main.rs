@@ -1,4 +1,10 @@
-use lorri::{cas::ContentAddressable, ops::shell, project::Project, NixFile};
+use lorri::{
+    builder,
+    cas::ContentAddressable,
+    ops::shell,
+    project::{roots::Roots, Project},
+    NixFile,
+};
 use std::fs;
 use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
@@ -7,7 +13,7 @@ use std::path::{Path, PathBuf};
 fn loads_env() {
     let tempdir = tempfile::tempdir().expect("tempfile::tempdir() failed us!");
     let project = project("loads_env", tempdir.path());
-    let output = shell::bash_cmd(project, tempdir.path())
+    let output = shell::bash_cmd(build(&project), &project.cas)
         .unwrap()
         .args(&["-c", "echo $MY_ENV_VAR"])
         .output()
@@ -31,4 +37,19 @@ fn project(name: &str, cache_dir: &Path) -> Project {
         ContentAddressable::new(cas_dir).unwrap(),
     )
     .unwrap()
+}
+
+fn build(project: &Project) -> PathBuf {
+    Path::new(
+        Roots::from_project(&project)
+            .create_roots(
+                builder::run(&project.nix_file, &project.cas)
+                    .unwrap()
+                    .result,
+            )
+            .unwrap()
+            .shell_gc_root
+            .as_os_str(),
+    )
+    .to_owned()
 }

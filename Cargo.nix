@@ -65,7 +65,6 @@ rec {
       src = exclude [ ".git" "target" ] ./.;
       dependencies = mapFeatures features ([
         (cratesIO.crates."atomicwrites"."${deps."lorri"."0.1.0"."atomicwrites"}" deps)
-        (cratesIO.crates."bincode"."${deps."lorri"."0.1.0"."bincode"}" deps)
         (cratesIO.crates."crossbeam_channel"."${deps."lorri"."0.1.0"."crossbeam_channel"}" deps)
         (cratesIO.crates."directories"."${deps."lorri"."0.1.0"."directories"}" deps)
         (crates."human_panic"."${deps."lorri"."0.1.0"."human_panic"}" deps)
@@ -94,7 +93,6 @@ rec {
     };
     features_.lorri."0.1.0" = deps: f: updateFeatures f (rec {
       atomicwrites."${deps.lorri."0.1.0".atomicwrites}".default = true;
-      bincode."${deps.lorri."0.1.0".bincode}".default = true;
       crossbeam_channel."${deps.lorri."0.1.0".crossbeam_channel}".default = true;
       directories."${deps.lorri."0.1.0".directories}".default = true;
       human_panic."${deps.lorri."0.1.0".human_panic}".default = true;
@@ -119,7 +117,6 @@ rec {
       vec1."${deps.lorri."0.1.0".vec1}".default = true;
     }) [
       (cratesIO.features_.atomicwrites."${deps."lorri"."0.1.0"."atomicwrites"}" deps)
-      (cratesIO.features_.bincode."${deps."lorri"."0.1.0"."bincode"}" deps)
       (cratesIO.features_.crossbeam_channel."${deps."lorri"."0.1.0"."crossbeam_channel"}" deps)
       (cratesIO.features_.directories."${deps."lorri"."0.1.0"."directories"}" deps)
       (features_.human_panic."${deps."lorri"."0.1.0"."human_panic"}" deps)
@@ -185,11 +182,6 @@ rec {
   };
   deps.base64."0.10.1" = {
     byteorder = "1.3.2";
-  };
-  deps.bincode."1.2.0" = {
-    byteorder = "1.3.2";
-    serde = "1.0.103";
-    autocfg = "0.1.7";
   };
   deps.bit_set."0.5.1" = {
     bit_vec = "0.5.1";
@@ -325,7 +317,6 @@ rec {
   };
   deps.lorri."0.1.0" = {
     atomicwrites = "0.2.5";
-    bincode = "1.2.0";
     crossbeam_channel = "0.3.9";
     directories = "1.0.2";
     human_panic = "1.0.1";

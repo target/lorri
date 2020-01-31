@@ -32,12 +32,13 @@
 //! }
 //! ```
 
+use crate::error::BuildError;
 use crate::osstrlines;
 use crossbeam_channel as chan;
 use serde_json;
 use slog_scope::debug;
 use std::collections::HashMap;
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsStr;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::process::{ChildStderr, ChildStdout, Command, ExitStatus, Stdio};
@@ -50,7 +51,6 @@ pub struct CallOpts<'a> {
     input: Input<'a>,
     attribute: Option<String>,
     argstrs: HashMap<String, String>,
-    stderr_line_tx: Option<chan::Sender<OsString>>,
 }
 
 /// Which input to give nix.
@@ -107,7 +107,6 @@ impl<'a> CallOpts<'a> {
             input: Input::Expression(expr),
             attribute: None,
             argstrs: HashMap::new(),
-            stderr_line_tx: None,
         }
     }
 
@@ -117,32 +116,7 @@ impl<'a> CallOpts<'a> {
             input: Input::File(nix_file),
             attribute: None,
             argstrs: HashMap::new(),
-            stderr_line_tx: None,
         }
-    }
-
-    /// Provide a Sender half of an mpsc channel, where Nix will send
-    /// stderr log lines.
-    ///
-    /// It is an error to hang up the receiver before the end of
-    /// execution. The stderr processing thread will panic, and data
-    /// will buffer in the kernel. This could result in a deadlock.
-    ///
-    /// ```rust
-    /// extern crate lorri;
-    /// use crossbeam_channel as chan;
-    /// use lorri::nix;
-    ///
-    /// let (tx, rx) = chan::unbounded();
-    /// let output: Result<u8, _> = nix::CallOpts::expression("builtins.trace ''Hello!'' 5")
-    ///     .set_stderr_sender(tx)
-    ///     .value();
-    /// assert_eq!(output.unwrap(), 5);
-    /// assert_eq!(rx.recv().unwrap(), "trace: Hello!");
-    /// ```
-    pub fn set_stderr_sender(&mut self, sender: chan::Sender<OsString>) -> &mut Self {
-        self.stderr_line_tx = Some(sender);
-        self
     }
 
     /// Evaluate a sub attribute of the expression. Only supports one:
@@ -224,25 +198,17 @@ impl<'a> CallOpts<'a> {
     ///     );
     /// }
     /// ```
-    pub fn value<T: 'static>(&self) -> Result<T, EvaluationError>
+    pub fn value<T: 'static>(&self) -> Result<T, BuildError>
     where
         T: Send + serde::de::DeserializeOwned,
     {
         let mut cmd = Command::new("nix-instantiate");
         cmd.args(&["--eval", "--json", "--strict"]);
-
         cmd.args(self.command_arguments());
-
-        let (result, status): (Result<T, serde_json::Error>, ExitStatus) = self
-            .execute(cmd, move |stdout_handle| {
-                serde_json::from_reader::<_, T>(stdout_handle)
-            })?;
-
-        if status.success() {
-            Ok(result?)
-        } else {
-            Err(status.into())
-        }
+        self.execute(cmd, move |stdout_handle| {
+            serde_json::from_reader::<_, T>(stdout_handle)
+        })?
+        .map_err(BuildError::io)
     }
 
     /// Build the expression and return a path to the build result:
@@ -280,6 +246,7 @@ impl<'a> CallOpts<'a> {
     /// ```rust
     /// extern crate lorri;
     /// use lorri::nix;
+    /// use lorri::error::BuildError;
     /// use std::path::{Path, PathBuf};
     /// # use std::env;
     /// # env::set_var("NIX_PATH", "nixpkgs=./nix/bogus-nixpkgs/");
@@ -290,23 +257,27 @@ impl<'a> CallOpts<'a> {
     ///         .path();
     ///
     /// match paths {
-    ///    Err(nix::OnePathError::TooManyResults) => {},
+    ///    Err(BuildError::Output { .. }) => {},
     ///    otherwise => panic!(otherwise)
     /// }
     /// ```
-    pub fn path(&self) -> Result<(StorePath, GcRootTempDir), OnePathError> {
+    pub fn path(&self) -> Result<(StorePath, GcRootTempDir), BuildError> {
         let (pathsv1, gc_root) = self.paths()?;
         let mut paths = pathsv1.into_vec();
 
         match (paths.pop(), paths.pop()) {
             // Exactly zero
-            (None, _) => Err(BuildError::NoResult.into()),
+            (None, _) => Err(BuildError::output(
+                "expected exactly one build output, got zero".to_string(),
+            )),
 
             // Exactly one
             (Some(path), None) => Ok((path, gc_root)),
 
             // More than one
-            (Some(_), Some(_)) => Err(OnePathError::TooManyResults),
+            (Some(_), Some(_)) => Err(BuildError::output(
+                "expected exactly one build output, got more".to_string(),
+            )),
         }
     }
 
@@ -350,21 +321,18 @@ impl<'a> CallOpts<'a> {
 
         debug!("nix-build"; "command" => ?cmd);
 
-        let (paths, status): (Result<Vec<StorePath>, std::io::Error>, ExitStatus) =
-            self.execute(cmd, move |stdout_handle| {
-                osstrlines::Lines::from(stdout_handle)
-                    .map(|line| line.map(StorePath::from))
-                    .collect::<Result<Vec<StorePath>, _>>()
-            })?;
+        let paths: Vec<StorePath> = self.execute(cmd, move |stdout_handle| {
+            osstrlines::Lines::from(stdout_handle)
+                .map(|line| line.map(StorePath::from))
+                .collect::<Result<Vec<StorePath>, _>>()
+        })??;
 
-        if status.success() {
-            if let Ok(vec1) = Vec1::try_from_vec(paths?) {
-                Ok((vec1, GcRootTempDir(gc_root_dir)))
-            } else {
-                Err(BuildError::NoResult)
-            }
+        if let Ok(vec1) = Vec1::try_from_vec(paths) {
+            Ok((vec1, GcRootTempDir(gc_root_dir)))
         } else {
-            Err(status.into())
+            Err(BuildError::output(
+                "expected exactly one Nix output, got zero".to_string(),
+            ))
         }
     }
 
@@ -375,7 +343,7 @@ impl<'a> CallOpts<'a> {
         &self,
         mut cmd: Command,
         stdout_fn: S,
-    ) -> Result<(T, ExitStatus), ExecuteError>
+    ) -> Result<T, BuildError>
     where
         S: Send + Fn(std::io::BufReader<ChildStdout>) -> T,
         T: Send,
@@ -385,21 +353,19 @@ impl<'a> CallOpts<'a> {
 
         // 0. spawn the process
         let mut nix_proc = cmd.spawn().map_err(|e| match e.kind() {
-            std::io::ErrorKind::NotFound => ExecuteError::NixNotFound,
-            _ => ExecuteError::Io(e),
+            std::io::ErrorKind::NotFound => BuildError::spawn(&cmd, e),
+            _ => BuildError::io(e),
         })?;
 
         // 1. spawn a stderr handling thread
+        let (stderr_tx, stderr_rx) = chan::unbounded();
         let stderr_handle: ChildStderr = nix_proc.stderr.take().expect("failed to take stderr");
-        let stderr_tx = self.stderr_line_tx.clone();
         let stderr_thread = thread::spawn(move || {
             let reader = osstrlines::Lines::from(BufReader::new(stderr_handle));
-            if let Some(tx) = stderr_tx {
-                for line in reader {
-                    tx.send(line.unwrap()).expect("Receiver for nix.rs hung up");
-                }
-            } else {
-                for _line in reader {}
+            for line in reader {
+                stderr_tx
+                    .send(line.unwrap())
+                    .expect("Receiver for nix.rs hung up");
             }
         });
 
@@ -408,7 +374,7 @@ impl<'a> CallOpts<'a> {
         let stdout_thread = thread::spawn(move || stdout_fn(BufReader::new(stdout_handle)));
 
         // 3. wait on the process
-        let nix_proc_result = nix_proc.wait().expect("nix wasn't running");
+        let nix_proc_result = nix_proc.wait()?;
 
         // 4. join the stderr handler
         stderr_thread
@@ -420,7 +386,15 @@ impl<'a> CallOpts<'a> {
             .join()
             .expect("stderr handling thread panicked");
 
-        Ok((data_result, nix_proc_result))
+        if !nix_proc_result.success() {
+            Err(BuildError::exit(
+                &cmd,
+                nix_proc_result,
+                stderr_rx.iter().collect::<Vec<_>>(),
+            ))
+        } else {
+            Ok(data_result)
+        }
     }
 
     /// Fetch common arguments passed to Nix's CLI, specifically
@@ -454,13 +428,6 @@ impl<'a> CallOpts<'a> {
     }
 }
 
-/// Errors returned by the `execute()` helper
-enum ExecuteError {
-    /// one of the nix executables not found
-    NixNotFound,
-    Io(std::io::Error),
-}
-
 /// Possible error conditions encountered when executing Nix evaluation commands.
 #[derive(Debug)]
 pub enum EvaluationError {
@@ -484,15 +451,6 @@ impl From<std::io::Error> for EvaluationError {
     }
 }
 
-impl From<ExecuteError> for EvaluationError {
-    fn from(e: ExecuteError) -> EvaluationError {
-        match e {
-            ExecuteError::NixNotFound => EvaluationError::NixNotFound,
-            ExecuteError::Io(e) => EvaluationError::from(e),
-        }
-    }
-}
-
 impl From<serde_json::Error> for EvaluationError {
     fn from(e: serde_json::Error) -> EvaluationError {
         EvaluationError::Decoding(e)
@@ -509,50 +467,6 @@ impl From<ExitStatus> for EvaluationError {
         }
 
         EvaluationError::ExecutionFailed(status)
-    }
-}
-
-/// Possible error conditions encountered when executing Nix build commands.
-#[derive(Debug)]
-pub enum BuildError {
-    /// A system-level IO error occured while executing Nix.
-    Io(std::io::Error),
-
-    /// Nix commands not on PATH
-    NixNotFound,
-
-    /// Nix execution failed.
-    ExecutionFailed(ExitStatus),
-
-    /// Build produced no paths
-    NoResult,
-}
-
-impl From<std::io::Error> for BuildError {
-    fn from(e: std::io::Error) -> BuildError {
-        BuildError::Io(e)
-    }
-}
-
-impl From<ExecuteError> for BuildError {
-    fn from(e: ExecuteError) -> BuildError {
-        match e {
-            ExecuteError::NixNotFound => BuildError::NixNotFound,
-            ExecuteError::Io(e) => BuildError::from(e),
-        }
-    }
-}
-
-impl From<ExitStatus> for BuildError {
-    fn from(status: ExitStatus) -> BuildError {
-        if status.success() {
-            panic!(
-                "Status is successful, but we're in error handling: {:#?}",
-                status
-            );
-        }
-
-        BuildError::ExecutionFailed(status)
     }
 }
 
@@ -576,8 +490,6 @@ impl From<BuildError> for OnePathError {
 #[cfg(test)]
 mod tests {
     use super::CallOpts;
-    use crossbeam_channel as chan;
-    use std::env;
     use std::ffi::OsStr;
     use std::path::Path;
 
@@ -620,42 +532,5 @@ mod tests {
         .map(OsStr::new)
         .collect();
         assert_eq!(exp2, nix2.command_arguments());
-    }
-
-    #[test]
-    fn build_with_stderr_sender() {
-        env::set_var("NIX_PATH", "nixpkgs=./nix/bogus-nixpkgs/");
-
-        let (tx, rx) = chan::unbounded();
-        let _result = CallOpts::expression(
-            r#"
-                  import <nixpkgs> {}
-        "#,
-        )
-        .attribute("hello-unstable")
-        .set_stderr_sender(tx)
-        .path()
-        .unwrap();
-
-        let messages: Vec<String> = rx
-            .iter()
-            .map(|osstr| osstr.to_string_lossy().into())
-            .collect();
-
-        println!("messages: {:#?}", messages);
-        assert!(
-            messages.contains(&String::from("these derivations will be built:")),
-            "looking for 'these derivations will be built:'"
-        );
-        assert!(
-            messages
-                .iter()
-                .any(|m| m.contains("hello-unstable-1.0.0.drv")),
-            "looking for a line like '  /nix/store/...-hello-unstable-1.0.0.drv'"
-        );
-        assert!(
-            messages.iter().any(|m| m.contains("building '/nix/store")),
-            "looking for a line like 'building \'/nix/store...'"
-        );
     }
 }

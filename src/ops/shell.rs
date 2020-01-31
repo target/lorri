@@ -1,75 +1,161 @@
 //! Open up a project shell
 
 use crate::builder;
-use crate::builder::RunStatus;
+use crate::cas::ContentAddressable;
+use crate::cli::ShellOptions;
 use crate::nix::CallOpts;
 use crate::ops::error::{ExitError, OpResult};
 use crate::project::{roots::Roots, Project};
-use crossbeam_channel as chan;
 use slog_scope::debug;
 use std::io;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 use std::process::Command;
-use std::time::{Duration, Instant};
-use std::{env, fs, thread};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
+use std::time::Instant;
+use std::{env, thread};
 
-/// See the documentation for lorri::cli::Command::Shell for more
-/// details.
-pub fn main(project: Project) -> OpResult {
+/// This is the entry point for the `lorri shell` command.
+///
+/// # Overview
+///
+/// `lorri shell` launches the user's shell with the project environment set up. "The user's shell"
+/// here just means whatever binary $SHELL points to. Concretely we get the following process tree:
+///
+/// `lorri shell`
+/// ├── builds the project environment if --cached is false
+/// ├── writes a bash init script that loads the project environment
+/// ├── SPAWNS bash with the init script as its `--rcfile`
+/// │   └── EXECS `lorri start_user_shell_`
+/// │       ├── (*) performs shell-specific setup for $SHELL
+/// │       └── EXECS into user shell $SHELL
+/// │           └── interactive user shell
+/// └── `lorri shell` terminates
+///
+/// This setup allows lorri to support almost any shell with minimal additional work. Only the step
+/// marked (*) must be adjusted, and only in case we want to customize the shell, e.g. changing the
+/// way the prompt looks.
+pub fn main(project: Project, opts: ShellOptions) -> OpResult {
+    let lorri = env::current_exe().expect("failed to determine lorri executable's path");
     let shell = env::var("SHELL").expect("lorri shell requires $SHELL to be set");
     debug!("using shell path {}", shell);
 
-    let tempdir = tempfile::tempdir().expect("failed to create temporary directory");
-    let mut bash_cmd = bash_cmd(project, tempdir.path())?;
+    let cached = cached_root(&project);
+    let mut bash_cmd = bash_cmd(
+        if opts.cached {
+            cached?
+        } else {
+            build_root(&project, cached.is_ok())?
+        },
+        &project.cas,
+    )?;
     debug!("bash"; "command" => ?bash_cmd);
     bash_cmd
-        .args(&["-c", &format!("exec {}", shell)])
+        .args(&[
+            "-c",
+            "exec \"$1\" start_user_shell_ --shell-path=\"$2\" --shell-file=\"$3\"",
+            "--",
+            &lorri
+                .to_str()
+                .expect("lorri executable path not UTF-8 clean"),
+            &shell,
+            &PathBuf::from(&project.nix_file)
+                .to_str()
+                .expect("Nix file path not UTF-8 clean"),
+        ])
         .status()
         .expect("failed to execute bash");
     Ok(())
 }
 
-/// Instantiates a `Command` to start bash.
-pub fn bash_cmd(project: Project, tempdir: &Path) -> Result<Command, ExitError> {
-    let (tx, rx) = chan::unbounded();
-    thread::spawn(move || {
+fn build_root(project: &Project, cached: bool) -> Result<PathBuf, ExitError> {
+    let building = Arc::new(AtomicBool::new(true));
+    let building_clone = building.clone();
+    let progress_thread = thread::spawn(move || {
+        // Keep track of the start time to display a hint to the user that they can use `--cached`,
+        // but only if a cached version of the environment exists
+        let mut start = if cached { Some(Instant::now()) } else { None };
+
         eprint!("lorri: building environment");
-        let mut last = Instant::now();
-        for msg in rx {
-            // Set the maximum rate of the "progress bar"
-            if last.elapsed() >= Duration::from_millis(500) {
-                eprint!(".");
-                io::stderr().flush().unwrap();
-                last = Instant::now();
+        while building_clone.load(Ordering::SeqCst) {
+            // Show `--cached` hint once after some time has passed
+            if let Some(start_time) = start {
+                if start_time.elapsed() >= Duration::from_millis(10_000) {
+                    eprintln!(
+                        "\nHint: you can use `lorri shell --cached` to use the most recent \
+                         environment that was built successfully."
+                    );
+                    start = None; // Don't show the hint again
+                }
             }
-            debug!("build"; "message" => ?msg);
+            thread::sleep(Duration::from_millis(500));
+
+            // Indicate progress
+            eprint!(".");
+            io::stderr().flush().unwrap();
         }
         eprintln!(". done");
     });
 
-    let run_result = builder::run(tx, &project.nix_file, &project.cas)
-        .map_err(|e| ExitError::temporary(format!("build failed: {:?}", e)))?;
-    let build = match run_result.status {
-        RunStatus::Complete(build) => Roots::from_project(&project)
-            .create_roots(build)
-            .map_err(|e| ExitError::temporary(format!("rooting the environment failed: {:?}", e))),
-        e => Err(ExitError::temporary(format!("build failed: {:?}", e))),
-    }?;
+    let run_result = builder::run(&project.nix_file, &project.cas);
+    building.store(false, Ordering::SeqCst);
+    progress_thread.join().unwrap();
 
-    let init_file = tempdir.join("init");
-    fs::write(
-        &init_file,
-        format!(
+    let run_result = run_result
+        .map_err(|e| {
+            if cached {
+                ExitError::temporary(format!(
+                    "Build failed. Hint: try running `lorri shell --cached` to use the most \
+                     recent environment that was built successfully.\n\
+                     Build error: {}",
+                    e
+                ))
+            } else {
+                ExitError::temporary(format!(
+                    "Build failed. No cached environment available.\n\
+                     Build error: {}",
+                    e
+                ))
+            }
+        })?
+        .result;
+
+    Ok(Path::new(
+        Roots::from_project(&project)
+            .create_roots(run_result)
+            .map_err(|e| ExitError::temporary(format!("rooting the environment failed: {}", e)))?
+            .shell_gc_root
+            .as_os_str(),
+    )
+    .to_owned())
+}
+
+fn cached_root(project: &Project) -> Result<PathBuf, ExitError> {
+    let root_paths = Roots::from_project(&project).paths();
+    if !root_paths.all_exist() {
+        Err(ExitError::temporary(
+            "project has not previously been built successfully",
+        ))
+    } else {
+        Ok(Path::new(root_paths.shell_gc_root.as_os_str()).to_owned())
+    }
+}
+
+/// Instantiates a `Command` to start bash.
+pub fn bash_cmd(project_root: PathBuf, cas: &ContentAddressable) -> Result<Command, ExitError> {
+    let init_file = cas
+        .file_from_string(&format!(
             r#"
 EVALUATION_ROOT="{}"
 
 {}"#,
-            build.shell_gc_root,
+            project_root.display(),
             include_str!("direnv/envrc.bash")
-        ),
-    )
-    .expect("failed to write shell output");
+        ))
+        .expect("failed to write shell output");
 
     debug!("building bash via runtime closure"; "closure" => crate::RUN_TIME_CLOSURE);
     let bash_path = CallOpts::expression(&format!("(import {}).path", crate::RUN_TIME_CLOSURE))
