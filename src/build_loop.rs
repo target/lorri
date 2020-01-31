@@ -2,8 +2,8 @@
 //! evaluate and build a given Nix file.
 
 use crate::builder;
-use crate::builder::RunStatus;
 use crate::daemon::LoopHandlerEvent;
+use crate::error::BuildError;
 use crate::pathreduction::reduce_paths;
 use crate::project::roots;
 use crate::project::roots::Roots;
@@ -43,7 +43,7 @@ pub enum Event {
         /// The shell.nix file for the building project
         nix_file: NixFile,
         /// The error that exited the build
-        failure: BuildExitFailure,
+        failure: BuildError,
     },
 }
 
@@ -117,20 +117,21 @@ impl From<LogLine> for std::ffi::OsString {
 
 #[cfg(test)]
 mod tests {
-    use super::{BuildExitFailure, Event, LogLine};
+    use super::Event;
+    use crate::error::BuildError;
     use crate::NixFile;
     use serde_json;
 
     fn build_failure() -> Event {
         Event::Failure {
             nix_file: NixFile::Shell(std::path::PathBuf::from("/somewhere/shell.nix")),
-            failure: BuildExitFailure {
-                log_lines: vec![
-                    LogLine::from(std::ffi::OsString::from(
-                        "this is a test of the emergency broadcast system",
-                    )),
-                    LogLine::from(std::ffi::OsString::from("you will hear a tone")),
-                    LogLine::from(std::ffi::OsString::from("remember, this is only a test")),
+            failure: BuildError::Exit {
+                cmd: "ebs".to_string(),
+                status: Some(1),
+                logs: vec![
+                    std::ffi::OsString::from("this is a test of the emergency broadcast system"),
+                    std::ffi::OsString::from("you will hear a tone"),
+                    std::ffi::OsString::from("remember, this is only a test"),
                 ],
             },
         }
@@ -148,22 +149,6 @@ mod tests {
         // just don't explode, you know?
         serde_json::from_str::<serde_json::Value>(&serde_json::to_string(&build_failure())?)
             .map(|_| ())
-    }
-
-    #[test]
-    fn logline_bincode_roundtrip() -> Result<(), bincode::Error> {
-        // just don't explode, you know?
-        //let serzd = bincode::serialize(&build_failure()).unwrap();
-        //panic!(format!("serialized as: {:?} {:?}", String::from_utf8(serzd.clone()).unwrap(), serzd));
-
-        match bincode::deserialize(&bincode::serialize(&build_failure())?)? {
-            Event::Failure { failure: f, .. } => {
-                let LogLine(ret) = f.log_lines.get(0).unwrap().clone();
-                assert!(ret.into_string().unwrap().contains("emergency"));
-            }
-            otherwise => panic!(otherwise),
-        }
-        Ok(())
     }
 }
 
@@ -242,15 +227,15 @@ impl<'a> BuildLoop<'a> {
                             .into(),
                         );
                     }
-                    Err(BuildError::Recoverable(failure)) => send(
+                    Err(e) if e.is_actionable() => send(
                         Event::Failure {
                             nix_file: self.project.nix_file.clone(),
-                            failure,
+                            failure: e,
                         }
                         .into(),
                     ),
-                    Err(BuildError::Unrecoverable(err)) => {
-                        panic!("Unrecoverable error:\n{:#?}", err);
+                    Err(e) => {
+                        panic!("Unrecoverable error:\n{:#?}", e);
                     }
                 }
                 reason = None;
@@ -281,23 +266,9 @@ impl<'a> BuildLoop<'a> {
     /// This will create GC roots and expand the file watch list for
     /// the evaluation.
     pub fn once(&mut self) -> Result<BuildResults, BuildError> {
-        let (tx, rx) = chan::unbounded();
-        debug!("BuildLoop running"; "nix_file" => self.project.nix_file.clone());
-        let run_result = builder::run(tx, &self.project.nix_file, &self.project.cas)?;
-
+        let run_result = builder::run(&self.project.nix_file, &self.project.cas)?;
         self.register_paths(&run_result.referenced_paths)?;
-
-        let lines = rx.iter().map(LogLine::from).collect();
-
-        match run_result.status {
-            RunStatus::FailedAtInstantiation => Err(BuildError::Recoverable(BuildExitFailure {
-                log_lines: lines,
-            })),
-            RunStatus::FailedAtRealize => Err(BuildError::Recoverable(BuildExitFailure {
-                log_lines: lines,
-            })),
-            RunStatus::Complete(path) => self.root_result(path),
-        }
+        self.root_result(run_result.result)
     }
 
     fn register_paths(&mut self, paths: &[PathBuf]) -> Result<(), notify::Error> {
@@ -315,7 +286,7 @@ impl<'a> BuildLoop<'a> {
         let roots = Roots::from_project(&self.project);
 
         Ok(BuildResults {
-            output_paths: roots.create_roots(build)?,
+            output_paths: roots.create_roots(build).map_err(BuildError::io)?,
         })
     }
 }

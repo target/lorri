@@ -37,7 +37,11 @@ type Outcome (
 )
 
 type Failure (
-    log: []string
+    kind: (io, spawn, exit, output),
+    msg: ?string,
+    cmd: ?string,
+    status: ?int,
+    logs: ?[]string
 )
 
 # WatchServices establishes a stream with the daemon. Initially, the daemon

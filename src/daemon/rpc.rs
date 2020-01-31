@@ -3,6 +3,7 @@
 use super::IndicateActivity;
 use super::LoopHandlerEvent;
 use crate::build_loop::Event;
+use crate::error;
 use crate::ops::error::ExitError;
 use crate::rpc;
 use crate::socket::{BindLock, SocketPath};
@@ -185,7 +186,7 @@ impl TryFrom<rpc::Event> for Event {
             },
             failure => Event::Failure {
                 nix_file: re.nix_file.ok_or("missing nix file!")?.try_into()?,
-                failure: re.failure.ok_or("missing failure log")?.into(),
+                failure: re.failure.ok_or("missing failure log")?.try_into()?,
             },
         })
     }
@@ -288,31 +289,85 @@ impl From<rpc::Outcome> for build_loop::BuildResults {
     }
 }
 
-impl TryFrom<&build_loop::BuildExitFailure> for rpc::Failure {
+impl TryFrom<&error::BuildError> for rpc::Failure {
     type Error = &'static str;
-    fn try_from(bef: &build_loop::BuildExitFailure) -> Result<Self, Self::Error> {
-        Ok(rpc::Failure {
-            log: bef
-                .log_lines
-                .clone()
-                .into_iter()
-                .map(|l| {
-                    let os: std::ffi::OsString = l.into();
-                    Ok(os
-                        .to_str()
-                        .ok_or("cannot convert log line into string")?
-                        .to_string())
-                })
-                .collect::<Result<Vec<String>, &'static str>>()?,
+
+    fn try_from(bef: &error::BuildError) -> Result<Self, Self::Error> {
+        use error::BuildError;
+        use rpc::Failure_kind::*;
+
+        Ok(match bef {
+            BuildError::Io{msg} => rpc::Failure {
+                kind: io,
+                msg: Some(msg.into()),
+                cmd: None,
+                logs: None,
+                status: None
+            },
+            BuildError::Spawn{cmd, msg} => rpc::Failure {
+                kind: spawn,
+                cmd: Some(cmd.into()),
+                msg: Some(msg.into()),
+                logs: None,
+                status: None
+            },
+            BuildError::Exit{cmd,status,logs} => rpc::Failure {
+                kind: exit,
+                cmd: Some(cmd.into()),
+                logs: Some(logs
+                           .iter()
+                           .map(|line|
+                                line
+                                .to_str()
+                                .ok_or("Unicode unsafe log line")
+                                .map(|l| l.to_string())
+                                )
+                           .collect::<Result<_,_>>()?),
+                msg: None,
+                status: status.map(|c| c as i64)
+            },
+            BuildError::Output{msg} => rpc::Failure {
+                kind: output,
+                msg: Some(msg.into()),
+                cmd: None,
+                logs: None,
+                status: None
+            }
         })
     }
 }
 
-impl From<rpc::Failure> for build_loop::BuildExitFailure {
-    fn from(rf: rpc::Failure) -> Self {
-        use std::ffi::OsString;
+impl TryFrom<rpc::Failure> for error::BuildError {
+    type Error = &'static str;
 
-        build_loop::BuildExitFailure {
+    fn try_from(rf: rpc::Failure) -> Result<Self, Self::Error> {
+        use rpc::Failure_kind::*;
+        use error::BuildError;
+
+        Ok(match rf.kind {
+            io => BuildError::Io {
+                msg: rf.msg.ok_or("io failure without msg!")?
+            },
+            spawn => BuildError::Spawn {
+                cmd: rf.cmd.ok_or("spawn error missing cmd!")?,
+                msg: rf.msg.ok_or("spawn failure without msg!")?
+            },
+            exit => BuildError::Exit {
+                cmd: rf.cmd.ok_or("exit error missing cmd!")?,
+                logs: rf
+                    .logs
+                    .ok_or("exit error missing logs!")?
+                    .into_iter()
+                    .map(|l|l.into() )
+                    .collect(),
+                status: rf.status.map(|c| c as i32)
+            },
+            output => BuildError::Output {
+                msg: rf.msg.ok_or("output failure without msg!")?
+            }
+        })
+        /*
+        error::BuildError {
             log_lines: rf
                 .log
                 .into_iter()
@@ -322,6 +377,7 @@ impl From<rpc::Failure> for build_loop::BuildExitFailure {
                 })
                 .collect(),
         }
+        */
     }
 }
 

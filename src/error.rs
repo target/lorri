@@ -6,7 +6,8 @@ use std::io::Error as IoError;
 use std::process::{Command, ExitStatus};
 
 /// An error that can occur during a build.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum BuildError {
     /// A system-level IO error occurred during the build.
     Io {
@@ -36,9 +37,10 @@ pub enum BuildError {
 
         /// The `ExitStatus` of the command. The smart constructor `BuildError::exit` asserts that
         /// it is non-successful.
-        status: ExitStatus,
+        status: Option<i32>,
 
         /// Error logs of the failed process.
+        #[serde(serialize_with = "serialize_logs")]
         logs: Vec<OsString>,
     },
 
@@ -49,6 +51,26 @@ pub enum BuildError {
         /// Error message explaining the nature of the output error.
         msg: String,
     },
+}
+
+use serde::ser::Serializer;
+
+fn serialize_logs<S>(logs: &Vec<OsString>, ser: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    use serde::ser::{self, SerializeSeq};
+
+    let mut seq = ser.serialize_seq(Some(logs.len()))?;
+    for line in logs {
+        seq.serialize_element(
+            &line
+                .to_str()
+                .ok_or(ser::Error::custom("Unicode unsafe log line"))
+                .map(|l| l.to_string())?,
+        )?;
+    }
+    seq.end()
 }
 
 impl From<IoError> for BuildError {
@@ -85,9 +107,7 @@ impl fmt::Display for BuildError {
                 "Nix process returned exit code {}.\n\
                  $ {}\n\
                  {}",
-                status
-                    .code()
-                    .map_or("<unknown>".to_string(), |c| i32::to_string(&c)),
+                status.map_or("<unknown>".to_string(), |c| i32::to_string(&c)),
                 cmd,
                 logs.iter()
                     .map(|l| l.to_string_lossy())
@@ -129,7 +149,7 @@ impl BuildError {
         );
         BuildError::Exit {
             cmd: format!("{:?}", cmd),
-            status,
+            status: status.code(),
             logs,
         }
     }
