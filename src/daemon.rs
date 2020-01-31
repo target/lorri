@@ -65,14 +65,12 @@ impl Daemon {
     /// receives `build_loop::Event`s for all builders this daemon
     /// supervises.
     pub fn new() -> (Daemon, chan::Receiver<LoopHandlerEvent>) {
-        let (tx, rx) = chan::unbounded();
+        let (build_events_tx, build_events_rx) = chan::unbounded();
         let (mon_tx, mon_rx) = chan::unbounded();
         (
             Daemon {
                 handler_threads: HashMap::new(),
-                build_events_tx: tx,
-                build_events_rx: rx.clone(),
-                mon_tx,
+                build_events_tx, build_events_rx, mon_tx,
             },
             mon_rx,
         )

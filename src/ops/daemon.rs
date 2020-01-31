@@ -8,9 +8,9 @@ use slog_scope::info;
 
 /// See the documentation for lorri::cli::Command::Daemon for details.
 pub fn main() -> OpResult {
-    let (daemon, build_events_rx) = Daemon::new();
+    let (daemon, build_rx) = Daemon::new();
     let build_handle = std::thread::spawn(|| {
-        for msg in build_events_rx {
+        for msg in build_rx {
             info!("build status"; "message" => ?msg);
         }
     });

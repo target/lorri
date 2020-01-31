@@ -56,7 +56,10 @@ pub enum Command {
     Ping_(Ping_),
 
     /// (plumbing) Ask the lorri daemon to report build events as they occur
-    #[structopt(name = "stream_events_")]
+    #[structopt(
+        name = "internal__stream_events",
+        raw(setting = "structopt::clap::AppSettings::Hidden")
+    )]
     StreamEvents_(StreamEvents_),
 
     /// Upgrade Lorri
@@ -137,7 +140,7 @@ pub struct Ping_ {
 pub struct StreamEvents_ {
     #[structopt(long, default_value = "all")]
     /// The kind of events to report
-    pub kind: EventKind,
+    pub kind: crate::ops::stream_events::EventKind,
 }
 
 /// A stub struct to represent how what we want to upgrade to.
