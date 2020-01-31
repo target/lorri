@@ -153,6 +153,21 @@ times.
 
 [Webchat]: https://kiwiirc.com/nextclient/#irc://irc.freenode.net:+6697/#lorri
 
+### Why is lorri not on [crates.io][]?
+
+Command line tools written in Rust are commonly available as Rust crates on
+[crates.io][]. lorri is not distributed in this way, for good reasons.
+
+lorri can only be built within a Nix environment, and it can only be installed
+via Nix. This is because lorri specifies its runtime dependencies as a Nix
+closure, and because Nix is itself a runtime dependency of lorri.
+
+In addition to these technical reasons, there is simply no point in running
+lorri if you don't have Nix installed. And if you have Nix installed, then
+you're best off installing lorri via Nix.
+
+[crates.io]: https://crates.io
+
 ## How To Help
 
 All development on lorri happens on the Github repository, in the
