@@ -27,8 +27,13 @@ fn main_run_once(project: Project) -> OpResult {
             print_build_message(msg);
             ok()
         }
-        Err(e) if e.is_actionable() => Err(ExitError::expected_error(format!("{:#?}", e))),
-        Err(e) => Err(ExitError::temporary(format!("{:?}", e))),
+        Err(e) => {
+            if e.is_actionable() {
+                Err(ExitError::expected_error(format!("{:#?}", e)))
+            } else {
+                Err(ExitError::temporary(format!("{:?}", e)))
+            }
+        }
     }
 }
 

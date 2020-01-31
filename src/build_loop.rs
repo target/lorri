@@ -95,9 +95,12 @@ impl<'a> BuildLoop<'a> {
                         output_paths = Some(result.output_paths.clone());
                         send(Event::Completed(result));
                     }
-                    Err(e) if e.is_actionable() => send(Event::Failure(e)),
                     Err(e) => {
-                        panic!("Unrecoverable error:\n{}", e);
+                        if e.is_actionable() {
+                            send(Event::Failure(e))
+                        } else {
+                            panic!("Unrecoverable error:\n{}", e)
+                        }
                     }
                 }
                 reason = None;
