@@ -18,26 +18,29 @@ pub struct Arguments {
 }
 
 #[derive(StructOpt, Debug)]
-/// Sub-commands which Lorri can execute
+/// Sub-commands which lorri can execute
 pub enum Command {
-    /// Emit shell script intended to be evaluated as part of
-    /// direnv's .envrc, via: `eval "$(lorri direnv)"`
+    /// Emit shell script intended to be evaluated as part of direnv's .envrc, via: `eval "$(lorri
+    /// direnv)"`
     #[structopt(name = "direnv")]
     Direnv(DirenvOptions),
 
-    /// Show information about the current Lorri project
-    #[structopt(name = "info", alias = "information")]
+    /// Show information about a lorri project
+    #[structopt(name = "info")]
     Info(InfoOptions),
 
-    /// Open a new shell
+    /// Open a new project shell
     #[structopt(name = "shell")]
     Shell(ShellOptions),
 
-    /// (plumbing) Internal command used to launch user shell
-    #[structopt(name = "start_user_shell_")]
+    /// (internal) Used internally by `lorri shell`
+    #[structopt(
+        name = "internal__start_user_shell",
+        raw(setting = "structopt::clap::AppSettings::Hidden")
+    )]
     StartUserShell_(StartUserShellOptions_),
 
-    /// Build `shell.nix` whenever an input file changes
+    /// Build project whenever an input file changes
     #[structopt(name = "watch")]
     Watch(WatchOptions),
 
@@ -45,15 +48,18 @@ pub enum Command {
     #[structopt(name = "daemon")]
     Daemon,
 
-    /// (plumbing) Tell the lorri daemon to care about the current directory's project
-    #[structopt(name = "ping_")]
+    /// (internal) Tell the lorri daemon to care about the current directory's project
+    #[structopt(
+        name = "internal__ping",
+        raw(setting = "structopt::clap::AppSettings::Hidden")
+    )]
     Ping_(Ping_),
 
-    /// Upgrade Lorri
-    #[structopt(name = "self-upgrade", alias = "self-update")]
+    /// Upgrade lorri
+    #[structopt(name = "self-upgrade")]
     Upgrade(UpgradeTo),
 
-    /// Bootstrap files for a new setup
+    /// Write bootstrap files to current directory to create a new lorri project
     #[structopt(name = "init")]
     Init,
 }
@@ -88,7 +94,7 @@ pub struct ShellOptions {
     pub cached: bool,
 }
 
-/// Options for the `start_user_shell_` subcommand.
+/// Options for the `internal__start_user_shell` subcommand.
 #[derive(StructOpt, Debug)]
 pub struct StartUserShellOptions_ {
     /// The path of the parent shell's binary
@@ -126,7 +132,7 @@ pub struct Ping_ {
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
 pub struct UpgradeTo {
-    /// the path to a local check out of Lorri.
+    /// the path to a local check out of lorri.
     #[structopt(subcommand)]
     pub source: Option<UpgradeSource>,
 }
@@ -150,10 +156,10 @@ pub enum UpgradeSource {
     Local(LocalDest),
 }
 
-/// Install an arbitrary version of Lorri from a local directory.
+/// Install an arbitrary version of lorri from a local directory.
 #[derive(StructOpt, Debug)]
 pub struct LocalDest {
-    /// the path to a local check out of Lorri.
+    /// the path to a local check out of lorri.
     #[structopt(parse(from_os_str))]
     pub path: PathBuf,
 }
