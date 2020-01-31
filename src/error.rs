@@ -40,8 +40,7 @@ pub enum BuildError {
         status: Option<i32>,
 
         /// Error logs of the failed process.
-        #[serde(serialize_with = "serialize_logs")]
-        logs: Vec<OsString>,
+        logs: Vec<LogLine>,
     },
 
     /// There was something wrong with the output of the Nix command.
@@ -53,24 +52,103 @@ pub enum BuildError {
     },
 }
 
-use serde::ser::Serializer;
+use serde::{
+    de::{self, Visitor},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 
-fn serialize_logs<S>(logs: &Vec<OsString>, ser: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    use serde::ser::{self, SerializeSeq};
+/// A line from stderr log output
+#[derive(Debug, Clone)]
+pub struct LogLine(OsString);
 
-    let mut seq = ser.serialize_seq(Some(logs.len()))?;
-    for line in logs {
-        seq.serialize_element(
-            &line
-                .to_str()
-                .ok_or(ser::Error::custom("Unicode unsafe log line"))
-                .map(|l| l.to_string())?,
-        )?;
+impl Serialize for LogLine {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let LogLine(oss) = self;
+        serializer.serialize_str(&*oss.to_string_lossy())
     }
-    seq.end()
+}
+
+impl<'de> Deserialize<'de> for LogLine {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct LLVisitor;
+
+        impl<'de> Visitor<'de> for LLVisitor {
+            type Value = LogLine;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<LogLine, E>
+            where
+                E: de::Error,
+            {
+                Ok(LogLine(OsString::from(value)))
+            }
+        }
+
+        deserializer.deserialize_str(LLVisitor)
+    }
+}
+
+impl From<OsString> for LogLine {
+    fn from(oss: OsString) -> Self {
+        LogLine(oss)
+    }
+}
+
+impl From<String> for LogLine {
+    fn from(s: String) -> Self {
+        LogLine(s.into())
+    }
+}
+
+impl From<LogLine> for OsString {
+    fn from(ll: LogLine) -> Self {
+        ll.0
+    }
+}
+
+impl fmt::Display for LogLine {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", OsString::from(self.clone()).to_string_lossy())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json;
+
+    fn build_exit() -> BuildError {
+        BuildError::Exit {
+            cmd: "ebs".to_string(),
+            status: Some(1),
+            logs: vec![
+                OsString::from("this is a test of the emergency broadcast system").into(),
+                OsString::from("you will hear a tone").into(),
+                OsString::from("remember, this is only a test").into(),
+            ],
+        }
+    }
+
+    #[test]
+    fn logline_json_readable() -> Result<(), serde_json::Error> {
+        assert!(serde_json::to_string(&build_exit())?.contains("emergency"));
+        Ok(())
+    }
+
+    #[test]
+    fn logline_json_roundtrip() -> Result<(), serde_json::Error> {
+        serde_json::from_str::<serde_json::Value>(&serde_json::to_string(&build_exit())?)
+            .map(|_| ())
+    }
 }
 
 impl From<IoError> for BuildError {
@@ -110,7 +188,7 @@ impl fmt::Display for BuildError {
                 status.map_or("<unknown>".to_string(), |c| i32::to_string(&c)),
                 cmd,
                 logs.iter()
-                    .map(|l| l.to_string_lossy())
+                    .map(|l| l.to_string())
                     .collect::<Vec<_>>()
                     .join("\n")
             ),
@@ -150,7 +228,7 @@ impl BuildError {
         BuildError::Exit {
             cmd: format!("{:?}", cmd),
             status: status.code(),
-            logs,
+            logs: logs.iter().map(|l| LogLine::from(l.clone())).collect(),
         }
     }
 

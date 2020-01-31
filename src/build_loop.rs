@@ -11,10 +11,6 @@ use crate::project::Project;
 use crate::watch::{DebugMessage, EventError, Reason, Watch};
 use crate::NixFile;
 use crossbeam_channel as chan;
-use serde::{
-    de::{self, Visitor},
-    Deserialize, Deserializer, Serialize, Serializer,
-};
 use slog_scope::{debug, warn};
 use std::path::PathBuf;
 
@@ -52,104 +48,6 @@ pub enum Event {
 pub struct BuildResults {
     /// See `build::Info.outputPaths
     pub output_paths: builder::OutputPaths<roots::RootPath>,
-}
-
-/// Results of a single, failing build.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BuildExitFailure {
-    /// stderr log output
-    pub log_lines: Vec<LogLine>,
-}
-
-/// A line from stderr log output
-#[derive(Debug, Clone)]
-pub struct LogLine(std::ffi::OsString);
-
-impl Serialize for LogLine {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let LogLine(oss) = self;
-        serializer.serialize_str(&*oss.to_string_lossy())
-    }
-}
-
-impl<'de> Deserialize<'de> for LogLine {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        use std::fmt;
-
-        struct LLVisitor;
-
-        impl<'de> Visitor<'de> for LLVisitor {
-            type Value = LogLine;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a string")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<LogLine, E>
-            where
-                E: de::Error,
-            {
-                Ok(LogLine(std::ffi::OsString::from(value)))
-            }
-        }
-
-        deserializer.deserialize_str(LLVisitor)
-    }
-}
-
-impl From<std::ffi::OsString> for LogLine {
-    fn from(oss: std::ffi::OsString) -> Self {
-        LogLine(oss)
-    }
-}
-
-impl From<LogLine> for std::ffi::OsString {
-    fn from(ll: LogLine) -> Self {
-        ll.0
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::Event;
-    use crate::error::BuildError;
-    use crate::NixFile;
-    use serde_json;
-
-    fn build_failure() -> Event {
-        Event::Failure {
-            nix_file: NixFile::Shell(std::path::PathBuf::from("/somewhere/shell.nix")),
-            failure: BuildError::Exit {
-                cmd: "ebs".to_string(),
-                status: Some(1),
-                logs: vec![
-                    std::ffi::OsString::from("this is a test of the emergency broadcast system"),
-                    std::ffi::OsString::from("you will hear a tone"),
-                    std::ffi::OsString::from("remember, this is only a test"),
-                ],
-            },
-        }
-    }
-
-    #[test]
-    fn logline_json_readable() -> Result<(), serde_json::Error> {
-        // just don't explode, you know?
-        assert!(serde_json::to_string(&build_failure())?.contains("emergency"));
-        Ok(())
-    }
-
-    #[test]
-    fn logline_json_roundtrip() -> Result<(), serde_json::Error> {
-        // just don't explode, you know?
-        serde_json::from_str::<serde_json::Value>(&serde_json::to_string(&build_failure())?)
-            .map(|_| ())
-    }
 }
 
 /// The BuildLoop repeatedly builds the Nix expression in

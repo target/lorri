@@ -3,7 +3,9 @@ use lorri::constants;
 use lorri::locate_file;
 use lorri::logging;
 use lorri::ops::error::{ExitError, OpResult};
-use lorri::ops::{daemon, direnv, info, init, ping, start_user_shell, shell, stream_events, upgrade, watch};
+use lorri::ops::{
+    daemon, direnv, info, init, ping, shell, start_user_shell, stream_events, upgrade, watch,
+};
 use lorri::project::Project;
 use lorri::NixFile;
 use slog::{debug, error, o};

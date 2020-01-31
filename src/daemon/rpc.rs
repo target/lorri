@@ -297,42 +297,34 @@ impl TryFrom<&error::BuildError> for rpc::Failure {
         use rpc::Failure_kind::*;
 
         Ok(match bef {
-            BuildError::Io{msg} => rpc::Failure {
+            BuildError::Io { msg } => rpc::Failure {
                 kind: io,
                 msg: Some(msg.into()),
                 cmd: None,
                 logs: None,
-                status: None
+                status: None,
             },
-            BuildError::Spawn{cmd, msg} => rpc::Failure {
+            BuildError::Spawn { cmd, msg } => rpc::Failure {
                 kind: spawn,
                 cmd: Some(cmd.into()),
                 msg: Some(msg.into()),
                 logs: None,
-                status: None
+                status: None,
             },
-            BuildError::Exit{cmd,status,logs} => rpc::Failure {
+            BuildError::Exit { cmd, status, logs } => rpc::Failure {
                 kind: exit,
                 cmd: Some(cmd.into()),
-                logs: Some(logs
-                           .iter()
-                           .map(|line|
-                                line
-                                .to_str()
-                                .ok_or("Unicode unsafe log line")
-                                .map(|l| l.to_string())
-                                )
-                           .collect::<Result<_,_>>()?),
+                logs: Some(logs.iter().map(|line| line.to_string()).collect()),
                 msg: None,
-                status: status.map(|c| c as i64)
+                status: status.map(|c| c as i64),
             },
-            BuildError::Output{msg} => rpc::Failure {
+            BuildError::Output { msg } => rpc::Failure {
                 kind: output,
                 msg: Some(msg.into()),
                 cmd: None,
                 logs: None,
-                status: None
-            }
+                status: None,
+            },
         })
     }
 }
@@ -341,16 +333,16 @@ impl TryFrom<rpc::Failure> for error::BuildError {
     type Error = &'static str;
 
     fn try_from(rf: rpc::Failure) -> Result<Self, Self::Error> {
-        use rpc::Failure_kind::*;
         use error::BuildError;
+        use rpc::Failure_kind::*;
 
         Ok(match rf.kind {
             io => BuildError::Io {
-                msg: rf.msg.ok_or("io failure without msg!")?
+                msg: rf.msg.ok_or("io failure without msg!")?,
             },
             spawn => BuildError::Spawn {
                 cmd: rf.cmd.ok_or("spawn error missing cmd!")?,
-                msg: rf.msg.ok_or("spawn failure without msg!")?
+                msg: rf.msg.ok_or("spawn failure without msg!")?,
             },
             exit => BuildError::Exit {
                 cmd: rf.cmd.ok_or("exit error missing cmd!")?,
@@ -358,13 +350,13 @@ impl TryFrom<rpc::Failure> for error::BuildError {
                     .logs
                     .ok_or("exit error missing logs!")?
                     .into_iter()
-                    .map(|l|l.into() )
+                    .map(|l| l.into())
                     .collect(),
-                status: rf.status.map(|c| c as i32)
+                status: rf.status.map(|c| c as i32),
             },
             output => BuildError::Output {
-                msg: rf.msg.ok_or("output failure without msg!")?
-            }
+                msg: rf.msg.ok_or("output failure without msg!")?,
+            },
         })
         /*
         error::BuildError {
