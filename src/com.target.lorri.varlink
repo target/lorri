@@ -18,7 +18,7 @@ type ShellNix (
 method Monitor() -> (event: Event)
 
 type Event (
-    kind: (sectionend, started, completed, failure),
+    kind: (section_end, started, completed, failure),
     nix_file: ?ShellNix, # not in sectionend
     reason: ?Reason,     # only if started
     result: ?Outcome,     # only if completed
@@ -26,7 +26,7 @@ type Event (
 )
 
 type Reason (
-    kind: (projectadded, pingreceived, fileschanged, unknown),
+    kind: (project_added, ping_received, files_changed, unknown),
     project: ?ShellNix,
     files: ?[]string,
     debug: ?string

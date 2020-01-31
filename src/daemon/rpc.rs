@@ -113,7 +113,7 @@ impl TryFrom<&Event> for rpc::Event {
         use rpc::Event_kind as kind;
         Ok(match ev {
             Event::SectionEnd => rpc::Event {
-                kind: kind::sectionend,
+                kind: kind::section_end,
                 nix_file: None,
                 reason: None,
                 result: None,
@@ -167,7 +167,7 @@ impl TryFrom<rpc::Event> for Event {
         use rpc::Event_kind::*;
 
         Ok(match re.kind {
-            sectionend => Event::SectionEnd,
+            section_end => Event::SectionEnd,
             started => Event::Started {
                 nix_file: re.nix_file.ok_or("missing nix file!")?.try_into()?,
                 reason: re.reason.ok_or("missing reason!")?.try_into()?,
@@ -193,19 +193,19 @@ impl TryFrom<&watch::Reason> for rpc::Reason {
 
         Ok(match wr {
             Reason::PingReceived => rpc::Reason {
-                kind: pingreceived,
+                kind: ping_received,
                 project: None,
                 files: None,
                 debug: None,
             },
             Reason::ProjectAdded(project) => rpc::Reason {
-                kind: projectadded,
+                kind: project_added,
                 project: Some(rpc::ShellNix::try_from(project)?),
                 files: None,
                 debug: None,
             },
             Reason::FilesChanged(changed) => rpc::Reason {
-                kind: fileschanged,
+                kind: files_changed,
                 project: None,
                 files: Some(
                     changed
@@ -216,7 +216,7 @@ impl TryFrom<&watch::Reason> for rpc::Reason {
                 debug: None,
             },
             Reason::UnknownEvent(dbg) => rpc::Reason {
-                kind: pingreceived,
+                kind: unknown,
                 project: None,
                 files: None,
                 debug: Some(dbg.into()),
@@ -233,11 +233,11 @@ impl TryFrom<rpc::Reason> for watch::Reason {
         use watch::Reason;
 
         Ok(match rr.kind {
-            pingreceived => Reason::PingReceived,
-            projectadded => {
+            ping_received => Reason::PingReceived,
+            project_added => {
                 Reason::ProjectAdded(rr.project.ok_or("missing nix file!")?.try_into()?)
             }
-            fileschanged => Reason::FilesChanged(
+            files_changed => Reason::FilesChanged(
                 rr.files
                     .ok_or("missing files!")?
                     .into_iter()
