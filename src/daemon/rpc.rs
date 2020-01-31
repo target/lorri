@@ -83,7 +83,6 @@ impl rpc::VarlinkInterface for Server {
     }
 
     fn monitor(&self, call: &mut dyn rpc::Call_Monitor) -> varlink::Result<()> {
-        debug!("starting monitor worker loop");
         if !call.wants_more() {
             return call.reply_invalid_parameter("wants_more".into());
         }
@@ -95,19 +94,16 @@ impl rpc::VarlinkInterface for Server {
 
         call.set_continues(true);
         for event in rx {
-            debug!("event for varlink"; "event" => format!("{:#?}", &event));
+            debug!("event for varlink"; "event" => ?&event);
             match event.try_into() {
                 Ok(ev) => {
-                    debug!("translated"; "varlink event" => format!("{:#?}", &ev));
                     call.reply(ev)
                 }
                 Err(e) => {
-                    debug!("receiving event"; "error" => format!("{:#?}", &e));
                     call.reply_invalid_parameter(e.to_string())
                 }
             }?;
         }
-        debug!("worker loop done for monitor");
         Ok(())
     }
 }
@@ -358,18 +354,6 @@ impl TryFrom<rpc::Failure> for error::BuildError {
                 msg: rf.msg.ok_or("output failure without msg!")?,
             },
         })
-        /*
-        error::BuildError {
-            log_lines: rf
-                .log
-                .into_iter()
-                .map(|l| {
-                    let oss: OsString = l.into();
-                    build_loop::LogLine::from(oss)
-                })
-                .collect(),
-        }
-        */
     }
 }
 

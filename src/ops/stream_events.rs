@@ -45,8 +45,6 @@ enum Error {
 /// See the documentation for lorri::cli::Command::Shell for more
 /// details.
 pub fn main(kind: EventKind) -> OpResult {
-    // TODO: set up socket path, make it settable by the user
-    debug!("Starting stream_events");
     let address = get_paths()?.daemon_socket_address();
 
     use rpc::VarlinkClientInterface;
@@ -73,9 +71,10 @@ pub fn main(kind: EventKind) -> OpResult {
         debug!("Received"; "event" => format!("{:#?}", &event));
         match event
             .map_err(Error::Varlink)
-            .and_then(|e| e.try_into().map_err(Error::Compat))
+            .and_then(|ev| ev.try_into().map_err(Error::Compat))
+            .map_err(|err| ExitError::temporary(format!("{:?}", err)))?
         {
-            Ok(Event::SectionEnd) => {
+            Event::SectionEnd => {
                 debug!("SectionEnd");
                 if let EventKind::Snapshot = kind {
                     return ok();
@@ -83,7 +82,7 @@ pub fn main(kind: EventKind) -> OpResult {
                     snapshot_done = true
                 }
             }
-            Ok(ev) => match (snapshot_done, &kind) {
+            ev => match (snapshot_done, &kind) {
                 (_, EventKind::All) | (false, EventKind::Snapshot) | (true, EventKind::Live) => {
                     println!(
                         "{}",
@@ -91,8 +90,7 @@ pub fn main(kind: EventKind) -> OpResult {
                     )
                 }
                 _ => (),
-            },
-            Err(err) => return Err(ExitError::temporary(format!("{:?}", err))),
+            }
         }
     }
 

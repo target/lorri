@@ -130,7 +130,7 @@ pub struct Ping_ {
 /// Stream events from the daemon.
 #[derive(StructOpt, Debug)]
 pub struct StreamEvents_ {
-    #[structopt(short, long, default_value = "all")]
+    #[structopt(long, default_value = "all")]
     /// The kind of events to report
     pub kind: EventKind,
 }

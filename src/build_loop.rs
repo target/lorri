@@ -79,7 +79,6 @@ impl<'a> BuildLoop<'a> {
     #[allow(clippy::drop_copy, clippy::zero_ptr)] // triggered by `select!`
     pub fn forever(&mut self, tx: chan::Sender<LoopHandlerEvent>, rx_ping: chan::Receiver<()>) {
         let send = |msg| {
-            debug!("BuildLoop sending"; "message" => format!("{:#?}", msg));
             tx.send(msg).expect("Failed to send an event")
         };
         let translate_reason = |rsn| match rsn {
@@ -124,16 +123,20 @@ impl<'a> BuildLoop<'a> {
                             }
                             .into(),
                         );
-                    }
-                    Err(e) if e.is_actionable() => send(
-                        Event::Failure {
-                            nix_file: self.project.nix_file.clone(),
-                            failure: e,
-                        }
-                        .into(),
-                    ),
+                    },
                     Err(e) => {
-                        panic!("Unrecoverable error:\n{:#?}", e);
+                        if e.is_actionable() {
+                            send(
+                                Event::Failure {
+                                    nix_file: self.project.nix_file.clone(),
+                                    failure: e,
+                                }
+                                .into())
+                        }
+                        else
+                        {
+                            panic!("Unrecoverable error:\n{:#?}", e);
+                        }
                     }
                 }
                 reason = None;

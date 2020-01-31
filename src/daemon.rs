@@ -101,7 +101,6 @@ impl Daemon {
             let mut event_listeners: Vec<chan::Sender<Event>> = Vec::new();
 
             for msg in build_events_rx {
-                debug!("Build loop message"; "message" => ?msg);
                 mon_tx
                     .send(msg.clone())
                     .expect("listener still to be there");
@@ -114,7 +113,7 @@ impl Daemon {
                             project_states.insert(nix_file.clone(), ev.clone());
                             event_listeners.retain(|tx| {
                                 let keep = tx.send(ev.clone()).is_ok();
-                                debug!("Sending"; "event" => format!("{:#?}", ev), "keep" => keep);
+                                debug!("Sent"; "event" => ?ev, "keep" => keep);
                                 keep
                             })
                         }
@@ -123,7 +122,7 @@ impl Daemon {
                         debug!("adding listener");
                         let keep = project_states.values().all(|event| {
                             let keeping = tx.send(event.clone()).is_ok();
-                            debug!("Sending snapshot"; "event" => format!("{:#?}", &event), "ok" => keeping);
+                            debug!("Sent snapshot"; "event" => ?&event, "keep" => keeping);
                             keeping
                         });
                         debug!("Finished snapshot"; "keep" => keep);
@@ -132,7 +131,7 @@ impl Daemon {
                         }
                         event_listeners.retain(|tx| {
                             let keep = tx.send(Event::SectionEnd).is_ok();
-                            debug!("Sending new listener sectionend"; "keep" => keep);
+                            debug!("Sent new listener sectionend"; "keep" => keep);
                             keep
                         })
                     }
