@@ -1,6 +1,6 @@
 //! The lorri daemon, watches multiple projects in the background.
 
-use crate::build_loop::BuildLoop;
+use crate::build_loop::{BuildLoop, Event};
 use crate::ops::error::ExitError;
 use crate::project::Project;
 use crate::socket::SocketPath;
