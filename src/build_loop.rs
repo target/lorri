@@ -15,7 +15,8 @@ use slog_scope::{debug, warn};
 use std::path::PathBuf;
 
 /// Builder events sent back over `BuildLoop.tx`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Event {
     /// Demarks a stream of events from recent history becoming live
     SectionEnd,
@@ -43,7 +44,7 @@ pub enum Event {
 }
 
 /// Results of a single, successful build.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BuildResults {
     /// See `build::Info.outputPaths
     pub output_paths: builder::OutputPaths<roots::RootPath>,

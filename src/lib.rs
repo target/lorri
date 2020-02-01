@@ -47,6 +47,7 @@ include!(concat!(env!("OUT_DIR"), "/build_rev.rs"));
 
 /// A .nix file.
 #[derive(Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum NixFile {
     /// A .nix file which describes a shell environment
     Shell(PathBuf),
