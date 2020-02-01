@@ -55,8 +55,15 @@ pub enum Command {
     )]
     Ping_(Ping_),
 
-    /// Upgrade lorri
-    #[structopt(name = "self-upgrade")]
+    /// (plumbing) Ask the lorri daemon to report build events as they occur
+    #[structopt(
+        name = "internal__stream_events",
+        raw(setting = "structopt::clap::AppSettings::Hidden")
+    )]
+    StreamEvents_(StreamEvents_),
+
+    /// Upgrade Lorri
+    #[structopt(name = "self-upgrade", alias = "self-update")]
     Upgrade(UpgradeTo),
 
     /// Write bootstrap files to current directory to create a new lorri project
@@ -126,6 +133,14 @@ pub struct Ping_ {
     /// The .nix file to watch and build on changes.
     #[structopt(parse(from_os_str))]
     pub nix_file: PathBuf,
+}
+
+/// Stream events from the daemon.
+#[derive(StructOpt, Debug)]
+pub struct StreamEvents_ {
+    #[structopt(long, default_value = "all")]
+    /// The kind of events to report
+    pub kind: crate::ops::stream_events::EventKind,
 }
 
 /// A stub struct to represent how what we want to upgrade to.

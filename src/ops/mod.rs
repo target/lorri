@@ -7,6 +7,7 @@ pub mod init;
 pub mod ping;
 pub mod shell;
 pub mod start_user_shell;
+pub mod stream_events;
 pub mod upgrade;
 pub mod watch;
 

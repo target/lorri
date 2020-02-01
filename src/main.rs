@@ -3,7 +3,9 @@ use lorri::constants;
 use lorri::locate_file;
 use lorri::logging;
 use lorri::ops::error::{ExitError, OpResult};
-use lorri::ops::{daemon, direnv, info, init, ping, shell, start_user_shell, upgrade, watch};
+use lorri::ops::{
+    daemon, direnv, info, init, ping, shell, start_user_shell, stream_events, upgrade, watch,
+};
 use lorri::project::Project;
 use lorri::NixFile;
 use slog::{debug, error, o};
@@ -115,6 +117,12 @@ fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
             let _guard = without_project();
             get_shell_nix(&opts.nix_file).and_then(ping::main)
         }
+
+        Command::StreamEvents_(se) => {
+            let _guard = without_project();
+            stream_events::main(se.kind)
+        }
+
         Command::Init => {
             let _guard = without_project();
             init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC)
