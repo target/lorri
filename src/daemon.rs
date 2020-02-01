@@ -62,7 +62,7 @@ pub struct Daemon {
 
 impl Daemon {
     /// Create a new daemon. Also return an `chan::Receiver` that
-    /// receives `build_loop::Event`s for all builders this daemon
+    /// receives `LoopHandlerEvent`s for all builders this daemon
     /// supervises.
     pub fn new() -> (Daemon, chan::Receiver<LoopHandlerEvent>) {
         let (build_events_tx, build_events_rx) = chan::unbounded();

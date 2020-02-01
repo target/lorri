@@ -42,7 +42,7 @@ enum Error {
     Compat(String),
 }
 
-/// See the documentation for lorri::cli::Command::Shell for more
+/// See the documentation for lorri::cli::Command::StreamEvents_ for more
 /// details.
 pub fn main(kind: EventKind) -> OpResult {
     let address = get_paths()?.daemon_socket_address();

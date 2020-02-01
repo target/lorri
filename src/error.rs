@@ -57,7 +57,7 @@ use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
 };
 
-/// A line from stderr log output
+/// A line from stderr log output. Serializes more nicely than raw `OsString`.
 #[derive(Debug, Clone)]
 pub struct LogLine(OsString);
 
