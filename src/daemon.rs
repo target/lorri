@@ -86,7 +86,8 @@ impl Daemon {
         cas: crate::cas::ContentAddressable,
     ) -> Result<(), ExitError> {
         let (activity_tx, activity_rx) = chan::unbounded();
-        let server = rpc::Server::new(socket_path, activity_tx)?;
+
+        let server = rpc::Server::new(socket_path, activity_tx, self.build_events_tx.clone())?;
         let mut pool = crate::thread::Pool::new();
         pool.spawn("accept-loop", move || {
             server
