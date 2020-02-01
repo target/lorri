@@ -6,6 +6,16 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 476;
+        changes = ''
+          Introduces internal subcommand `lorri internal__stream_events`
+
+          The subcommand emits a stream of JSON objects representing build
+          events, suitable for use in `jq | xargs` style scripts. Useful, for
+          instance, to feed libnotify or to decorate a shell prompt.
+        '';
+      }
+      {
         version = 467;
         changes = ''
           - Rename internal subcommand `lorri ping_` to `lorri internal__ping`
