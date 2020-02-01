@@ -2,6 +2,7 @@
 //! evaluate and build a given Nix file.
 
 use crate::builder;
+use crate::daemon::LoopHandlerEvent;
 use crate::error::BuildError;
 use crate::pathreduction::reduce_paths;
 use crate::project::roots;
@@ -75,7 +76,7 @@ impl<'a> BuildLoop<'a> {
     /// When new filesystem changes are detected while a build is
     /// still running, it is finished first before starting a new build.
     #[allow(clippy::drop_copy, clippy::zero_ptr)] // triggered by `select!`
-    pub fn forever(&mut self, tx: chan::Sender<Event>, rx_ping: chan::Receiver<()>) {
+    pub fn forever(&mut self, tx: chan::Sender<LoopHandlerEvent>, rx_ping: chan::Receiver<()>) {
         let send = |msg| tx.send(msg).expect("Failed to send an event");
         let translate_reason = |rsn| match rsn {
             Ok(rsn) => rsn,

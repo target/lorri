@@ -6,10 +6,26 @@ use crate::project::Project;
 use crate::socket::SocketPath;
 use crate::NixFile;
 use crossbeam_channel as chan;
+use slog_scope::debug;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 mod rpc;
+
+#[derive(Debug, Clone)]
+/// Union of build_loop::Event and NewListener for internal use.
+pub enum LoopHandlerEvent {
+    /// A new listener has joined for event streaming
+    NewListener(chan::Sender<Event>),
+    /// Events from a BuildLoop
+    BuildEvent(Event),
+}
+
+impl From<Event> for LoopHandlerEvent {
+    fn from(item: Event) -> Self {
+        LoopHandlerEvent::BuildEvent(item)
+    }
+}
 
 /// Indicate that the user is interested in a specific nix file.
 /// Usually a nix file describes the environment of a project,
@@ -39,21 +55,26 @@ pub struct Daemon {
     handler_threads: HashMap<NixFile, Handler>,
     /// Sending end that we pass to every `BuildLoop` the daemon controls.
     // TODO: this needs to transmit information to identify the builder with
-    build_tx: chan::Sender<crate::build_loop::Event>,
+    build_events_tx: chan::Sender<LoopHandlerEvent>,
+    build_events_rx: chan::Receiver<LoopHandlerEvent>,
+    mon_tx: chan::Sender<LoopHandlerEvent>,
 }
 
 impl Daemon {
     /// Create a new daemon. Also return an `chan::Receiver` that
     /// receives `build_loop::Event`s for all builders this daemon
     /// supervises.
-    pub fn new() -> (Daemon, chan::Receiver<crate::build_loop::Event>) {
-        let (build_tx, build_rx) = chan::unbounded();
+    pub fn new() -> (Daemon, chan::Receiver<LoopHandlerEvent>) {
+        let (build_events_tx, build_events_rx) = chan::unbounded();
+        let (mon_tx, mon_rx) = chan::unbounded();
         (
             Daemon {
                 handler_threads: HashMap::new(),
-                build_tx,
+                build_events_tx,
+                build_events_rx,
+                mon_tx,
             },
-            build_rx,
+            mon_rx,
         )
     }
 
@@ -71,6 +92,50 @@ impl Daemon {
             server
                 .serve()
                 .expect("failed to serve daemon server endpoint");
+        })?;
+        let build_events_rx = self.build_events_rx.clone();
+        let mon_tx = self.mon_tx.clone();
+        pool.spawn("build-loop", move || {
+            let mut project_states: HashMap<NixFile, Event> = HashMap::new();
+            let mut event_listeners: Vec<chan::Sender<Event>> = Vec::new();
+
+            for msg in build_events_rx {
+                mon_tx
+                    .send(msg.clone())
+                    .expect("listener still to be there");
+                match &msg {
+                    LoopHandlerEvent::BuildEvent(ev) => match ev {
+                        Event::SectionEnd => (),
+                        Event::Started { nix_file, .. }
+                        | Event::Completed { nix_file, .. }
+                        | Event::Failure { nix_file, .. } => {
+                            project_states.insert(nix_file.clone(), ev.clone());
+                            event_listeners.retain(|tx| {
+                                let keep = tx.send(ev.clone()).is_ok();
+                                debug!("Sent"; "event" => ?ev, "keep" => keep);
+                                keep
+                            })
+                        }
+                    },
+                    LoopHandlerEvent::NewListener(tx) => {
+                        debug!("adding listener");
+                        let keep = project_states.values().all(|event| {
+                            let keeping = tx.send(event.clone()).is_ok();
+                            debug!("Sent snapshot"; "event" => ?&event, "keep" => keeping);
+                            keeping
+                        });
+                        debug!("Finished snapshot"; "keep" => keep);
+                        if keep {
+                            event_listeners.push(tx.clone());
+                        }
+                        event_listeners.retain(|tx| {
+                            let keep = tx.send(Event::SectionEnd).is_ok();
+                            debug!("Sent new listener sectionend"; "keep" => keep);
+                            keep
+                        })
+                    }
+                }
+            }
         })?;
         pool.spawn("build-instruction-handler", move || {
             // For each build instruction, add the corresponding file
@@ -92,7 +157,7 @@ impl Daemon {
     /// & build if they change.
     pub fn add(&mut self, project: Project) {
         let (tx, rx) = chan::unbounded();
-        let build_tx = self.build_tx.clone();
+        let build_events_tx = self.build_events_tx.clone();
 
         self.handler_threads
             .entry(project.nix_file.clone())
@@ -103,7 +168,7 @@ impl Daemon {
 
                     // cloning the tx means the daemon’s rx gets all
                     // messages from all builders.
-                    build_loop.forever(build_tx, rx);
+                    build_loop.forever(build_events_tx, rx);
                 }),
             })
             // Notify the handler, whether or not it was newly added
