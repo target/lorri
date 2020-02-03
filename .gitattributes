@@ -1,0 +1,5 @@
+# Treat Cargo.nix file as generated so it won't show up in repo's language stats.
+# https://help.github.com/en/github/administering-a-repository/customizing-how-changed-files-appear-on-github
+
+Cargo.nix linguist-generated=true
+
