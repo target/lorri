@@ -2,4 +2,5 @@
 # https://help.github.com/en/github/administering-a-repository/customizing-how-changed-files-appear-on-github
 
 Cargo.nix linguist-generated=true
+/nix/carnix/crates-io.nix linguist-generated=true
 
