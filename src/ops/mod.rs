@@ -7,6 +7,7 @@ pub mod init;
 pub mod ping;
 pub mod shell;
 pub mod start_user_shell;
+pub mod stream_events;
 pub mod upgrade;
 pub mod watch;
 
@@ -134,6 +135,12 @@ pub mod error {
 
     impl From<std::io::Error> for ExitError {
         fn from(e: std::io::Error) -> ExitError {
+            ExitError::temporary(format!("{}", e))
+        }
+    }
+
+    impl From<crate::rpc::Error> for ExitError {
+        fn from(e: crate::rpc::Error) -> ExitError {
             ExitError::temporary(format!("{}", e))
         }
     }

@@ -2,29 +2,49 @@
 //! evaluate and build a given Nix file.
 
 use crate::builder;
+use crate::daemon::LoopHandlerEvent;
 use crate::error::BuildError;
 use crate::pathreduction::reduce_paths;
 use crate::project::roots;
 use crate::project::roots::Roots;
 use crate::project::Project;
 use crate::watch::{DebugMessage, EventError, Reason, Watch};
+use crate::NixFile;
 use crossbeam_channel as chan;
 use slog_scope::{debug, warn};
 use std::path::PathBuf;
 
 /// Builder events sent back over `BuildLoop.tx`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Event {
-    /// The build has started
-    Started(Reason),
-    /// The build completed successfully
-    Completed(BuildResults),
-    /// The build command returned a failing exit status
-    Failure(BuildError),
+    /// Demarks a stream of events from recent history becoming live
+    SectionEnd,
+    /// A build has started
+    Started {
+        /// The shell.nix file for the building project
+        nix_file: NixFile,
+        /// The reason the build started
+        reason: Reason,
+    },
+    /// A build completed successfully
+    Completed {
+        /// The shell.nix file for the building project
+        nix_file: NixFile,
+        /// The result of the build
+        result: BuildResults,
+    },
+    /// A build command returned a failing exit status
+    Failure {
+        /// The shell.nix file for the building project
+        nix_file: NixFile,
+        /// The error that exited the build
+        failure: BuildError,
+    },
 }
 
 /// Results of a single, successful build.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BuildResults {
     /// See `build::Info.outputPaths
     pub output_paths: builder::OutputPaths<roots::RootPath>,
@@ -57,7 +77,7 @@ impl<'a> BuildLoop<'a> {
     /// When new filesystem changes are detected while a build is
     /// still running, it is finished first before starting a new build.
     #[allow(clippy::drop_copy, clippy::zero_ptr)] // triggered by `select!`
-    pub fn forever(&mut self, tx: chan::Sender<Event>, rx_ping: chan::Receiver<()>) {
+    pub fn forever(&mut self, tx: chan::Sender<LoopHandlerEvent>, rx_ping: chan::Receiver<()>) {
         let send = |msg| tx.send(msg).expect("Failed to send an event");
         let translate_reason = |rsn| match rsn {
             Ok(rsn) => rsn,
@@ -76,9 +96,10 @@ impl<'a> BuildLoop<'a> {
         };
 
         // The project has just been added, so run the builder in the first iteration
-        let mut reason = Some(Event::Started(Reason::ProjectAdded(
-            self.project.nix_file.clone(),
-        )));
+        let mut reason = Some(Event::Started {
+            nix_file: self.project.nix_file.clone(),
+            reason: Reason::ProjectAdded(self.project.nix_file.clone()),
+        });
         let mut output_paths = None;
 
         // Drain pings initially: we're going to trigger a first build anyway
@@ -89,17 +110,29 @@ impl<'a> BuildLoop<'a> {
         loop {
             // If there is some reason to build, run the build!
             if let Some(rsn) = reason {
-                send(rsn);
+                send(rsn.into());
                 match self.once() {
                     Ok(result) => {
                         output_paths = Some(result.output_paths.clone());
-                        send(Event::Completed(result));
+                        send(
+                            Event::Completed {
+                                nix_file: self.project.nix_file.clone(),
+                                result,
+                            }
+                            .into(),
+                        );
                     }
                     Err(e) => {
                         if e.is_actionable() {
-                            send(Event::Failure(e))
+                            send(
+                                Event::Failure {
+                                    nix_file: self.project.nix_file.clone(),
+                                    failure: e,
+                                }
+                                .into(),
+                            )
                         } else {
-                            panic!("Unrecoverable error:\n{}", e)
+                            panic!("Unrecoverable error:\n{:#?}", e);
                         }
                     }
                 }
@@ -109,12 +142,17 @@ impl<'a> BuildLoop<'a> {
             chan::select! {
                 recv(rx_notify) -> msg => if let Ok(msg) = msg {
                     if let Some(rsn) = self.watch.process(msg) {
-                        reason = Some(Event::Started(translate_reason(rsn)));
+                        reason = Some(Event::Started{
+                            nix_file: self.project.nix_file.clone(),
+                            reason: translate_reason(rsn)
+                        });
                     }
                 },
                 recv(rx_ping) -> msg => if let (Ok(()), Some(output_paths)) = (msg, &output_paths) {
                     if !output_paths.shell_gc_root_is_dir() {
-                        reason = Some(Event::Started(Reason::PingReceived));
+                        reason = Some(Event::Started{
+                            nix_file: self.project.nix_file.clone(),
+                            reason: Reason::PingReceived});
                     }
                 },
             }
