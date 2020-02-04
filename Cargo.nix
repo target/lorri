@@ -55,89 +55,89 @@ rec {
 
 
 # end
-# lorri-0.1.0
+# lorri-1.0.0
 
-    crates.lorri."0.1.0" = deps: { features?(features_.lorri."0.1.0" deps {}) }: buildRustCrate {
+    crates.lorri."1.0.0" = deps: { features?(features_.lorri."1.0.0" deps {}) }: buildRustCrate {
       crateName = "lorri";
-      version = "0.1.0";
+      version = "1.0.0";
       authors = [ "Graham Christensen <graham.christensen@target.com>" ];
       edition = "2018";
       src = exclude [ ".git" "target" ] ./.;
       dependencies = mapFeatures features ([
-        (cratesIO.crates."atomicwrites"."${deps."lorri"."0.1.0"."atomicwrites"}" deps)
-        (cratesIO.crates."crossbeam_channel"."${deps."lorri"."0.1.0"."crossbeam_channel"}" deps)
-        (cratesIO.crates."directories"."${deps."lorri"."0.1.0"."directories"}" deps)
-        (crates."human_panic"."${deps."lorri"."0.1.0"."human_panic"}" deps)
-        (cratesIO.crates."lazy_static"."${deps."lorri"."0.1.0"."lazy_static"}" deps)
-        (cratesIO.crates."md5"."${deps."lorri"."0.1.0"."md5"}" deps)
-        (cratesIO.crates."nix"."${deps."lorri"."0.1.0"."nix"}" deps)
-        (cratesIO.crates."notify"."${deps."lorri"."0.1.0"."notify"}" deps)
-        (cratesIO.crates."proptest"."${deps."lorri"."0.1.0"."proptest"}" deps)
-        (cratesIO.crates."regex"."${deps."lorri"."0.1.0"."regex"}" deps)
-        (cratesIO.crates."serde"."${deps."lorri"."0.1.0"."serde"}" deps)
-        (cratesIO.crates."serde_derive"."${deps."lorri"."0.1.0"."serde_derive"}" deps)
-        (cratesIO.crates."serde_json"."${deps."lorri"."0.1.0"."serde_json"}" deps)
-        (cratesIO.crates."slog"."${deps."lorri"."0.1.0"."slog"}" deps)
-        (cratesIO.crates."slog_async"."${deps."lorri"."0.1.0"."slog_async"}" deps)
-        (cratesIO.crates."slog_scope"."${deps."lorri"."0.1.0"."slog_scope"}" deps)
-        (cratesIO.crates."slog_term"."${deps."lorri"."0.1.0"."slog_term"}" deps)
-        (cratesIO.crates."structopt"."${deps."lorri"."0.1.0"."structopt"}" deps)
-        (cratesIO.crates."tempfile"."${deps."lorri"."0.1.0"."tempfile"}" deps)
-        (cratesIO.crates."varlink"."${deps."lorri"."0.1.0"."varlink"}" deps)
-        (cratesIO.crates."vec1"."${deps."lorri"."0.1.0"."vec1"}" deps)
+        (cratesIO.crates."atomicwrites"."${deps."lorri"."1.0.0"."atomicwrites"}" deps)
+        (cratesIO.crates."crossbeam_channel"."${deps."lorri"."1.0.0"."crossbeam_channel"}" deps)
+        (cratesIO.crates."directories"."${deps."lorri"."1.0.0"."directories"}" deps)
+        (crates."human_panic"."${deps."lorri"."1.0.0"."human_panic"}" deps)
+        (cratesIO.crates."lazy_static"."${deps."lorri"."1.0.0"."lazy_static"}" deps)
+        (cratesIO.crates."md5"."${deps."lorri"."1.0.0"."md5"}" deps)
+        (cratesIO.crates."nix"."${deps."lorri"."1.0.0"."nix"}" deps)
+        (cratesIO.crates."notify"."${deps."lorri"."1.0.0"."notify"}" deps)
+        (cratesIO.crates."proptest"."${deps."lorri"."1.0.0"."proptest"}" deps)
+        (cratesIO.crates."regex"."${deps."lorri"."1.0.0"."regex"}" deps)
+        (cratesIO.crates."serde"."${deps."lorri"."1.0.0"."serde"}" deps)
+        (cratesIO.crates."serde_derive"."${deps."lorri"."1.0.0"."serde_derive"}" deps)
+        (cratesIO.crates."serde_json"."${deps."lorri"."1.0.0"."serde_json"}" deps)
+        (cratesIO.crates."slog"."${deps."lorri"."1.0.0"."slog"}" deps)
+        (cratesIO.crates."slog_async"."${deps."lorri"."1.0.0"."slog_async"}" deps)
+        (cratesIO.crates."slog_scope"."${deps."lorri"."1.0.0"."slog_scope"}" deps)
+        (cratesIO.crates."slog_term"."${deps."lorri"."1.0.0"."slog_term"}" deps)
+        (cratesIO.crates."structopt"."${deps."lorri"."1.0.0"."structopt"}" deps)
+        (cratesIO.crates."tempfile"."${deps."lorri"."1.0.0"."tempfile"}" deps)
+        (cratesIO.crates."varlink"."${deps."lorri"."1.0.0"."varlink"}" deps)
+        (cratesIO.crates."vec1"."${deps."lorri"."1.0.0"."vec1"}" deps)
       ]);
 
       buildDependencies = mapFeatures features ([
-        (cratesIO.crates."varlink_generator"."${deps."lorri"."0.1.0"."varlink_generator"}" deps)
+        (cratesIO.crates."varlink_generator"."${deps."lorri"."1.0.0"."varlink_generator"}" deps)
       ]);
     };
-    features_.lorri."0.1.0" = deps: f: updateFeatures f (rec {
-      atomicwrites."${deps.lorri."0.1.0".atomicwrites}".default = true;
-      crossbeam_channel."${deps.lorri."0.1.0".crossbeam_channel}".default = true;
-      directories."${deps.lorri."0.1.0".directories}".default = true;
-      human_panic."${deps.lorri."0.1.0".human_panic}".default = true;
-      lazy_static."${deps.lorri."0.1.0".lazy_static}".default = true;
-      lorri."0.1.0".default = (f.lorri."0.1.0".default or true);
-      md5."${deps.lorri."0.1.0".md5}".default = true;
-      nix."${deps.lorri."0.1.0".nix}".default = true;
-      notify."${deps.lorri."0.1.0".notify}".default = true;
-      proptest."${deps.lorri."0.1.0".proptest}".default = true;
-      regex."${deps.lorri."0.1.0".regex}".default = true;
-      serde."${deps.lorri."0.1.0".serde}".default = true;
-      serde_derive."${deps.lorri."0.1.0".serde_derive}".default = true;
-      serde_json."${deps.lorri."0.1.0".serde_json}".default = true;
-      slog."${deps.lorri."0.1.0".slog}".default = true;
-      slog_async."${deps.lorri."0.1.0".slog_async}".default = true;
-      slog_scope."${deps.lorri."0.1.0".slog_scope}".default = true;
-      slog_term."${deps.lorri."0.1.0".slog_term}".default = true;
-      structopt."${deps.lorri."0.1.0".structopt}".default = true;
-      tempfile."${deps.lorri."0.1.0".tempfile}".default = true;
-      varlink."${deps.lorri."0.1.0".varlink}".default = true;
-      varlink_generator."${deps.lorri."0.1.0".varlink_generator}".default = true;
-      vec1."${deps.lorri."0.1.0".vec1}".default = true;
+    features_.lorri."1.0.0" = deps: f: updateFeatures f (rec {
+      atomicwrites."${deps.lorri."1.0.0".atomicwrites}".default = true;
+      crossbeam_channel."${deps.lorri."1.0.0".crossbeam_channel}".default = true;
+      directories."${deps.lorri."1.0.0".directories}".default = true;
+      human_panic."${deps.lorri."1.0.0".human_panic}".default = true;
+      lazy_static."${deps.lorri."1.0.0".lazy_static}".default = true;
+      lorri."1.0.0".default = (f.lorri."1.0.0".default or true);
+      md5."${deps.lorri."1.0.0".md5}".default = true;
+      nix."${deps.lorri."1.0.0".nix}".default = true;
+      notify."${deps.lorri."1.0.0".notify}".default = true;
+      proptest."${deps.lorri."1.0.0".proptest}".default = true;
+      regex."${deps.lorri."1.0.0".regex}".default = true;
+      serde."${deps.lorri."1.0.0".serde}".default = true;
+      serde_derive."${deps.lorri."1.0.0".serde_derive}".default = true;
+      serde_json."${deps.lorri."1.0.0".serde_json}".default = true;
+      slog."${deps.lorri."1.0.0".slog}".default = true;
+      slog_async."${deps.lorri."1.0.0".slog_async}".default = true;
+      slog_scope."${deps.lorri."1.0.0".slog_scope}".default = true;
+      slog_term."${deps.lorri."1.0.0".slog_term}".default = true;
+      structopt."${deps.lorri."1.0.0".structopt}".default = true;
+      tempfile."${deps.lorri."1.0.0".tempfile}".default = true;
+      varlink."${deps.lorri."1.0.0".varlink}".default = true;
+      varlink_generator."${deps.lorri."1.0.0".varlink_generator}".default = true;
+      vec1."${deps.lorri."1.0.0".vec1}".default = true;
     }) [
-      (cratesIO.features_.atomicwrites."${deps."lorri"."0.1.0"."atomicwrites"}" deps)
-      (cratesIO.features_.crossbeam_channel."${deps."lorri"."0.1.0"."crossbeam_channel"}" deps)
-      (cratesIO.features_.directories."${deps."lorri"."0.1.0"."directories"}" deps)
-      (features_.human_panic."${deps."lorri"."0.1.0"."human_panic"}" deps)
-      (cratesIO.features_.lazy_static."${deps."lorri"."0.1.0"."lazy_static"}" deps)
-      (cratesIO.features_.md5."${deps."lorri"."0.1.0"."md5"}" deps)
-      (cratesIO.features_.nix."${deps."lorri"."0.1.0"."nix"}" deps)
-      (cratesIO.features_.notify."${deps."lorri"."0.1.0"."notify"}" deps)
-      (cratesIO.features_.proptest."${deps."lorri"."0.1.0"."proptest"}" deps)
-      (cratesIO.features_.regex."${deps."lorri"."0.1.0"."regex"}" deps)
-      (cratesIO.features_.serde."${deps."lorri"."0.1.0"."serde"}" deps)
-      (cratesIO.features_.serde_derive."${deps."lorri"."0.1.0"."serde_derive"}" deps)
-      (cratesIO.features_.serde_json."${deps."lorri"."0.1.0"."serde_json"}" deps)
-      (cratesIO.features_.slog."${deps."lorri"."0.1.0"."slog"}" deps)
-      (cratesIO.features_.slog_async."${deps."lorri"."0.1.0"."slog_async"}" deps)
-      (cratesIO.features_.slog_scope."${deps."lorri"."0.1.0"."slog_scope"}" deps)
-      (cratesIO.features_.slog_term."${deps."lorri"."0.1.0"."slog_term"}" deps)
-      (cratesIO.features_.structopt."${deps."lorri"."0.1.0"."structopt"}" deps)
-      (cratesIO.features_.tempfile."${deps."lorri"."0.1.0"."tempfile"}" deps)
-      (cratesIO.features_.varlink."${deps."lorri"."0.1.0"."varlink"}" deps)
-      (cratesIO.features_.vec1."${deps."lorri"."0.1.0"."vec1"}" deps)
-      (cratesIO.features_.varlink_generator."${deps."lorri"."0.1.0"."varlink_generator"}" deps)
+      (cratesIO.features_.atomicwrites."${deps."lorri"."1.0.0"."atomicwrites"}" deps)
+      (cratesIO.features_.crossbeam_channel."${deps."lorri"."1.0.0"."crossbeam_channel"}" deps)
+      (cratesIO.features_.directories."${deps."lorri"."1.0.0"."directories"}" deps)
+      (features_.human_panic."${deps."lorri"."1.0.0"."human_panic"}" deps)
+      (cratesIO.features_.lazy_static."${deps."lorri"."1.0.0"."lazy_static"}" deps)
+      (cratesIO.features_.md5."${deps."lorri"."1.0.0"."md5"}" deps)
+      (cratesIO.features_.nix."${deps."lorri"."1.0.0"."nix"}" deps)
+      (cratesIO.features_.notify."${deps."lorri"."1.0.0"."notify"}" deps)
+      (cratesIO.features_.proptest."${deps."lorri"."1.0.0"."proptest"}" deps)
+      (cratesIO.features_.regex."${deps."lorri"."1.0.0"."regex"}" deps)
+      (cratesIO.features_.serde."${deps."lorri"."1.0.0"."serde"}" deps)
+      (cratesIO.features_.serde_derive."${deps."lorri"."1.0.0"."serde_derive"}" deps)
+      (cratesIO.features_.serde_json."${deps."lorri"."1.0.0"."serde_json"}" deps)
+      (cratesIO.features_.slog."${deps."lorri"."1.0.0"."slog"}" deps)
+      (cratesIO.features_.slog_async."${deps."lorri"."1.0.0"."slog_async"}" deps)
+      (cratesIO.features_.slog_scope."${deps."lorri"."1.0.0"."slog_scope"}" deps)
+      (cratesIO.features_.slog_term."${deps."lorri"."1.0.0"."slog_term"}" deps)
+      (cratesIO.features_.structopt."${deps."lorri"."1.0.0"."structopt"}" deps)
+      (cratesIO.features_.tempfile."${deps."lorri"."1.0.0"."tempfile"}" deps)
+      (cratesIO.features_.varlink."${deps."lorri"."1.0.0"."varlink"}" deps)
+      (cratesIO.features_.vec1."${deps."lorri"."1.0.0"."vec1"}" deps)
+      (cratesIO.features_.varlink_generator."${deps."lorri"."1.0.0"."varlink_generator"}" deps)
     ];
 
 
@@ -145,7 +145,7 @@ rec {
 
   };
 
-  lorri = crates.crates.lorri."0.1.0" deps;
+  lorri = crates.crates.lorri."1.0.0" deps;
   __all = [ (lorri {}) ];
   deps.aho_corasick."0.7.6" = {
     memchr = "2.2.1";
@@ -315,7 +315,7 @@ rec {
   deps.log."0.4.8" = {
     cfg_if = "0.1.10";
   };
-  deps.lorri."0.1.0" = {
+  deps.lorri."1.0.0" = {
     atomicwrites = "0.2.5";
     crossbeam_channel = "0.3.9";
     directories = "1.0.2";
