@@ -1,5 +1,15 @@
 //! Defines the CLI interface using structopt.
 
+// # Command line interface style guide
+//
+// Do not use short options unless they are extremely common and expected. A long option takes a
+// bit more typing, but the long name makes the intent much more obvious. The only short option
+// right now is `-v` for verbosity, and it should probably stay that way.
+//
+// Prefix internal commands with `internal__` and hide them from the auto-generated help using
+// `raw(setting = "structopt::clap::AppSettings::Hidden")`. See MAINTAINERS.md for details on
+// internal and non-internal commands.
+
 use std::path::PathBuf;
 
 #[derive(StructOpt, Debug)]
