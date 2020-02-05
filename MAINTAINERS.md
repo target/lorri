@@ -52,7 +52,18 @@ does not in itself necessitate a major release.
 
 ## Cutting a release
 
-TODO: https://github.com/target/lorri/issues/269
+To cut a new release:
+1. Determine if this is a [minor or major release](#versioning-scheme) and
+   change the `version` field in `Cargo.toml` accordingly.
+2. Build the project to update `Cargo.lock`, then run `nix/update-carnix.sh` to
+   update `Cargo.nix`.
+3. Create a PR with these changes and merge it. Note the hash of the merge
+   commit.
+4. Tag the merge commit using `git tag --sign <version> <merge commit hash>`.
+   Here, `<version>` is used as the name of the tag. It should adhere to the
+   `MAJOR.MINOR` format without prefix or suffix, for example `1.0` (and not
+   `v1.0`).
+5. Push the tag using `git push origin <version>`.
 
 ## Publishing a release on [nixpkgs][]
 
