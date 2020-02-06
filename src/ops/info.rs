@@ -12,14 +12,11 @@ pub fn main(project: Project) -> OpResult {
     let OutputPaths { shell_gc_root } = &root_paths;
     if root_paths.all_exist() {
         println!(
-            "gc roots exist, shell_gc_root: {:?}",
+            "GC roots exist, shell_gc_root: {:?}",
             shell_gc_root.as_os_str()
         );
     } else {
-        println!(
-            "gc roots do not exist, shell_gc_root: {:?}",
-            shell_gc_root.as_os_str()
-        );
+        println!("GC roots do not exist. Has the project been built with lorri yet?",);
     }
     ok()
 }
