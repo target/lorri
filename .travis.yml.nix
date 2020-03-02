@@ -57,33 +57,20 @@ let
       ++ [ ''lorri self-upgrade local $(pwd)'' ];
     };
 
-    lints = { isDarwin ? false }: {
+    lints = {
       name = "cargo build & linters";
       script = [
         ''set -e''
         ''nix-build -A allBuildInputs shell.nix > ./shell-inputs''
       ]
       ++ pushToCachix "./shell-inputs"
-      ++ (
-        let
-          # Clippy is not built by Hydra [1].
-          # To avoid building clippy on macOS in CI, which takes about 25
-          # minutes, we don't run lints (which require clippy) on macOS.
-          # Instead we run only ci_test.
-          #
-          # On Linux, we run ci_check, which itself runs both ci_test and ci_lint.
-          #
-          # [1] https://github.com/NixOS/nixpkgs/issues/77358
-          script = if isDarwin then "ci_test" else "ci_check";
-        in
-          [
-            ''nix-shell --quiet --arg isDevelopmentShell false --run ${script}''
-            ''cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml''
-            ''git diff -q ./.travis.yml''
-            ''git diff -q ./Cargo.nix''
-            ''git diff -q ./src/com_target_lorri.rs''
-          ]
-      );
+      ++ [
+        ''nix-shell --quiet --arg isDevelopmentShell false --run ci_check''
+        ''cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml''
+        ''git diff -q ./.travis.yml''
+        ''git diff -q ./Cargo.nix''
+        ''git diff -q ./src/com_target_lorri.rs''
+      ];
     };
 
     # cache rust dependency building
@@ -163,8 +150,8 @@ let
         matrix.include = map mergeShallowConcatLists [
           # Verifying lints on macOS and Linux ensures nix-shell works
           # on both platforms.
-          [ hosts.linux scripts.setup-cachix (scripts.lints {}) (scripts.cache "linux") ]
-          [ hosts.macos scripts.macos-cachix-fix scripts.setup-cachix (scripts.lints { isDarwin = true; }) (scripts.cache "macos") ]
+          [ hosts.linux scripts.setup-cachix scripts.lints (scripts.cache "linux") ]
+          [ hosts.macos scripts.macos-cachix-fix scripts.setup-cachix scripts.lints (scripts.cache "macos") ]
 
           [ hosts.linux scripts.setup-cachix scripts.builds ]
           [ hosts.macos scripts.macos-cachix-fix scripts.setup-cachix scripts.builds ]
