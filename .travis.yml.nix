@@ -5,9 +5,7 @@ let
 
   cachix-queue-file = "$HOME/push-to-cachix";
   cachix-repo = "lorri-test";
-  # cachix 3 on macOS is broken on travis, see
-  # https://github.com/cachix/cachix/issues/228#issuecomment-533634704
-  pushToCachix = { isDarwin }: cachix-queue-file: if isDarwin then [] else [
+  pushToCachix = cachix-queue-file: [
     # read every store path written by previous phases
     # from the cachix-queue-file file and push to cachix
     ''echo "pushing these paths to cachix:"''
@@ -45,7 +43,7 @@ let
   };
 
   scripts = {
-    builds = { isDarwin ? false }: {
+    builds = {
       name = "nix-build";
       script = [
         ''set -e''
@@ -54,7 +52,7 @@ let
       ]
       # push build closure to cachix
       ++ [ ''readlink ./result > ./cachix-file'' ]
-      ++ pushToCachix { inherit isDarwin; } "./cachix-file"
+      ++ pushToCachix "./cachix-file"
       # test lorri self-upgrade
       ++ [ ''lorri self-upgrade local $(pwd)'' ];
     };
@@ -65,18 +63,17 @@ let
         ''set -e''
         ''nix-build -A allBuildInputs shell.nix > ./shell-inputs''
       ]
-      ++ pushToCachix { inherit isDarwin; } "./shell-inputs"
+      ++ pushToCachix "./shell-inputs"
       ++ (
         let
-          # Cachix is broken on macOS [1] and clippy is not built by Hydra [2].
+          # Clippy is not built by Hydra [1].
           # To avoid building clippy on macOS in CI, which takes about 25
           # minutes, we don't run lints (which require clippy) on macOS.
           # Instead we run only ci_test.
           #
           # On Linux, we run ci_check, which itself runs both ci_test and ci_lint.
           #
-          # [1] https://github.com/cachix/cachix/issues/228#issuecomment-533634704
-          # [2] https://github.com/NixOS/nixpkgs/issues/77358
+          # [1] https://github.com/NixOS/nixpkgs/issues/77358
           script = if isDarwin then "ci_test" else "ci_check";
         in
           [
@@ -167,14 +164,10 @@ let
           # Verifying lints on macOS and Linux ensures nix-shell works
           # on both platforms.
           [ hosts.linux scripts.setup-cachix (scripts.lints {}) (scripts.cache "linux") ]
-          # cachix 3 on macOS is broken on travis, see
-          # https://github.com/cachix/cachix/issues/228#issuecomment-533634704
-          [ hosts.macos /*scripts.macos-cachix-fix scripts.setup-cachix*/ (scripts.lints { isDarwin = true; }) (scripts.cache "macos") ]
+          [ hosts.macos scripts.macos-cachix-fix scripts.setup-cachix (scripts.lints { isDarwin = true; }) (scripts.cache "macos") ]
 
-          [ hosts.linux scripts.setup-cachix (scripts.builds {}) ]
-          # cachix 3 on macOS is broken on travis, see
-          # https://github.com/cachix/cachix/issues/228#issuecomment-533634704
-          [ hosts.macos /*scripts.macos-cachix-fix scripts.setup-cachix*/ (scripts.builds { isDarwin = true; }) ]
+          [ hosts.linux scripts.setup-cachix scripts.builds ]
+          [ hosts.macos scripts.macos-cachix-fix scripts.setup-cachix scripts.builds ]
         ];
       };
 in

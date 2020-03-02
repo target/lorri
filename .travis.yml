@@ -69,11 +69,22 @@ matrix:
       - $TRAVIS_BUILD_DIR/target
     env:
     - CACHE_NAME=macos
+    install:
+    - echo "trusted-users = root $USER" | sudo tee -a /etc/nix/nix.conf
+    - sudo launchctl kickstart -k system/org.nixos.nix-daemon || true
+    - nix-env -iA cachix -f https://cachix.org/api/v1/install
+    - cachix use lorri-test
     name: cargo build & linters
     os: osx
     script:
     - set -e
     - nix-build -A allBuildInputs shell.nix > ./shell-inputs
+    - echo "pushing these paths to cachix:"
+    - cat ./shell-inputs
+    - |
+      if [ -n "$CACHIX_SIGNING_KEY" ]; then
+        cachix push lorri-test < ./shell-inputs
+      fi
     - nix-shell --quiet --arg isDevelopmentShell false --run ci_test
     - cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml
     - git diff -q ./.travis.yml
@@ -107,6 +118,11 @@ matrix:
       elif [ -f ${TRAVIS_HOME}/.nix-profile/etc/profile.d/nix.sh ]; then
         source source ${TRAVIS_HOME}/.nix-profile/etc/profile.d/nix.sh
       fi
+    install:
+    - echo "trusted-users = root $USER" | sudo tee -a /etc/nix/nix.conf
+    - sudo launchctl kickstart -k system/org.nixos.nix-daemon || true
+    - nix-env -iA cachix -f https://cachix.org/api/v1/install
+    - cachix use lorri-test
     name: nix-build
     os: osx
     script:
@@ -114,4 +130,10 @@ matrix:
     - nix-build
     - nix-env -i ./result
     - readlink ./result > ./cachix-file
+    - echo "pushing these paths to cachix:"
+    - cat ./cachix-file
+    - |
+      if [ -n "$CACHIX_SIGNING_KEY" ]; then
+        cachix push lorri-test < ./cachix-file
+      fi
     - lorri self-upgrade local $(pwd)
