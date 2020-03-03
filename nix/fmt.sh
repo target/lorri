@@ -1,11 +1,10 @@
+#!/usr/bin/env sh
 # Format nix files and check their formatting.
 #
 # USAGE:
 #     ./nix/fmt.sh [--check]
 # FLAGS:
 #     --check    Only test if the formatter would change the files
-
-#!/usr/bin/env sh
 
 set -euo pipefail
 IFS=$'\n'
