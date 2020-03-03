@@ -14,6 +14,12 @@ fn not_so_slow() {
         start.elapsed() < Duration::from_secs(2),
         "direnv export should be under 2 seconds (even on Travis)"
     );
-
-    assert_eq!(env.get_env("ITWORKED"), DirenvValue::Value("/tmp/foo/bar"));
+    let itworked = env.get_env("ITWORKED");
+    assert!(
+        match itworked {
+            DirenvValue::Value(v) => v.ends_with("foo/bar"),
+            _ => false,
+        },
+        format!("ITWORKED shoud end with 'foo/bar', but is {:?}", itworked)
+    )
 }
