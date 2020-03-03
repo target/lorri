@@ -147,7 +147,7 @@ let
       {
         git.depth = false;
         language = "shell";
-        matrix.include = map mergeShallowConcatLists [
+        jobs.include = map mergeShallowConcatLists [
           # Verifying lints on macOS and Linux ensures nix-shell works
           # on both platforms.
           [ hosts.linux scripts.setup-cachix scripts.lints (scripts.cache "linux") ]

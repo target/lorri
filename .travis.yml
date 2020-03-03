@@ -1,7 +1,6 @@
 git:
   depth: false
-language: shell
-matrix:
+jobs:
   include:
   - before_cache:
     - rm -rvf "$TRAVIS_BUILD_DIR/target/debug/liblorri.rlib"
@@ -137,3 +136,4 @@ matrix:
         cachix push lorri-test < ./cachix-file
       fi
     - lorri self-upgrade local $(pwd)
+language: shell
