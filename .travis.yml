@@ -27,7 +27,7 @@ jobs:
     - nix-env -iA cachix -f https://cachix.org/api/v1/install
     - cachix use lorri-test
     language: nix
-    name: cargo build & linters
+    name: cargo build & linters linux
     nix: 2.3.1
     os: linux
     script:
@@ -76,7 +76,7 @@ jobs:
     - sudo launchctl kickstart -k system/org.nixos.nix-daemon || true
     - nix-env -iA cachix -f https://cachix.org/api/v1/install
     - cachix use lorri-test
-    name: cargo build & linters
+    name: cargo build & linters macos
     os: osx
     script:
     - set -e
@@ -96,7 +96,7 @@ jobs:
     - nix-env -iA cachix -f https://cachix.org/api/v1/install
     - cachix use lorri-test
     language: nix
-    name: nix-build
+    name: nix-build linux
     nix: 2.3.1
     os: linux
     script:
@@ -125,7 +125,7 @@ jobs:
     - sudo launchctl kickstart -k system/org.nixos.nix-daemon || true
     - nix-env -iA cachix -f https://cachix.org/api/v1/install
     - cachix use lorri-test
-    name: nix-build
+    name: nix-build macos
     os: osx
     script:
     - set -e

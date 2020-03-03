@@ -43,8 +43,8 @@ let
   };
 
   scripts = {
-    builds = {
-      name = "nix-build";
+    builds = { nameSuffix }: {
+      name = "nix-build ${nameSuffix}";
       script = [
         ''set -e''
         ''nix-build''
@@ -57,8 +57,8 @@ let
       ++ [ ''lorri self-upgrade local $(pwd)'' ];
     };
 
-    lints = {
-      name = "cargo build & linters";
+    lints = { nameSuffix }: {
+      name = "cargo build & linters ${nameSuffix}";
       script = [
         ''set -e''
         ''nix-build -A allBuildInputs shell.nix > ./shell-inputs''
@@ -147,16 +147,35 @@ let
       {
         git.depth = false;
         language = "shell";
-        # we build PRs and master
+        # build PRs and master for this job
         branches.only = [ "master" ];
         jobs.include = map mergeShallowConcatLists [
           # Verifying lints on macOS and Linux ensures nix-shell works
           # on both platforms.
-          [ hosts.linux scripts.setup-cachix scripts.lints (scripts.cache "linux") ]
-          [ hosts.macos scripts.macos-cachix-fix scripts.setup-cachix scripts.lints (scripts.cache "macos") ]
-
-          [ hosts.linux scripts.setup-cachix scripts.builds ]
-          [ hosts.macos scripts.macos-cachix-fix scripts.setup-cachix scripts.builds ]
+          [
+            hosts.linux
+            scripts.setup-cachix
+            (scripts.lints { nameSuffix = "linux"; })
+            (scripts.cache "linux")
+          ]
+          [
+            hosts.macos
+            scripts.macos-cachix-fix
+            scripts.setup-cachix
+            (scripts.lints { nameSuffix = "macos"; })
+            (scripts.cache "macos")
+          ]
+          [
+            hosts.linux
+            scripts.setup-cachix
+            (scripts.builds { nameSuffix = "linux"; })
+          ]
+          [
+            hosts.macos
+            scripts.macos-cachix-fix
+            scripts.setup-cachix
+            (scripts.builds { nameSuffix = "macos"; })
+          ]
         ];
       };
 in
