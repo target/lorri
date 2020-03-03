@@ -1,6 +1,6 @@
 git:
   depth: false
-language: minimal
+language: shell
 matrix:
   include:
   - before_cache:

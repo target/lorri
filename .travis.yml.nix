@@ -146,7 +146,7 @@ let
     in
       {
         git.depth = false;
-        language = "minimal";
+        language = "shell";
         matrix.include = map mergeShallowConcatLists [
           # Verifying lints on macOS and Linux ensures nix-shell works
           # on both platforms.
