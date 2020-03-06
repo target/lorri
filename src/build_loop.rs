@@ -78,7 +78,6 @@ impl<'a> BuildLoop<'a> {
     /// still running, it is finished first before starting a new build.
     #[allow(clippy::drop_copy, clippy::zero_ptr)] // triggered by `select!`
     pub fn forever(&mut self, tx: chan::Sender<LoopHandlerEvent>, rx_ping: chan::Receiver<()>) {
-        let send = |msg| tx.send(msg).expect("Failed to send an event");
         let translate_reason = |rsn| match rsn {
             Ok(rsn) => rsn,
             // we should continue and just cite an unknown reason
@@ -96,11 +95,13 @@ impl<'a> BuildLoop<'a> {
         };
 
         // The project has just been added, so run the builder in the first iteration
-        let mut reason = Some(Event::Started {
-            nix_file: self.project.nix_file.clone(),
-            reason: Reason::ProjectAdded(self.project.nix_file.clone()),
-        });
-        let mut output_paths = None;
+        let mut output_paths = self.once_with_send(
+            &tx,
+            Event::Started {
+                nix_file: self.project.nix_file.clone(),
+                reason: Reason::ProjectAdded(self.project.nix_file.clone()),
+            },
+        );
 
         // Drain pings initially: we're going to trigger a first build anyway
         rx_ping.try_iter().for_each(drop);
@@ -108,53 +109,77 @@ impl<'a> BuildLoop<'a> {
         let rx_notify = self.watch.rx.clone();
 
         loop {
-            // If there is some reason to build, run the build!
-            if let Some(rsn) = reason {
-                send(rsn.into());
-                match self.once() {
-                    Ok(result) => {
-                        output_paths = Some(result.output_paths.clone());
-                        send(
-                            Event::Completed {
-                                nix_file: self.project.nix_file.clone(),
-                                result,
-                            }
-                            .into(),
-                        );
-                    }
-                    Err(e) => {
-                        if e.is_actionable() {
-                            send(
-                                Event::Failure {
+            let reason = chan::select! {
+                recv(rx_notify) -> msg => match msg {
+                    Ok(msg) => {
+                        match self.watch.process(msg) {
+                            Some(rsn) => {
+                                Some(Event::Started{
                                     nix_file: self.project.nix_file.clone(),
-                                    failure: e,
-                                }
-                                .into(),
-                            )
-                        } else {
-                            panic!("Unrecoverable error:\n{:#?}", e);
+                                    reason: translate_reason(rsn)
+                                })
+                            },
+                            None => {
+                                // No relevant file events
+                                None
+                            }
                         }
                     }
+                    // TODO: can we just ignore Err?
+                    Err(_) => None
+                },
+                recv(rx_ping) -> msg => match (msg, &output_paths) {
+                    (Ok(()), Some(output_paths)) => {
+                        // TODO: why is this check done here?
+                        if !output_paths.shell_gc_root_is_dir() {
+                            Some(Event::Started{
+                                nix_file: self.project.nix_file.clone(),
+                                reason: Reason::PingReceived
+                            })
+                        }
+                        else { None }
+                    },
+                    // TODO: can we just ignore these two cases?
+                    (Ok(()), None) => None,
+                    (Err(_), _) => None
                 }
-                reason = None;
-            }
+            };
 
-            chan::select! {
-                recv(rx_notify) -> msg => if let Ok(msg) = msg {
-                    if let Some(rsn) = self.watch.process(msg) {
-                        reason = Some(Event::Started{
-                            nix_file: self.project.nix_file.clone(),
-                            reason: translate_reason(rsn)
-                        });
-                    }
-                },
-                recv(rx_ping) -> msg => if let (Ok(()), Some(output_paths)) = (msg, &output_paths) {
-                    if !output_paths.shell_gc_root_is_dir() {
-                        reason = Some(Event::Started{
-                            nix_file: self.project.nix_file.clone(),
-                            reason: Reason::PingReceived});
-                    }
-                },
+            // If there is some reason to build, run the build!
+            if let Some(rsn) = reason {
+                output_paths = self.once_with_send(&tx, rsn)
+            }
+        }
+    }
+
+    fn once_with_send(
+        &mut self,
+        tx: &chan::Sender<LoopHandlerEvent>,
+        reason: Event,
+    ) -> Option<builder::OutputPaths<roots::RootPath>> {
+        let send = |msg| {
+            tx.send(LoopHandlerEvent::from(msg))
+                .expect("Failed to send an event")
+        };
+        send(reason);
+        match self.once() {
+            Ok(result) => {
+                send(Event::Completed {
+                    nix_file: self.project.nix_file.clone(),
+                    result: result.clone(),
+                });
+                Some(result.output_paths)
+            }
+            Err(e) => {
+                if e.is_actionable() {
+                    send(Event::Failure {
+                        nix_file: self.project.nix_file.clone(),
+                        failure: e,
+                    })
+                } else {
+                    panic!("Unrecoverable error:\n{:#?}", e);
+                }
+                None
             }
         }
     }
