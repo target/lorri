@@ -95,10 +95,13 @@ impl<'a> BuildLoop<'a> {
         };
 
         // The project has just been added, so run the builder in the first iteration
-        let mut reason = Some(Event::Started {
-            nix_file: self.project.nix_file.clone(),
-            reason: Reason::ProjectAdded(self.project.nix_file.clone()),
-        });
+        let mut output_paths = self.once_with_send(
+            &tx,
+            Event::Started {
+                nix_file: self.project.nix_file.clone(),
+                reason: Reason::ProjectAdded(self.project.nix_file.clone()),
+            },
+        );
 
         // Drain pings initially: we're going to trigger a first build anyway
         rx_ping.try_iter().for_each(drop);
@@ -106,41 +109,45 @@ impl<'a> BuildLoop<'a> {
         let rx_notify = self.watch.rx.clone();
 
         loop {
-            let mut output_paths = None;
-            // If there is some reason to build, run the build!
-            if let Some(rsn) = reason {
-                output_paths = self.once_with_send(&tx, rsn)
-            }
-            reason = None;
-
-            chan::select! {
+            let reason = chan::select! {
                 recv(rx_notify) -> msg => match msg {
                     Ok(msg) => {
                         match self.watch.process(msg) {
                             Some(rsn) => {
-                                reason = Some(Event::Started{
+                                Some(Event::Started{
                                     nix_file: self.project.nix_file.clone(),
                                     reason: translate_reason(rsn)
-                                });
+                                })
                             },
                             None => {
                                 // No relevant file events
+                                None
                             }
                         }
                     }
-                    Err(_) => {}
+                    // TODO: can we just ignore Err?
+                    Err(_) => None
                 },
                 recv(rx_ping) -> msg => match (msg, &output_paths) {
                     (Ok(()), Some(output_paths)) => {
+                        // TODO: why is this check done here?
                         if !output_paths.shell_gc_root_is_dir() {
-                            reason = Some(Event::Started{
+                            Some(Event::Started{
                                 nix_file: self.project.nix_file.clone(),
-                                reason: Reason::PingReceived});
+                                reason: Reason::PingReceived
+                            })
                         }
+                        else { None }
                     },
-                    (Ok(()), None) => {},
-                    (Err(_), _) => {}
+                    // TODO: can we just ignore these two cases?
+                    (Ok(()), None) => None,
+                    (Err(_), _) => None
                 }
+            };
+
+            // If there is some reason to build, run the build!
+            if let Some(rsn) = reason {
+                output_paths = self.once_with_send(&tx, rsn)
             }
         }
     }
