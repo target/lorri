@@ -114,21 +114,33 @@ impl<'a> BuildLoop<'a> {
             reason = None;
 
             chan::select! {
-                recv(rx_notify) -> msg => if let Ok(msg) = msg {
-                    if let Some(rsn) = self.watch.process(msg) {
-                        reason = Some(Event::Started{
-                            nix_file: self.project.nix_file.clone(),
-                            reason: translate_reason(rsn)
-                        });
+                recv(rx_notify) -> msg => match msg {
+                    Ok(msg) => {
+                        match self.watch.process(msg) {
+                            Some(rsn) => {
+                                reason = Some(Event::Started{
+                                    nix_file: self.project.nix_file.clone(),
+                                    reason: translate_reason(rsn)
+                                });
+                            },
+                            None => {
+                                // No relevant file events
+                            }
+                        }
                     }
+                    Err(_) => {}
                 },
-                recv(rx_ping) -> msg => if let (Ok(()), Some(output_paths)) = (msg, &output_paths) {
-                    if !output_paths.shell_gc_root_is_dir() {
-                        reason = Some(Event::Started{
-                            nix_file: self.project.nix_file.clone(),
-                            reason: Reason::PingReceived});
-                    }
-                },
+                recv(rx_ping) -> msg => match (msg, &output_paths) {
+                    (Ok(()), Some(output_paths)) => {
+                        if !output_paths.shell_gc_root_is_dir() {
+                            reason = Some(Event::Started{
+                                nix_file: self.project.nix_file.clone(),
+                                reason: Reason::PingReceived});
+                        }
+                    },
+                    (Ok(()), None) => {},
+                    (Err(_), _) => {}
+                }
             }
         }
     }

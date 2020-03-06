@@ -78,6 +78,8 @@ impl Watch {
     }
 
     /// Process `notify::Event`s coming in via `Watch::rx`.
+    ///
+    /// `None` if there were no relevant changes.
     pub fn process(
         &self,
         event: notify::Result<notify::Event>,
