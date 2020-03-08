@@ -6,6 +6,12 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 511;
+        changes = ''
+          Stabilized the JSON format for `internal__stream_events`
+        '';
+      }
+      {
         version = 476;
         changes = ''
           Introduces internal subcommand `lorri internal__stream_events`
