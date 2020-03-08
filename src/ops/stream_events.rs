@@ -1,5 +1,4 @@
 //! Run to output a stream of build events in a machine-parseable form.
-use crate::build_loop::Event;
 use crate::ops::{
     error::{ok, ExitError, OpResult},
     get_paths,
@@ -11,6 +10,9 @@ use std::convert::TryInto;
 use std::str::FromStr;
 use std::thread;
 use std::time::Duration;
+
+mod json_representation;
+use json_representation::Event;
 
 /// Options for the kinds of events to report
 #[derive(Debug)]
