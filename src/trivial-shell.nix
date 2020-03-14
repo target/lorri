@@ -1,6 +1,5 @@
-let
-  pkgs = import <nixpkgs> {};
-in
+{ pkgs ? import <nixpkgs> {} }:
+
 pkgs.mkShell {
   buildInputs = [
     pkgs.hello
