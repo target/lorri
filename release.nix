@@ -6,6 +6,14 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 510;
+        changes = ''
+          - The shell.nix template used by `lorri init` was changed to take
+            `pkgs` as an argument with import of `<nixpkgs>` used as the
+            default value.
+        '';
+      }
+      {
         version = 476;
         changes = ''
           Introduces internal subcommand `lorri internal__stream_events`
