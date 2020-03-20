@@ -1,4 +1,4 @@
-use lorri::cli::{Arguments, Command};
+use lorri::cli::{Arguments, Command, Internal_};
 use lorri::constants;
 use lorri::locate_file;
 use lorri::logging;
@@ -96,10 +96,7 @@ fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
             let (project, _guard) = with_project(&opts.nix_file)?;
             shell::main(project, opts)
         }
-        Command::StartUserShell_(opts) => {
-            let (project, _guard) = with_project(&opts.nix_file)?;
-            start_user_shell::main(project, opts)
-        }
+
         Command::Watch(opts) => {
             let (project, _guard) = with_project(&opts.nix_file)?;
             watch::main(project, opts)
@@ -112,21 +109,25 @@ fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
             let _guard = without_project();
             upgrade::main(opts, paths.cas_store())
         }
-        // TODO: remove
-        Command::Ping_(opts) => {
-            let _guard = without_project();
-            get_shell_nix(&opts.nix_file).and_then(ping::main)
-        }
-
-        Command::StreamEvents_(se) => {
-            let _guard = without_project();
-            stream_events::main(se.kind)
-        }
-
         Command::Init => {
             let _guard = without_project();
             init::main(TRIVIAL_SHELL_SRC, DEFAULT_ENVRC)
         }
+
+        Command::Internal { command } => match command {
+            Internal_::Ping_(opts) => {
+                let _guard = without_project();
+                get_shell_nix(&opts.nix_file).and_then(ping::main)
+            }
+            Internal_::StartUserShell_(opts) => {
+                let (project, _guard) = with_project(&opts.nix_file)?;
+                start_user_shell::main(project, opts)
+            }
+            Internal_::StreamEvents_(se) => {
+                let _guard = without_project();
+                stream_events::main(se.kind)
+            }
+        },
     }
 }
 

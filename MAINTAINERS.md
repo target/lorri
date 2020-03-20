@@ -8,8 +8,7 @@ non-negative integers without leading zeroes.
 ### Terminology
 
 lorri is a command line tool with multiple **subcommands**. Those subcommands
-are either _external_ or _internal_.  Internal subcommands' names start with
-"internal\_\_". There are _mandatory_ and _optional_ **command line options**,
+are either _external_ or _internal_. There are _mandatory_ and _optional_ **command line options**,
 which can be attached to the top-level command or to subcommands.
 
 Subcommands fall into two categories based on the intended consumer of their

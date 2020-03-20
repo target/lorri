@@ -6,9 +6,7 @@
 // bit more typing, but the long name makes the intent much more obvious. The only short option
 // right now is `-v` for verbosity, and it should probably stay that way.
 //
-// Prefix internal commands with `internal__` and hide them from the auto-generated help using
-// `raw(setting = "structopt::clap::AppSettings::Hidden")`. See MAINTAINERS.md for details on
-// internal and non-internal commands.
+// See MAINTAINERS.md for details on internal and non-internal commands.
 
 use std::path::PathBuf;
 
@@ -43,13 +41,6 @@ pub enum Command {
     #[structopt(name = "shell")]
     Shell(ShellOptions),
 
-    /// (internal) Used internally by `lorri shell`
-    #[structopt(
-        name = "internal__start_user_shell",
-        raw(setting = "structopt::clap::AppSettings::Hidden")
-    )]
-    StartUserShell_(StartUserShellOptions_),
-
     /// Build project whenever an input file changes
     #[structopt(name = "watch")]
     Watch(WatchOptions),
@@ -58,20 +49,6 @@ pub enum Command {
     #[structopt(name = "daemon")]
     Daemon,
 
-    /// (internal) Tell the lorri daemon to care about the current directory's project
-    #[structopt(
-        name = "internal__ping",
-        raw(setting = "structopt::clap::AppSettings::Hidden")
-    )]
-    Ping_(Ping_),
-
-    /// (plumbing) Ask the lorri daemon to report build events as they occur
-    #[structopt(
-        name = "internal__stream_events",
-        raw(setting = "structopt::clap::AppSettings::Hidden")
-    )]
-    StreamEvents_(StreamEvents_),
-
     /// Upgrade Lorri
     #[structopt(name = "self-upgrade", alias = "self-update")]
     Upgrade(UpgradeTo),
@@ -79,6 +56,14 @@ pub enum Command {
     /// Write bootstrap files to current directory to create a new lorri project
     #[structopt(name = "init")]
     Init,
+
+    /// Internal commands, only use to experiment with unstable features
+    #[structopt(name = "internal")]
+    Internal {
+        /// Sub-command to execute
+        #[structopt(subcommand)]
+        command: Internal_,
+    },
 }
 
 /// Options for the `direnv` subcommand.
@@ -111,7 +96,7 @@ pub struct ShellOptions {
     pub cached: bool,
 }
 
-/// Options for the `internal__start_user_shell` subcommand.
+/// Options for the `internal start_user_shell` subcommand.
 #[derive(StructOpt, Debug)]
 pub struct StartUserShellOptions_ {
     /// The path of the parent shell's binary
@@ -131,6 +116,22 @@ pub struct WatchOptions {
     /// Exit after a the first build
     #[structopt(long = "once")]
     pub once: bool,
+}
+
+/// Sub-commands which lorri can execute for internal features
+#[derive(StructOpt, Debug)]
+pub enum Internal_ {
+    /// (internal) Used internally by `lorri shell`
+    #[structopt(name = "start_user_shell")]
+    StartUserShell_(StartUserShellOptions_),
+
+    /// (plumbing) Tell the lorri daemon to care about the current directory's project
+    #[structopt(name = "ping")]
+    Ping_(Ping_),
+
+    /// (plumbing) Ask the lorri daemon to report build events as they occur
+    #[structopt(name = "stream_events")]
+    StreamEvents_(StreamEvents_),
 }
 
 /// Send a message with a lorri project.
