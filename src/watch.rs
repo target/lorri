@@ -151,6 +151,10 @@ impl Watch {
     }
 
     fn add_path(&mut self, path: &PathBuf) -> Result<(), notify::Error> {
+        if path.canonicalize()?.starts_with(Path::new("/nix/store")) {
+            return Ok(());
+        }
+
         if !self.watches.contains(path) {
             debug!("watching path"; "path" => path.to_str());
 
