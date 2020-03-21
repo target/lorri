@@ -37,8 +37,18 @@ pub struct RootedPath {
     pub path: StorePath,
 }
 
+/// A path that was accessed during instantiation and should be watched
+/// for changes.
+#[derive(Debug)]
+pub enum ReferencedPath {
+    /// Should watch the whole directory (if the path is a directory).
+    Recursive(PathBuf),
+    /// Just watch path that was accessed.
+    NotRecursive(PathBuf),
+}
+
 struct InstantiateOutput {
-    referenced_paths: Vec<PathBuf>,
+    referenced_paths: Vec<ReferencedPath>,
     output: RootedDrv,
 }
 
@@ -130,13 +140,18 @@ fn instrumented_instantiation(
     // meaning we don’t have to keep the outputs in memory (fold directly)
 
     // iterate over all lines, parsing out the ones we are interested in
-    let (paths, log_lines): (Vec<PathBuf>, Vec<OsString>) =
+    let (paths, log_lines): (Vec<ReferencedPath>, Vec<OsString>) =
         results
             .into_iter()
             .fold((vec![], vec![]), |(mut paths, mut log_lines), result| {
                 match result {
-                    LogDatum::CopiedSource(src) | LogDatum::ReadFileOrDir(src) => {
-                        paths.push(src);
+                    LogDatum::CopiedSource(src) => {
+                        // For these files we want to watch the whole directorie tree
+                        paths.push(ReferencedPath::Recursive(src));
+                    }
+                    LogDatum::ReadFileOrDir(src) => {
+                        // Reading the directory should not cause a recursive watch
+                        paths.push(ReferencedPath::NotRecursive(src));
                     }
                     LogDatum::NixSourceFile(mut src) => {
                         // We need to emulate nix’s `default.nix` mechanism here.
@@ -150,7 +165,7 @@ fn instrumented_instantiation(
                         if src.is_dir() {
                             src.push("default.nix");
                         }
-                        paths.push(src);
+                        paths.push(ReferencedPath::NotRecursive(src));
                     }
                     LogDatum::Text(line) => log_lines.push(OsString::from(line)),
                     LogDatum::NonUtf(line) => log_lines.push(line),
@@ -203,7 +218,7 @@ struct GcRootTempDir(tempfile::TempDir);
 #[derive(Debug)]
 pub struct RunResult {
     /// All the paths identified during the instantiation
-    pub referenced_paths: Vec<PathBuf>,
+    pub referenced_paths: Vec<ReferencedPath>,
     /// The status of the build attempt
     pub result: RootedPath,
 }

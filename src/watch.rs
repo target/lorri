@@ -109,12 +109,15 @@ impl Watch {
     /// Extend the watch list with an additional list of paths.
     /// Note: Watch maintains a list of already watched paths, and
     /// will not add duplicates.
-    pub fn extend(&mut self, paths: &[PathBuf]) -> Result<(), notify::Error> {
+    pub fn extend(&mut self, paths: &[PathBuf], paths_not_rec: &[PathBuf]) -> Result<(), notify::Error> {
         for path in paths {
             self.add_path(&path)?;
             if path.is_dir() {
                 self.add_path_recursively(&path)?;
             }
+        }
+        for path in paths_not_rec {
+            self.add_path(&path)?;
         }
 
         Ok(())

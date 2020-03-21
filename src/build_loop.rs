@@ -194,13 +194,47 @@ impl<'a> BuildLoop<'a> {
         self.root_result(run_result.result)
     }
 
-    fn register_paths(&mut self, paths: &[PathBuf]) -> Result<(), notify::Error> {
+    fn register_paths(&mut self, pathRefs: &[builder::ReferencedPath]) -> Result<(), notify::Error> {
+        // Get the paths for which the watching should apply to their
+        // subdirectories.
+        let mut paths = Vec::new();
+        paths.extend(pathRefs.iter().filter_map(|refPath|
+          match refPath {
+            builder::ReferencedPath::Recursive(p) => Some(p),
+            builder::ReferencedPath::NotRecursive(_) => None,
+          }).cloned());
+        // Reduce these to the minmal set
         let original_paths_len = paths.len();
-        let paths = reduce_paths(&paths);
+        let paths = reduce_paths(paths.as_slice());
         debug!("paths reduced"; "from" => original_paths_len, "to" => paths.len());
 
+        // Now get the list of path references that should not
+        // result in subdirectories also being watched.
+        let mut paths_not_rec = Vec::new();
+        paths_not_rec.extend(pathRefs.iter().filter_map(|refPath|
+          match refPath {
+            builder::ReferencedPath::Recursive(_) => None,
+            builder::ReferencedPath::NotRecursive(p) => Some(p),
+          }).cloned());
+        let original_paths_not_rec_len = paths_not_rec.len();
+
+        // Remove duplicates
+        paths_not_rec.sort();
+        paths_not_rec.dedup();
+
+        // Exclude anything that is already part of a directory tree
+        // that will be watched as part of `paths`.
+        let paths_not_rec = paths_not_rec
+                .iter()
+                .filter(|p| !paths.iter().any(|path| p.starts_with(path)))
+                .cloned()
+                .collect::<Vec<_>>();
+        debug!("paths_not_rec reduced"; "from" => original_paths_not_rec_len,
+            "to" => paths_not_rec.len());
+
         // add all new (reduced) nix sources to the input source watchlist
-        self.watch.extend(&paths.into_iter().collect::<Vec<_>>())?;
+        self.watch.extend(&paths.into_iter().collect::<Vec<_>>(),
+            paths_not_rec.as_slice())?;
 
         Ok(())
     }
