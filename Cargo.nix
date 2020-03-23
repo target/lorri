@@ -170,6 +170,7 @@ rec {
     winapi = "0.3.8";
   };
   deps.autocfg."0.1.7" = {};
+  deps.autocfg."1.0.0" = {};
   deps.backtrace."0.3.40" = {
     backtrace_sys = "0.1.32";
     cfg_if = "0.1.10";
@@ -225,9 +226,18 @@ rec {
   deps.crossbeam_channel."0.3.9" = {
     crossbeam_utils = "0.6.6";
   };
+  deps.crossbeam_channel."0.4.2" = {
+    crossbeam_utils = "0.7.2";
+    maybe_uninit = "2.0.0";
+  };
   deps.crossbeam_utils."0.6.6" = {
     cfg_if = "0.1.10";
     lazy_static = "1.4.0";
+  };
+  deps.crossbeam_utils."0.7.2" = {
+    cfg_if = "0.1.10";
+    lazy_static = "1.4.0";
+    autocfg = "1.0.0";
   };
   deps.directories."1.0.2" = {
     libc = "0.2.65";
@@ -330,9 +340,9 @@ rec {
     serde_derive = "1.0.103";
     serde_json = "1.0.42";
     slog = "2.5.2";
-    slog_async = "2.3.0";
+    slog_async = "2.5.0";
     slog_scope = "4.3.0";
-    slog_term = "2.4.2";
+    slog_term = "2.5.0";
     structopt = "0.2.18";
     tempfile = "3.1.0";
     varlink = "10.0.0";
@@ -563,22 +573,23 @@ rec {
   };
   deps.slab."0.4.2" = {};
   deps.slog."2.5.2" = {};
-  deps.slog_async."2.3.0" = {
+  deps.slog_async."2.5.0" = {
+    crossbeam_channel = "0.4.2";
     slog = "2.5.2";
     take_mut = "0.2.2";
-    thread_local = "0.3.6";
+    thread_local = "1.0.1";
   };
   deps.slog_scope."4.3.0" = {
     arc_swap = "0.4.4";
     lazy_static = "1.4.0";
     slog = "2.5.2";
   };
-  deps.slog_term."2.4.2" = {
+  deps.slog_term."2.5.0" = {
     atty = "0.2.13";
     chrono = "0.4.10";
     slog = "2.5.2";
     term = "0.6.1";
-    thread_local = "0.3.6";
+    thread_local = "1.0.1";
   };
   deps.smallvec."0.6.13" = {
     maybe_uninit = "2.0.0";
@@ -635,6 +646,9 @@ rec {
     unicode_width = "0.1.6";
   };
   deps.thread_local."0.3.6" = {
+    lazy_static = "1.4.0";
+  };
+  deps.thread_local."1.0.1" = {
     lazy_static = "1.4.0";
   };
   deps.time."0.1.42" = {
