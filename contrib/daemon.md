@@ -43,7 +43,7 @@ $ mkdir -p ~/.config/systemd/user && \
 The lorri daemon will now be started on demand by systemd. See [Verify the
 setup](#verify-the-setup) to check that everything works as expected.
 
-## Run `lorri daemon` on macOS with Nix
+## Run `lorri daemon` on macOS with Nix (using [nix-darwin](https://github.com/LnL7/nix-darwin))
 
 The following user contributions should help you get started:
 - [@jkachmar]'s [suggested `darwin-configuration.nix`](https://github.com/target/lorri/issues/96#issuecomment-579931485)
