@@ -3,7 +3,7 @@ Thank you for your contribution!
 
 If this is the first time you are contributing to lorri, please take a look at:
 
-https://github.com/target/lorri/CONTRIBUTING.md
+https://github.com/target/lorri/blob/master/CONTRIBUTING.md
 -->
 
 <!-- Please replace ISSUE by the issue number this pull request addresses. -->
@@ -17,7 +17,7 @@ Explain the approach you took to resolving the issue and provide necessary conte
 There is no need to go into a lot of detail here: instead, try to make each commit self-explanatory
 and include good commit messages.
 
-See https://github.com/target/lorri/CONTRIBUTING.md for more on how to structure a pull request.
+See https://github.com/target/lorri/blob/master/CONTRIBUTING.md for more on how to structure a pull request.
 -->
 
 ## Checklist
