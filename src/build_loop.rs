@@ -193,7 +193,10 @@ impl<'a> BuildLoop<'a> {
         self.root_result(run_result.result)
     }
 
-    fn register_paths(&mut self, path_refs: &[builder::ReferencedPath]) -> Result<(), notify::Error> {
+    fn register_paths(
+        &mut self,
+        path_refs: &[builder::ReferencedPath],
+    ) -> Result<(), notify::Error> {
         // Get the paths for which the watching should apply to their
         // subdirectories.
         let paths = builder::recursive_paths(&path_refs);
@@ -214,16 +217,18 @@ impl<'a> BuildLoop<'a> {
         // Exclude anything that is already part of a directory tree
         // that will be watched as part of `paths`.
         let paths_not_rec = paths_not_rec
-                .iter()
-                .filter(|p| !paths.iter().any(|path| p.starts_with(path)))
-                .cloned()
-                .collect::<Vec<_>>();
+            .iter()
+            .filter(|p| !paths.iter().any(|path| p.starts_with(path)))
+            .cloned()
+            .collect::<Vec<_>>();
         debug!("paths_not_rec reduced"; "from" => original_paths_not_rec_len,
             "to" => paths_not_rec.len());
 
         // add all new (reduced) nix sources to the input source watchlist
-        self.watch.extend(&paths.into_iter().collect::<Vec<_>>(),
-            paths_not_rec.as_slice())?;
+        self.watch.extend(
+            &paths.into_iter().collect::<Vec<_>>(),
+            paths_not_rec.as_slice(),
+        )?;
 
         Ok(())
     }

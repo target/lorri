@@ -50,22 +50,30 @@ pub enum ReferencedPath {
 /// Extract just the paths that should be watched recursively
 pub fn recursive_paths(referenced_paths: &[ReferencedPath]) -> Vec<PathBuf> {
     let mut paths = Vec::new();
-    paths.extend(referenced_paths.iter().filter_map(|ref_path|
-        match ref_path {
-            ReferencedPath::Recursive(p) => Some(p),
-            _ => None,
-        }).cloned());
+    paths.extend(
+        referenced_paths
+            .iter()
+            .filter_map(|ref_path| match ref_path {
+                ReferencedPath::Recursive(p) => Some(p),
+                _ => None,
+            })
+            .cloned(),
+    );
     paths
 }
 
 /// Extract just the paths that should be watched (but not recursively)
 pub fn not_recursive_paths(referenced_paths: &[ReferencedPath]) -> Vec<PathBuf> {
     let mut paths = Vec::new();
-    paths.extend(referenced_paths.iter().filter_map(|ref_path|
-        match ref_path {
-            ReferencedPath::NotRecursive(p) => Some(p),
-            _ => None,
-        }).cloned());
+    paths.extend(
+        referenced_paths
+            .iter()
+            .filter_map(|ref_path| match ref_path {
+                ReferencedPath::NotRecursive(p) => Some(p),
+                _ => None,
+            })
+            .cloned(),
+    );
     paths
 }
 
@@ -489,9 +497,9 @@ dir-as-source = ./dir;
         let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
 
         let inst_info = instrumented_instantiation(&NixFile::Shell(shell), &cas).unwrap();
-        let paths = not_recursive_paths (&inst_info.referenced_paths);
+        let paths = not_recursive_paths(&inst_info.referenced_paths);
         let ends_with = |end| paths.iter().any(|p| p.ends_with(end));
-        let rec_paths = recursive_paths (&inst_info.referenced_paths);
+        let rec_paths = recursive_paths(&inst_info.referenced_paths);
         let rec_ends_with = |end| rec_paths.iter().any(|p| p.ends_with(end));
         assert!(
             ends_with("foo/default.nix"),
@@ -593,7 +601,7 @@ in
 
         let inst_info = instrumented_instantiation(&NixFile::Services(services), &cas).unwrap();
 
-        let paths = not_recursive_paths (&inst_info.referenced_paths);
+        let paths = not_recursive_paths(&inst_info.referenced_paths);
         let ends_with = |end| paths.iter().any(|p| p.ends_with(end));
         assert!(
             ends_with("program1/default.nix"),
