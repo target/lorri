@@ -70,7 +70,7 @@ pub fn main(project: Project, opts: ShellOptions) -> OpResult {
 
     if !status.success() {
         Err(ExitError::panic(format!(
-            "cannot run lorri shell: fail to execute internal shell command (error: {})",
+            "cannot run lorri shell: failed to execute internal shell command (error: {})",
             status
         )))
     } else {
