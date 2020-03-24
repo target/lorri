@@ -12,7 +12,6 @@ use crate::watch::{DebugMessage, EventError, Reason, Watch};
 use crate::NixFile;
 use crossbeam_channel as chan;
 use slog_scope::{debug, warn};
-use std::path::PathBuf;
 
 /// Builder events sent back over `BuildLoop.tx`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -194,15 +193,10 @@ impl<'a> BuildLoop<'a> {
         self.root_result(run_result.result)
     }
 
-    fn register_paths(&mut self, pathRefs: &[builder::ReferencedPath]) -> Result<(), notify::Error> {
+    fn register_paths(&mut self, path_refs: &[builder::ReferencedPath]) -> Result<(), notify::Error> {
         // Get the paths for which the watching should apply to their
         // subdirectories.
-        let mut paths = Vec::new();
-        paths.extend(pathRefs.iter().filter_map(|refPath|
-          match refPath {
-            builder::ReferencedPath::Recursive(p) => Some(p),
-            builder::ReferencedPath::NotRecursive(_) => None,
-          }).cloned());
+        let paths = builder::recursive_paths(&path_refs);
         // Reduce these to the minmal set
         let original_paths_len = paths.len();
         let paths = reduce_paths(paths.as_slice());
@@ -210,12 +204,7 @@ impl<'a> BuildLoop<'a> {
 
         // Now get the list of path references that should not
         // result in subdirectories also being watched.
-        let mut paths_not_rec = Vec::new();
-        paths_not_rec.extend(pathRefs.iter().filter_map(|refPath|
-          match refPath {
-            builder::ReferencedPath::Recursive(_) => None,
-            builder::ReferencedPath::NotRecursive(p) => Some(p),
-          }).cloned());
+        let mut paths_not_rec = builder::not_recursive_paths(&path_refs);
         let original_paths_not_rec_len = paths_not_rec.len();
 
         // Remove duplicates

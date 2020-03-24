@@ -47,6 +47,28 @@ pub enum ReferencedPath {
     NotRecursive(PathBuf),
 }
 
+/// Extract just the paths that should be watched recursively
+pub fn recursive_paths(referenced_paths: &[ReferencedPath]) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    paths.extend(referenced_paths.iter().filter_map(|ref_path|
+        match ref_path {
+            ReferencedPath::Recursive(p) => Some(p),
+            _ => None,
+        }).cloned());
+    paths
+}
+
+/// Extract just the paths that should be watched (but not recursively)
+pub fn not_recursive_paths(referenced_paths: &[ReferencedPath]) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    paths.extend(referenced_paths.iter().filter_map(|ref_path|
+        match ref_path {
+            ReferencedPath::NotRecursive(p) => Some(p),
+            _ => None,
+        }).cloned());
+    paths
+}
+
 struct InstantiateOutput {
     referenced_paths: Vec<ReferencedPath>,
     output: RootedDrv,
@@ -467,14 +489,17 @@ dir-as-source = ./dir;
         let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
 
         let inst_info = instrumented_instantiation(&NixFile::Shell(shell), &cas).unwrap();
-        let ends_with = |end| inst_info.referenced_paths.iter().any(|p| p.ends_with(end));
+        let paths = not_recursive_paths (&inst_info.referenced_paths);
+        let ends_with = |end| paths.iter().any(|p| p.ends_with(end));
+        let rec_paths = recursive_paths (&inst_info.referenced_paths);
+        let rec_ends_with = |end| rec_paths.iter().any(|p| p.ends_with(end));
         assert!(
             ends_with("foo/default.nix"),
             "foo/default.nix should be watched!"
         );
         assert!(!ends_with("foo/bar"), "foo/bar should not be watched!");
         assert!(ends_with("foo/baz"), "foo/baz should be watched!");
-        assert!(ends_with("dir"), "dir should be watched!");
+        assert!(rec_ends_with("dir"), "dir should be watched!");
         assert!(
             !ends_with("foo"),
             "No imported directories must exist in watched paths: {:#?}",
@@ -568,7 +593,8 @@ in
 
         let inst_info = instrumented_instantiation(&NixFile::Services(services), &cas).unwrap();
 
-        let ends_with = |end| inst_info.referenced_paths.iter().any(|p| p.ends_with(end));
+        let paths = not_recursive_paths (&inst_info.referenced_paths);
+        let ends_with = |end| paths.iter().any(|p| p.ends_with(end));
         assert!(
             ends_with("program1/default.nix"),
             "program1/default.nix should be watched!"

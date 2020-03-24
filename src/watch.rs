@@ -334,7 +334,7 @@ mod tests {
         let temp = tempdir().unwrap();
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
-        watcher.extend(&[temp.path().to_path_buf()]).unwrap();
+        watcher.extend(&[temp.path().to_path_buf()], &[]).unwrap();
 
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
         sleep(upper_watcher_timeout());
@@ -352,7 +352,7 @@ mod tests {
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
-        watcher.extend(&[temp.path().join("foo")]).unwrap();
+        watcher.extend(&[temp.path().join("foo")], &[]).unwrap();
         macos_eat_late_notifications(&mut watcher);
 
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
@@ -368,7 +368,7 @@ mod tests {
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
-        watcher.extend(&[temp.path().join("foo")]).unwrap();
+        watcher.extend(&[temp.path().join("foo")], &[]).unwrap();
         macos_eat_late_notifications(&mut watcher);
 
         // bar is not watched, expect error
