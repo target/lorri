@@ -898,30 +898,6 @@ rec {
 
 
 # end
-# crossbeam-channel-0.4.2
-
-  crates.crossbeam_channel."0.4.2" = deps: { features?(features_.crossbeam_channel."0.4.2" deps {}) }: buildRustCrate {
-    crateName = "crossbeam-channel";
-    version = "0.4.2";
-    description = "Multi-producer multi-consumer channels for message passing";
-    authors = [ "The Crossbeam Project Developers" ];
-    sha256 = "0rlr1pzhfb5jyrpb026p37g12qaaz6sv2gd6qszcgwdmmmaw8ly6";
-    dependencies = mapFeatures features ([
-      (crates."crossbeam_utils"."${deps."crossbeam_channel"."0.4.2"."crossbeam_utils"}" deps)
-      (crates."maybe_uninit"."${deps."crossbeam_channel"."0.4.2"."maybe_uninit"}" deps)
-    ]);
-  };
-  features_.crossbeam_channel."0.4.2" = deps: f: updateFeatures f (rec {
-    crossbeam_channel."0.4.2".default = (f.crossbeam_channel."0.4.2".default or true);
-    crossbeam_utils."${deps.crossbeam_channel."0.4.2".crossbeam_utils}".default = true;
-    maybe_uninit."${deps.crossbeam_channel."0.4.2".maybe_uninit}".default = true;
-  }) [
-    (features_.crossbeam_utils."${deps."crossbeam_channel"."0.4.2"."crossbeam_utils"}" deps)
-    (features_.maybe_uninit."${deps."crossbeam_channel"."0.4.2"."maybe_uninit"}" deps)
-  ];
-
-
-# end
 # crossbeam-utils-0.6.6
 
   crates.crossbeam_utils."0.6.6" = deps: { features?(features_.crossbeam_utils."0.6.6" deps {}) }: buildRustCrate {
@@ -3807,48 +3783,6 @@ rec {
 
 
 # end
-# slog-async-2.5.0
-
-  crates.slog_async."2.5.0" = deps: { features?(features_.slog_async."2.5.0" deps {}) }: buildRustCrate {
-    crateName = "slog-async";
-    version = "2.5.0";
-    description = "Asynchronous drain for slog-rs";
-    authors = [ "Dawid Ciężarkiewicz <dpc@dpc.pw>" ];
-    sha256 = "1d1qf719ynhrikgh3ksr6i5s1b2y6fynv0nvwj99lcz1gsnw5qy6";
-    libPath = "lib.rs";
-    dependencies = mapFeatures features ([
-      (crates."crossbeam_channel"."${deps."slog_async"."2.5.0"."crossbeam_channel"}" deps)
-      (crates."slog"."${deps."slog_async"."2.5.0"."slog"}" deps)
-      (crates."take_mut"."${deps."slog_async"."2.5.0"."take_mut"}" deps)
-      (crates."thread_local"."${deps."slog_async"."2.5.0"."thread_local"}" deps)
-    ]);
-    features = mkFeatures (features."slog_async"."2.5.0" or {});
-  };
-  features_.slog_async."2.5.0" = deps: f: updateFeatures f (rec {
-    crossbeam_channel."${deps.slog_async."2.5.0".crossbeam_channel}".default = true;
-    slog = fold recursiveUpdate {} [
-      { "${deps.slog_async."2.5.0".slog}"."dynamic-keys" =
-        (f.slog."${deps.slog_async."2.5.0".slog}"."dynamic-keys" or false) ||
-        (slog_async."2.5.0"."dynamic-keys" or false) ||
-        (f."slog_async"."2.5.0"."dynamic-keys" or false); }
-      { "${deps.slog_async."2.5.0".slog}"."nested-values" =
-        (f.slog."${deps.slog_async."2.5.0".slog}"."nested-values" or false) ||
-        (slog_async."2.5.0"."nested-values" or false) ||
-        (f."slog_async"."2.5.0"."nested-values" or false); }
-      { "${deps.slog_async."2.5.0".slog}".default = true; }
-    ];
-    slog_async."2.5.0".default = (f.slog_async."2.5.0".default or true);
-    take_mut."${deps.slog_async."2.5.0".take_mut}".default = true;
-    thread_local."${deps.slog_async."2.5.0".thread_local}".default = true;
-  }) [
-    (features_.crossbeam_channel."${deps."slog_async"."2.5.0"."crossbeam_channel"}" deps)
-    (features_.slog."${deps."slog_async"."2.5.0"."slog"}" deps)
-    (features_.take_mut."${deps."slog_async"."2.5.0"."take_mut"}" deps)
-    (features_.thread_local."${deps."slog_async"."2.5.0"."thread_local"}" deps)
-  ];
-
-
-# end
 # slog-scope-4.3.0
 
   crates.slog_scope."4.3.0" = deps: { features?(features_.slog_scope."4.3.0" deps {}) }: buildRustCrate {
@@ -4218,21 +4152,6 @@ rec {
     (features_.quote."${deps."syn"."1.0.17"."quote"}" deps)
     (features_.unicode_xid."${deps."syn"."1.0.17"."unicode_xid"}" deps)
   ];
-
-
-# end
-# take_mut-0.2.2
-
-  crates.take_mut."0.2.2" = deps: { features?(features_.take_mut."0.2.2" deps {}) }: buildRustCrate {
-    crateName = "take_mut";
-    version = "0.2.2";
-    description = "Take a T from a &mut T temporarily";
-    authors = [ "Sgeo <sgeoster@gmail.com>" ];
-    sha256 = "1jidav4jx1lkz69ixjh37k3m0w46adk798fv7qj6k0zhzkd1kshv";
-  };
-  features_.take_mut."0.2.2" = deps: f: updateFeatures f (rec {
-    take_mut."0.2.2".default = (f.take_mut."0.2.2".default or true);
-  }) [];
 
 
 # end

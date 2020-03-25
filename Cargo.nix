@@ -78,7 +78,6 @@ rec {
         (cratesIO.crates."serde_derive"."${deps."lorri"."1.0.0"."serde_derive"}" deps)
         (cratesIO.crates."serde_json"."${deps."lorri"."1.0.0"."serde_json"}" deps)
         (cratesIO.crates."slog"."${deps."lorri"."1.0.0"."slog"}" deps)
-        (cratesIO.crates."slog_async"."${deps."lorri"."1.0.0"."slog_async"}" deps)
         (cratesIO.crates."slog_scope"."${deps."lorri"."1.0.0"."slog_scope"}" deps)
         (cratesIO.crates."slog_term"."${deps."lorri"."1.0.0"."slog_term"}" deps)
         (cratesIO.crates."structopt"."${deps."lorri"."1.0.0"."structopt"}" deps)
@@ -107,7 +106,6 @@ rec {
       serde_derive."${deps.lorri."1.0.0".serde_derive}".default = true;
       serde_json."${deps.lorri."1.0.0".serde_json}".default = true;
       slog."${deps.lorri."1.0.0".slog}".default = true;
-      slog_async."${deps.lorri."1.0.0".slog_async}".default = true;
       slog_scope."${deps.lorri."1.0.0".slog_scope}".default = true;
       slog_term."${deps.lorri."1.0.0".slog_term}".default = true;
       structopt."${deps.lorri."1.0.0".structopt}".default = true;
@@ -130,7 +128,6 @@ rec {
       (cratesIO.features_.serde_derive."${deps."lorri"."1.0.0"."serde_derive"}" deps)
       (cratesIO.features_.serde_json."${deps."lorri"."1.0.0"."serde_json"}" deps)
       (cratesIO.features_.slog."${deps."lorri"."1.0.0"."slog"}" deps)
-      (cratesIO.features_.slog_async."${deps."lorri"."1.0.0"."slog_async"}" deps)
       (cratesIO.features_.slog_scope."${deps."lorri"."1.0.0"."slog_scope"}" deps)
       (cratesIO.features_.slog_term."${deps."lorri"."1.0.0"."slog_term"}" deps)
       (cratesIO.features_.structopt."${deps."lorri"."1.0.0"."structopt"}" deps)
@@ -221,10 +218,6 @@ rec {
   deps.constant_time_eq."0.1.5" = {};
   deps.crossbeam_channel."0.3.9" = {
     crossbeam_utils = "0.6.6";
-  };
-  deps.crossbeam_channel."0.4.2" = {
-    crossbeam_utils = "0.7.2";
-    maybe_uninit = "2.0.0";
   };
   deps.crossbeam_utils."0.6.6" = {
     cfg_if = "0.1.10";
@@ -329,7 +322,6 @@ rec {
     serde_derive = "1.0.105";
     serde_json = "1.0.48";
     slog = "2.5.2";
-    slog_async = "2.5.0";
     slog_scope = "4.3.0";
     slog_term = "2.5.0";
     structopt = "0.2.18";
@@ -563,12 +555,6 @@ rec {
   };
   deps.slab."0.4.2" = {};
   deps.slog."2.5.2" = {};
-  deps.slog_async."2.5.0" = {
-    crossbeam_channel = "0.4.2";
-    slog = "2.5.2";
-    take_mut = "0.2.2";
-    thread_local = "1.0.1";
-  };
   deps.slog_scope."4.3.0" = {
     arc_swap = "0.4.5";
     lazy_static = "1.4.0";
@@ -606,7 +592,6 @@ rec {
     quote = "1.0.3";
     unicode_xid = "0.2.0";
   };
-  deps.take_mut."0.2.2" = {};
   deps.tempdir."0.3.7" = {
     rand = "0.4.6";
     remove_dir_all = "0.5.2";
