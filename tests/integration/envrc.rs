@@ -76,3 +76,21 @@ fn v2_gopath_previously_unset() {
 
     assert_eq!(env.get_env("GOPATH"), DirenvValue::Value("BAR"));
 }
+
+#[test]
+fn bug18_path_with_spaces() {
+    let exemplar = "/mnt/c/Program Files (x86)/QuickTime/QTSystem";
+    let path = env::var("PATH")
+        .map(|x| format!("{}:{}", x, exemplar))
+        .unwrap();
+    let env = EnvrcTestCase::new()
+        .ambient_env("PATH", &path)
+        .project_env(ProjectEnvBuilderV1::new().set("PATH", "/foo/bar"))
+        .unwrap()
+        .get_direnv_variables();
+
+    assert_eq!(
+        env.get_env("PATH"),
+        DirenvValue::Value(&format!("/foo/bar:{}", &path))
+    );
+}

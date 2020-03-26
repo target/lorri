@@ -6,6 +6,12 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 517;
+        changes = ''
+          - Fix issue with spaces in PATH entries
+        '';
+      }
+      {
         version = 510;
         changes = ''
           - The shell.nix template used by `lorri init` was changed to take
