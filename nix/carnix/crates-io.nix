@@ -1374,6 +1374,50 @@ rec {
 
 
 # end
+# human-panic-1.0.3
+
+  crates.human_panic."1.0.3" = deps: { features?(features_.human_panic."1.0.3" deps {}) }: buildRustCrate {
+    crateName = "human-panic";
+    version = "1.0.3";
+    description = "Panic messages for humans";
+    authors = [ "Yoshua Wuyts <yoshuawuyts@gmail.com>" "Pascal Hertleif <killercup@gmail.com>" "Katharina Fey <kookie@spacekookie.de>" ];
+    edition = "2018";
+    sha256 = "0w0y8ha4imvqa02aw9zfyxfd4zc3a7j9lvirxkcnyl7fbw811xnn";
+    dependencies = mapFeatures features ([
+      (crates."backtrace"."${deps."human_panic"."1.0.3"."backtrace"}" deps)
+      (crates."os_type"."${deps."human_panic"."1.0.3"."os_type"}" deps)
+      (crates."serde"."${deps."human_panic"."1.0.3"."serde"}" deps)
+      (crates."serde_derive"."${deps."human_panic"."1.0.3"."serde_derive"}" deps)
+      (crates."termcolor"."${deps."human_panic"."1.0.3"."termcolor"}" deps)
+      (crates."toml"."${deps."human_panic"."1.0.3"."toml"}" deps)
+      (crates."uuid"."${deps."human_panic"."1.0.3"."uuid"}" deps)
+    ]);
+    features = mkFeatures (features."human_panic"."1.0.3" or {});
+  };
+  features_.human_panic."1.0.3" = deps: f: updateFeatures f (rec {
+    backtrace."${deps.human_panic."1.0.3".backtrace}".default = true;
+    human_panic."1.0.3".default = (f.human_panic."1.0.3".default or true);
+    os_type."${deps.human_panic."1.0.3".os_type}".default = true;
+    serde."${deps.human_panic."1.0.3".serde}".default = true;
+    serde_derive."${deps.human_panic."1.0.3".serde_derive}".default = true;
+    termcolor."${deps.human_panic."1.0.3".termcolor}".default = true;
+    toml."${deps.human_panic."1.0.3".toml}".default = true;
+    uuid = fold recursiveUpdate {} [
+      { "${deps.human_panic."1.0.3".uuid}"."v4" = true; }
+      { "${deps.human_panic."1.0.3".uuid}".default = (f.uuid."${deps.human_panic."1.0.3".uuid}".default or false); }
+    ];
+  }) [
+    (features_.backtrace."${deps."human_panic"."1.0.3"."backtrace"}" deps)
+    (features_.os_type."${deps."human_panic"."1.0.3"."os_type"}" deps)
+    (features_.serde."${deps."human_panic"."1.0.3"."serde"}" deps)
+    (features_.serde_derive."${deps."human_panic"."1.0.3"."serde_derive"}" deps)
+    (features_.termcolor."${deps."human_panic"."1.0.3"."termcolor"}" deps)
+    (features_.toml."${deps."human_panic"."1.0.3"."toml"}" deps)
+    (features_.uuid."${deps."human_panic"."1.0.3"."uuid"}" deps)
+  ];
+
+
+# end
 # inotify-0.7.0
 
   crates.inotify."0.7.0" = deps: { features?(features_.inotify."0.7.0" deps {}) }: buildRustCrate {
@@ -4364,23 +4408,31 @@ rec {
 
 
 # end
-# toml-0.4.10
+# toml-0.5.6
 
-  crates.toml."0.4.10" = deps: { features?(features_.toml."0.4.10" deps {}) }: buildRustCrate {
+  crates.toml."0.5.6" = deps: { features?(features_.toml."0.5.6" deps {}) }: buildRustCrate {
     crateName = "toml";
-    version = "0.4.10";
+    version = "0.5.6";
     description = "A native Rust encoder and decoder of TOML-formatted files and streams. Provides\nimplementations of the standard Serialize/Deserialize traits for TOML data to\nfacilitate deserializing and serializing Rust structures.\n";
     authors = [ "Alex Crichton <alex@alexcrichton.com>" ];
-    sha256 = "0fs4kxl86w3kmgwcgcv23nk79zagayz1spg281r83w0ywf88d6f1";
+    edition = "2018";
+    sha256 = "1c34474di15700wgwa4ns2g3qh2kjbq4az50m5f8bnn4bv2zny49";
     dependencies = mapFeatures features ([
-      (crates."serde"."${deps."toml"."0.4.10"."serde"}" deps)
+      (crates."serde"."${deps."toml"."0.5.6"."serde"}" deps)
     ]);
+    features = mkFeatures (features."toml"."0.5.6" or {});
   };
-  features_.toml."0.4.10" = deps: f: updateFeatures f (rec {
-    serde."${deps.toml."0.4.10".serde}".default = true;
-    toml."0.4.10".default = (f.toml."0.4.10".default or true);
+  features_.toml."0.5.6" = deps: f: updateFeatures f (rec {
+    serde."${deps.toml."0.5.6".serde}".default = true;
+    toml = fold recursiveUpdate {} [
+      { "0.5.6"."indexmap" =
+        (f.toml."0.5.6"."indexmap" or false) ||
+        (f.toml."0.5.6".preserve_order or false) ||
+        (toml."0.5.6"."preserve_order" or false); }
+      { "0.5.6".default = (f.toml."0.5.6".default or true); }
+    ];
   }) [
-    (features_.serde."${deps."toml"."0.4.10"."serde"}" deps)
+    (features_.serde."${deps."toml"."0.5.6"."serde"}" deps)
   ];
 
 
@@ -4519,66 +4571,59 @@ rec {
 
 
 # end
-# uuid-0.7.4
+# uuid-0.8.1
 
-  crates.uuid."0.7.4" = deps: { features?(features_.uuid."0.7.4" deps {}) }: buildRustCrate {
+  crates.uuid."0.8.1" = deps: { features?(features_.uuid."0.8.1" deps {}) }: buildRustCrate {
     crateName = "uuid";
-    version = "0.7.4";
+    version = "0.8.1";
     description = "A library to generate and parse UUIDs.";
     authors = [ "Ashley Mannix<ashleymannix@live.com.au>" "Christopher Armstrong" "Dylan DPC<dylan.dpc@gmail.com>" "Hunar Roop Kahlon<hunar.roop@gmail.com>" ];
-    sha256 = "1kzjah6i8vf51hrla6qnplymaqx2fadhhlnbvgivgld311lqyz9m";
+    edition = "2018";
+    sha256 = "1xkaidb1cpmvbhjdkjzpbk13rkkb6nbpqbz4kxlzx55xcp1ix1bd";
     dependencies = mapFeatures features ([
     ]
-      ++ (if features.uuid."0.7.4".rand or false then [ (crates.rand."${deps."uuid"."0.7.4".rand}" deps) ] else []))
+      ++ (if features.uuid."0.8.1".rand or false then [ (crates.rand."${deps."uuid"."0.8.1".rand}" deps) ] else []))
       ++ (if kernel == "windows" then mapFeatures features ([
 ]) else []);
-    features = mkFeatures (features."uuid"."0.7.4" or {});
+    features = mkFeatures (features."uuid"."0.8.1" or {});
   };
-  features_.uuid."0.7.4" = deps: f: updateFeatures f (rec {
+  features_.uuid."0.8.1" = deps: f: updateFeatures f (rec {
     rand = fold recursiveUpdate {} [
-      { "${deps.uuid."0.7.4".rand}"."stdweb" =
-        (f.rand."${deps.uuid."0.7.4".rand}"."stdweb" or false) ||
-        (uuid."0.7.4"."stdweb" or false) ||
-        (f."uuid"."0.7.4"."stdweb" or false); }
-      { "${deps.uuid."0.7.4".rand}"."wasm-bindgen" =
-        (f.rand."${deps.uuid."0.7.4".rand}"."wasm-bindgen" or false) ||
-        (uuid."0.7.4"."wasm-bindgen" or false) ||
-        (f."uuid"."0.7.4"."wasm-bindgen" or false); }
-      { "${deps.uuid."0.7.4".rand}".default = true; }
+      { "${deps.uuid."0.8.1".rand}"."stdweb" =
+        (f.rand."${deps.uuid."0.8.1".rand}"."stdweb" or false) ||
+        (uuid."0.8.1"."stdweb" or false) ||
+        (f."uuid"."0.8.1"."stdweb" or false); }
+      { "${deps.uuid."0.8.1".rand}"."wasm-bindgen" =
+        (f.rand."${deps.uuid."0.8.1".rand}"."wasm-bindgen" or false) ||
+        (uuid."0.8.1"."wasm-bindgen" or false) ||
+        (f."uuid"."0.8.1"."wasm-bindgen" or false); }
+      { "${deps.uuid."0.8.1".rand}".default = true; }
     ];
     uuid = fold recursiveUpdate {} [
-      { "0.7.4"."byteorder" =
-        (f.uuid."0.7.4"."byteorder" or false) ||
-        (f.uuid."0.7.4".u128 or false) ||
-        (uuid."0.7.4"."u128" or false); }
-      { "0.7.4"."md5" =
-        (f.uuid."0.7.4"."md5" or false) ||
-        (f.uuid."0.7.4".v3 or false) ||
-        (uuid."0.7.4"."v3" or false); }
-      { "0.7.4"."nightly" =
-        (f.uuid."0.7.4"."nightly" or false) ||
-        (f.uuid."0.7.4".const_fn or false) ||
-        (uuid."0.7.4"."const_fn" or false); }
-      { "0.7.4"."rand" =
-        (f.uuid."0.7.4"."rand" or false) ||
-        (f.uuid."0.7.4".v4 or false) ||
-        (uuid."0.7.4"."v4" or false); }
-      { "0.7.4"."sha1" =
-        (f.uuid."0.7.4"."sha1" or false) ||
-        (f.uuid."0.7.4".v5 or false) ||
-        (uuid."0.7.4"."v5" or false); }
-      { "0.7.4"."std" =
-        (f.uuid."0.7.4"."std" or false) ||
-        (f.uuid."0.7.4".default or false) ||
-        (uuid."0.7.4"."default" or false); }
-      { "0.7.4"."winapi" =
-        (f.uuid."0.7.4"."winapi" or false) ||
-        (f.uuid."0.7.4".guid or false) ||
-        (uuid."0.7.4"."guid" or false); }
-      { "0.7.4".default = (f.uuid."0.7.4".default or true); }
+      { "0.8.1"."md5" =
+        (f.uuid."0.8.1"."md5" or false) ||
+        (f.uuid."0.8.1".v3 or false) ||
+        (uuid."0.8.1"."v3" or false); }
+      { "0.8.1"."rand" =
+        (f.uuid."0.8.1"."rand" or false) ||
+        (f.uuid."0.8.1".v4 or false) ||
+        (uuid."0.8.1"."v4" or false); }
+      { "0.8.1"."sha1" =
+        (f.uuid."0.8.1"."sha1" or false) ||
+        (f.uuid."0.8.1".v5 or false) ||
+        (uuid."0.8.1"."v5" or false); }
+      { "0.8.1"."std" =
+        (f.uuid."0.8.1"."std" or false) ||
+        (f.uuid."0.8.1".default or false) ||
+        (uuid."0.8.1"."default" or false); }
+      { "0.8.1"."winapi" =
+        (f.uuid."0.8.1"."winapi" or false) ||
+        (f.uuid."0.8.1".guid or false) ||
+        (uuid."0.8.1"."guid" or false); }
+      { "0.8.1".default = (f.uuid."0.8.1".default or true); }
     ];
   }) [
-    (features_.rand."${deps."uuid"."0.7.4"."rand"}" deps)
+    (features_.rand."${deps."uuid"."0.8.1"."rand"}" deps)
   ];
 
 
