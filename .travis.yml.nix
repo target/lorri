@@ -65,8 +65,8 @@ let
       ]
       ++ pushToCachix "./shell-inputs"
       ++ [
-        ''nix-shell --quiet --arg isDevelopmentShell false --run ci_check''
-        ''cat $(nix-build --quiet ./.travis.yml.nix --no-out-link) > .travis.yml''
+        ''nix-shell --arg isDevelopmentShell false --run ci_check''
+        ''cat $(nix-build ./.travis.yml.nix --no-out-link) > .travis.yml''
         ''git diff -q ./.travis.yml''
         ''git diff -q ./Cargo.nix''
         ''git diff -q ./src/com_target_lorri.rs''
