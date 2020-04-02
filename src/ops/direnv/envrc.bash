@@ -55,7 +55,7 @@ function prepend() {
     # reference, plus the current (updated on the export) contents.
     # however, exclude the ${separator} unless ${original} starts
     # with a value
-    eval "$varname=${!varname}${original:+${separator}${original}}"
+    eval "$varname=\"${!varname}${original:+${separator}${original}}\""
 }
 
 function append() {
