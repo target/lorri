@@ -6,6 +6,13 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 518;
+        changes = ''
+          Internal subcommands is now visible for all users inside the internal
+          subcommand. Example `lorri internal stream_events` instead of `lorri internal__stream_events`.
+        '';
+      }
+      {
         version = 517;
         changes = ''
           - Fix issue with spaces in PATH entries

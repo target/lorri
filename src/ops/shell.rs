@@ -29,7 +29,7 @@ use std::{env, thread};
 /// ├── builds the project environment if --cached is false
 /// ├── writes a bash init script that loads the project environment
 /// ├── SPAWNS bash with the init script as its `--rcfile`
-/// │   └── EXECS `lorri internal__start_user_shell`
+/// │   └── EXECS `lorri internal start_user_shell`
 /// │       ├── (*) performs shell-specific setup for $SHELL
 /// │       └── EXECS into user shell $SHELL
 /// │           └── interactive user shell
@@ -41,8 +41,6 @@ use std::{env, thread};
 pub fn main(project: Project, opts: ShellOptions) -> OpResult {
     let lorri = env::current_exe().expect("failed to determine lorri executable's path");
     let shell = env::var("SHELL").expect("lorri shell requires $SHELL to be set");
-    debug!("using shell path {}", shell);
-
     let cached = cached_root(&project);
     let mut bash_cmd = bash_cmd(
         if opts.cached {
@@ -52,11 +50,12 @@ pub fn main(project: Project, opts: ShellOptions) -> OpResult {
         },
         &project.cas,
     )?;
-    debug!("bash"; "command" => ?bash_cmd);
-    bash_cmd
+
+    debug!("bash_cmd : {:?}", bash_cmd);
+    let status = bash_cmd
         .args(&[
             "-c",
-            "exec \"$1\" internal__start_user_shell --shell-path=\"$2\" --shell-file=\"$3\"",
+            "exec \"$1\" internal start_user_shell --shell-path=\"$2\" --shell-file=\"$3\"",
             "--",
             &lorri
                 .to_str()
@@ -68,7 +67,15 @@ pub fn main(project: Project, opts: ShellOptions) -> OpResult {
         ])
         .status()
         .expect("failed to execute bash");
-    Ok(())
+
+    if !status.success() {
+        Err(ExitError::panic(format!(
+            "cannot run lorri shell: failed to execute internal shell command (error: {})",
+            status
+        )))
+    } else {
+        Ok(())
+    }
 }
 
 fn build_root(project: &Project, cached: bool) -> Result<PathBuf, ExitError> {

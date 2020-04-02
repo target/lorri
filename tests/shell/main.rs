@@ -5,14 +5,45 @@ use lorri::{
     project::{roots::Roots, Project},
     NixFile,
 };
+use std::env;
 use std::fs;
 use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
+use std::process::Command;
+
+fn cargo_bin(name: &str) -> PathBuf {
+    env::current_exe()
+        .ok()
+        .map(|mut path| {
+            path.pop();
+            if path.ends_with("deps") {
+                path.pop();
+            }
+            path.join(name)
+        })
+        .unwrap()
+}
 
 #[test]
 fn loads_env() {
     let tempdir = tempfile::tempdir().expect("tempfile::tempdir() failed us!");
     let project = project("loads_env", tempdir.path());
+
+    // Launch as a real user
+    let res = Command::new(cargo_bin("lorri"))
+        .args(&[
+            "shell",
+            "--shell-file",
+            PathBuf::from(&project.nix_file)
+                .as_os_str()
+                .to_str()
+                .unwrap(),
+        ])
+        .current_dir(&tempdir)
+        .output()
+        .expect("fail to run lorri shell");
+    assert!(res.status.success(), "lorri shell command failed");
+
     let output = shell::bash_cmd(build(&project), &project.cas)
         .unwrap()
         .args(&["-c", "echo $MY_ENV_VAR"])
