@@ -5,7 +5,6 @@ use crate::NixFile;
 use crossbeam_channel as chan;
 use notify::event::ModifyKind;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use slog_scope::trace;
 use slog_scope::{debug, info};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -40,6 +39,12 @@ impl From<&DebugMessage> for String {
     fn from(d: &DebugMessage) -> Self {
         d.0.clone()
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct FilteredOut<'a> {
+    reason: &'a str,
+    path: PathBuf,
 }
 
 /// Description of the project change that triggered a build.
@@ -114,14 +119,29 @@ impl Watch {
         for path in paths {
             let recursive_paths = walk_path_topo(path)?;
             for p in recursive_paths {
-                if p.canonicalize()?.starts_with(Path::new("/nix/store")) {
-                    trace!("Skipping watching nix store path {}", p.display());
-                    continue;
+                let p = p.canonicalize()?;
+                match Self::extend_filter(p) {
+                    Err(FilteredOut { reason, path }) => {
+                        debug!("Skipping watching {}: {}", path.display(), reason)
+                    }
+                    Ok(p) => {
+                        self.add_path(p)?;
+                    }
                 }
-                self.add_path(p)?;
             }
         }
         Ok(())
+    }
+
+    fn extend_filter(path: PathBuf) -> Result<PathBuf, FilteredOut<'static>> {
+        if path.starts_with(Path::new("/nix/store")) {
+            Err(FilteredOut {
+                path,
+                reason: "starts with /nix/store",
+            })
+        } else {
+            Ok(path)
+        }
     }
 
     fn log_event(&self, event: &notify::Event) {
@@ -289,6 +309,7 @@ fn path_match(watched_paths: &HashSet<PathBuf>, event_path: &Path) -> bool {
 mod tests {
     use super::{EventError, Reason, Watch};
     use crate::bash::expect_bash;
+    use std::path::PathBuf;
     use std::thread::sleep;
     use std::time::Duration;
     use tempfile::tempdir;
@@ -451,6 +472,21 @@ mod tests {
             .collect::<Vec<_>>()
         );
         Ok(())
+    }
+
+    #[test]
+    fn extend_filter() {
+        let nix = PathBuf::from("/nix/store/njlavpa90laywf22b1myif5101qhln8r-hello-2.10");
+        match super::Watch::extend_filter(nix.clone()) {
+            Ok(path) => assert!(false, "{:?} should be filtered!", path),
+            Err(super::FilteredOut { path, reason }) => {
+                drop(reason);
+                assert_eq!(path, nix)
+            }
+        }
+
+        let other = PathBuf::from("/home/foo/project/foobar.nix");
+        assert_eq!(super::Watch::extend_filter(other.clone()), Ok(other));
     }
 
 }
