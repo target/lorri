@@ -18,9 +18,8 @@ pub fn root(verbosity: u8, command: &Command) -> slog::Logger {
         .build()
         .filter_level(level)
         .fuse();
-    let drain = slog_async::Async::new(drain)
-        .overflow_strategy(slog_async::OverflowStrategy::Block)
-        .build()
-        .fuse();
+    // This makes all logging go through a mutex. Should logging ever become a bottleneck, consider
+    // using slog_async instead.
+    let drain = std::sync::Mutex::new(drain).fuse();
     slog::Logger::root(drain, slog::o!())
 }

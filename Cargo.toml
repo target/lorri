@@ -18,24 +18,20 @@ directories = "1.0.2"
 lazy_static = "1.2.0"
 md5  = "0.6.1"
 nix = "0.14.0"
-notify = "5.0.0-pre.1"
+notify = "= 5.0.0-pre.1"
 proptest = "0.9.1"
 regex = "1.1.0"
 serde = "1.0.88"
 serde_derive = "1.0.88"
 serde_json = "1.0.38"
-structopt = "0.2"
 slog = "2.5.2"
-slog-async = "2.3.0"
 slog-scope = "4.3.0"
-slog-term = "2.4.2"
+slog-term = "2.5.0"
+structopt = "0.2"
 tempfile = "3.0.7"
 varlink = "10.0.0"
 vec1 = "1.1.0"
-
-# pinned to a git commit pending v2.0 release
-# see: https://github.com/rust-cli/human-panic/issues/46
-human-panic = { git = "https://github.com/rust-cli/human-panic.git", rev = "5195002d89b7f54cc68eb42255879654965bb175" }
+human-panic = "1.0.3"
 
 [build-dependencies]
 varlink_generator = "9.0.0"
