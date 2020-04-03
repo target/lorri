@@ -5,6 +5,7 @@ use crate::NixFile;
 use crossbeam_channel as chan;
 use notify::event::ModifyKind;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use slog_scope::trace;
 use slog_scope::{debug, info};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -109,14 +110,17 @@ impl Watch {
     /// Extend the watch list with an additional list of paths.
     /// Note: Watch maintains a list of already watched paths, and
     /// will not add duplicates.
-    pub fn extend(&mut self, paths: &[PathBuf]) -> Result<(), notify::Error> {
+    pub fn extend(&mut self, paths: Vec<PathBuf>) -> Result<(), notify::Error> {
         for path in paths {
-            self.add_path(&path)?;
-            if path.is_dir() {
-                self.add_path_recursively(&path)?;
+            let recursive_paths = walk_path_topo(path)?;
+            for p in recursive_paths {
+                if p.canonicalize()?.starts_with(Path::new("/nix/store")) {
+                    trace!("Skipping watching nix store path {}", p.display());
+                    continue;
+                }
+                self.add_path(p)?;
             }
         }
-
         Ok(())
     }
 
@@ -132,29 +136,11 @@ impl Watch {
         }
     }
 
-    fn add_path_recursively(&mut self, path: &PathBuf) -> Result<(), notify::Error> {
-        if path.canonicalize()?.starts_with(Path::new("/nix/store")) {
-            return Ok(());
-        }
-
-        for entry in path.read_dir()? {
-            let subpath = entry?.path();
-
-            if subpath.is_dir() {
-                self.add_path(&subpath)?;
-                self.add_path_recursively(&subpath)?;
-            }
-
-            // Skip adding files, watching in the dir will handle it.
-        }
-        Ok(())
-    }
-
-    fn add_path(&mut self, path: &PathBuf) -> Result<(), notify::Error> {
-        if !self.watches.contains(path) {
+    fn add_path(&mut self, path: PathBuf) -> Result<(), notify::Error> {
+        if !self.watches.contains(&path) {
             debug!("watching path"; "path" => path.to_str());
 
-            self.notify.watch(path, RecursiveMode::NonRecursive)?;
+            self.notify.watch(&path, RecursiveMode::NonRecursive)?;
             self.watches.insert(path.clone());
         }
 
@@ -193,6 +179,60 @@ impl Watch {
                 _ => true,
             }
     }
+}
+
+/// Lists the dirs and files in a directory, as two vectors.
+/// Given path must be a readable directory.
+fn list_dir(dir: &Path) -> Result<(Vec<PathBuf>, Vec<PathBuf>), std::io::Error> {
+    let mut dirs = vec![];
+    let mut files = vec![];
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        if entry.file_type()?.is_dir() {
+            dirs.push(entry.path())
+        } else {
+            files.push(entry.path())
+        }
+    }
+    Ok((dirs, files))
+}
+
+/// List all children of the given path.
+/// Recurses into directories.
+///
+/// Returns the given path first, then a topologically sorted list of children, if any.
+///
+/// All files have to be readable, or the function aborts.
+/// TODO: gracefully skip unreadable files.
+fn walk_path_topo(path: PathBuf) -> Result<Vec<PathBuf>, std::io::Error> {
+    // push our own path first
+    let mut res = vec![path.clone()];
+
+    // nothing to list
+    if !path.is_dir() {
+        return Ok(res);
+    }
+
+    let (dirs, mut files) = list_dir(&path)?;
+    // plain files
+    res.append(&mut files);
+
+    // now to go through the list, appending new
+    // directories to the work queue as you find them.
+    let mut work = std::collections::VecDeque::from(dirs);
+    loop {
+        match work.pop_front() {
+            // no directories remaining
+            None => break,
+            Some(dir) => {
+                res.push(dir.clone());
+                let (dirs, mut files) = list_dir(&dir)?;
+                res.append(&mut files);
+                work.append(&mut std::collections::VecDeque::from(dirs));
+            }
+        }
+    }
+    Ok(res)
 }
 
 /// Determine if the event path is covered by our list of watched
@@ -331,7 +371,7 @@ mod tests {
         let temp = tempdir().unwrap();
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
-        watcher.extend(&[temp.path().to_path_buf()]).unwrap();
+        watcher.extend(vec![temp.path().to_path_buf()]).unwrap();
 
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
         sleep(upper_watcher_timeout());
@@ -349,7 +389,7 @@ mod tests {
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
-        watcher.extend(&[temp.path().join("foo")]).unwrap();
+        watcher.extend(vec![temp.path().join("foo")]).unwrap();
         macos_eat_late_notifications(&mut watcher);
 
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
@@ -365,7 +405,7 @@ mod tests {
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
-        watcher.extend(&[temp.path().join("foo")]).unwrap();
+        watcher.extend(vec![temp.path().join("foo")]).unwrap();
         macos_eat_late_notifications(&mut watcher);
 
         // bar is not watched, expect error
@@ -388,4 +428,29 @@ mod tests {
         sleep(upper_watcher_timeout());
         assert_file_changed(&watcher, "foo");
     }
+
+    #[test]
+    fn walk_path_topo_filetree() -> std::io::Result<()> {
+        let temp = tempdir().unwrap();
+
+        let files = vec![("a", "b"), ("a", "c"), ("a/d", "e"), ("x/y", "z")];
+        for (dir, file) in files {
+            std::fs::create_dir_all(temp.path().join(dir))?;
+            std::fs::write(temp.path().join(dir).join(file), [])?;
+        }
+
+        assert_eq!(
+            super::walk_path_topo(temp.path().to_owned())?,
+            vec![
+                // our given path first
+                "", "a", // direct files come before nested directories
+                "a/b", "a/c", "x", "a/d", "a/d/e", "x/y", "x/y/z"
+            ]
+            .iter()
+            .map(|p| temp.path().join(p).to_owned())
+            .collect::<Vec<_>>()
+        );
+        Ok(())
+    }
+
 }
