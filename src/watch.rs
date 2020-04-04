@@ -460,17 +460,36 @@ mod tests {
             std::fs::write(temp.path().join(dir).join(file), [])?;
         }
 
-        assert_eq!(
-            super::walk_path_topo(temp.path().to_owned())?,
-            vec![
-                // our given path first
-                "", "a", // direct files come before nested directories
-                "a/b", "a/c", "x", "a/d", "a/d/e", "x/y", "x/y/z"
-            ]
-            .iter()
-            .map(|p| temp.path().join(p).to_owned())
-            .collect::<Vec<_>>()
-        );
+        let res = super::walk_path_topo(temp.path().to_owned())?;
+
+        // check that the list is topolocially sorted
+        // by making sure *no* later path is a prefix of a previous path.
+        let mut inv = res.clone();
+        inv.reverse();
+        for i in 0..inv.len() {
+            for predecessor in inv.iter().skip(i + 1) {
+                assert!(
+                !predecessor.starts_with(&inv[i]),
+                "{:?} is a prefix of {:?}, even though it comes later in list, thus topological order is not given!\nFull list: {:#?}",
+                inv[i], predecessor, res
+            )
+            }
+        }
+
+        // make sure the resulting list contains the same
+        // paths as the original list.
+        let mut res2 = res.clone();
+        res2.sort();
+        let mut all_paths = vec![
+            // our given path first
+            "", "a", // direct files come before nested directories
+            "a/b", "a/c", "x", "a/d", "a/d/e", "x/y", "x/y/z",
+        ]
+        .iter()
+        .map(|p| temp.path().join(p).to_owned())
+        .collect::<Vec<_>>();
+        all_paths.sort();
+        assert_eq!(res2, all_paths);
         Ok(())
     }
 
