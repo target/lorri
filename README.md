@@ -142,6 +142,22 @@ help you get started.
 This section needs to be fleshed out more
 ([#244](https://github.com/target/lorri/issues/244)).
 
+## Associated Projects
+
+lorri embodies a Unix philosophy of doing one thing well.
+As a result, it works very well with other tools to provide a powerful
+and streamlined developement experience.
+
+[direnv](https://github.com/) is lorri's chief collaborator. From its website:
+"It augments existing shells with a new feature that can load and unload
+environment variables depending on the current directory."
+
+As a foundation, lorri relies on [Nix and Nixpkgs](https://nixos.org/nix/)
+to install and manage software packages.
+
+For pinning versions of software during development,
+[niv](https://github.com/nmattia/niv) is very helpful.
+
 ---
 
 ## Support & Questions
