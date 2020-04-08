@@ -146,11 +146,11 @@ This section needs to be fleshed out more
 
 lorri embodies a Unix philosophy of doing one thing well.
 As a result, it works very well with other tools to provide a powerful
-and streamlined developement experience.
+and streamlined development experience.
 
 [direnv](https://github.com/) is lorri's chief collaborator. From its website:
-"It augments existing shells with a new feature that can load and unload
-environment variables depending on the current directory."
+> [direnv] augments existing shells with a new feature that can load and unload
+> environment variables depending on the current directory.
 
 As a foundation, lorri relies on [Nix and Nixpkgs](https://nixos.org/nix/)
 to install and manage software packages.
