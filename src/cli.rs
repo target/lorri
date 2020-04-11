@@ -47,7 +47,7 @@ pub enum Command {
 
     /// Start the multi-project daemon. Replaces `lorri watch`
     #[structopt(name = "daemon")]
-    Daemon,
+    Daemon(DaemonOptions),
 
     /// Upgrade Lorri
     #[structopt(name = "self-upgrade", alias = "self-update")]
@@ -116,6 +116,33 @@ pub struct WatchOptions {
     /// Exit after a the first build
     #[structopt(long = "once")]
     pub once: bool,
+}
+
+/// Options for the `daemon` subcommand
+#[derive(StructOpt, Debug)]
+pub struct DaemonOptions {
+    #[structopt(
+        long = "extra-nix-options",
+        parse(try_from_str = "serde_json::from_str")
+    )]
+    /// JSON value of nix config options to add.
+    /// Only a subset is supported:
+    /// {
+    ///   "builders": <optional list of string>,
+    ///   "substituters": <optional list of string>
+    /// }
+    pub extra_nix_options: Option<NixOptions>,
+}
+
+/// The nix options we can parse as json string
+#[derive(Deserialize, Debug)]
+// ATTN: If you modify this,
+// adjust the help text in DaemonOptions.extra_nix_options
+pub struct NixOptions {
+    /// `builders` (see `nix::options::NixOptions`)
+    pub builders: Option<Vec<String>>,
+    /// `substituters` (see `nix::options::NixOptions`)
+    pub substituters: Option<Vec<String>>,
 }
 
 /// Sub-commands which lorri can execute for internal features

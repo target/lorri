@@ -107,7 +107,12 @@ fn build_root(project: &Project, cached: bool) -> Result<PathBuf, ExitError> {
         eprintln!(". done");
     });
 
-    let run_result = builder::run(&project.nix_file, &project.cas);
+    // TODO: add the ability to pass extra_nix_options to shell
+    let run_result = builder::run(
+        &project.nix_file,
+        &project.cas,
+        &crate::nix::options::NixOptions::empty(),
+    );
     building.store(false, Ordering::SeqCst);
     progress_thread.join().unwrap();
 

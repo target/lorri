@@ -1,6 +1,7 @@
 use lorri::{
     builder,
     cas::ContentAddressable,
+    nix::options::NixOptions,
     ops::shell,
     project::{roots::Roots, Project},
     NixFile,
@@ -74,7 +75,7 @@ fn build(project: &Project) -> PathBuf {
     Path::new(
         Roots::from_project(&project)
             .create_roots(
-                builder::run(&project.nix_file, &project.cas)
+                builder::run(&project.nix_file, &project.cas, &NixOptions::empty())
                     .unwrap()
                     .result,
             )

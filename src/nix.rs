@@ -35,12 +35,15 @@ use crate::osstrlines;
 use crossbeam_channel as chan;
 use slog_scope::debug;
 use std::collections::HashMap;
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::process::{ChildStderr, ChildStdout, Command, ExitStatus, Stdio};
 use std::thread;
 use vec1::Vec1;
+
+/// Construct and combine nix options to pass to nix executables.
+pub mod options;
 
 /// Execute Nix commands using a builder-pattern abstraction.
 #[derive(Clone)]
@@ -48,6 +51,7 @@ pub struct CallOpts<'a> {
     input: Input<'a>,
     attribute: Option<String>,
     argstrs: HashMap<String, String>,
+    extra_options: options::NixOptions,
 }
 
 /// Which input to give nix.
@@ -104,6 +108,7 @@ impl<'a> CallOpts<'a> {
             input: Input::Expression(expr),
             attribute: None,
             argstrs: HashMap::new(),
+            extra_options: options::NixOptions::empty(),
         }
     }
 
@@ -113,7 +118,17 @@ impl<'a> CallOpts<'a> {
             input: Input::File(nix_file),
             attribute: None,
             argstrs: HashMap::new(),
+            extra_options: options::NixOptions::empty(),
         }
+    }
+
+    /// Add extra arguments to the nix invocations.
+    ///
+    /// Arguments are combined semantically,
+    /// not just appended to the arglist,
+    /// See the `NixOptions` documentation for more info.
+    pub fn extra_options(&mut self, opts: options::NixOptions) {
+        self.extra_options.append(opts)
     }
 
     /// Evaluate a sub attribute of the expression. Only supports one:
@@ -394,28 +409,38 @@ impl<'a> CallOpts<'a> {
 
     /// Fetch common arguments passed to Nix's CLI, specifically
     /// the --expr expression, -A attribute, and --argstr values.
-    fn command_arguments(&self) -> Vec<&OsStr> {
-        let mut ret: Vec<&OsStr> = vec![];
+    fn command_arguments(&self) -> Vec<OsString> {
+        let mut ret: Vec<OsString> = vec![];
+
+        // put the passed extra options at the front
+        // to make them more visible in traces
+        ret.extend(
+            self.extra_options
+                .to_nix_arglist()
+                .into_iter()
+                .map(OsString::from)
+                .collect::<Vec<_>>(),
+        );
 
         if let Some(ref attr) = self.attribute {
-            ret.push(OsStr::new("-A"));
-            ret.push(OsStr::new(attr));
+            ret.push(OsString::from("-A"));
+            ret.push(OsString::from(attr));
         }
 
         for (name, value) in self.argstrs.iter() {
-            ret.push(OsStr::new("--argstr"));
-            ret.push(OsStr::new(name));
-            ret.push(OsStr::new(value));
+            ret.push(OsString::from("--argstr"));
+            ret.push(OsString::from(name));
+            ret.push(OsString::from(value));
         }
 
         match self.input {
             Input::Expression(ref exp) => {
-                ret.push(OsStr::new("--expr"));
-                ret.push(OsStr::new(exp));
+                ret.push(OsString::from("--expr"));
+                ret.push(OsString::from(exp));
             }
             Input::File(ref fp) => {
-                ret.push(OsStr::new("--"));
-                ret.push(OsStr::new(fp));
+                ret.push(OsString::from("--"));
+                ret.push(OsString::from(fp));
             }
         }
 
@@ -493,8 +518,14 @@ mod tests {
         let mut nix = CallOpts::expression("my-cool-expression");
         nix.attribute("hello");
         nix.argstr("foo", "bar");
-
+        nix.extra_options(super::options::NixOptions {
+            builders: Some(vec!["user@aarch64.nixos.community aarch64-linux /root/aarch64-build-box/ssh-key 64 1 big-parallel".to_owned(), "sub2".to_owned()]),
+            substituters: None
+                });
         let exp: Vec<&OsStr> = [
+            "--builders",
+            // builders are concatenated with \n
+            "user@aarch64.nixos.community aarch64-linux /root/aarch64-build-box/ssh-key 64 1 big-parallel\nsub2",
             "-A",
             "hello",
             "--argstr",
@@ -514,7 +545,18 @@ mod tests {
         let mut nix2 = CallOpts::file(Path::new("/my-cool-file.nix"));
         nix2.attribute("hello");
         nix2.argstr("foo", "bar");
+        nix2.extra_options(super::options::NixOptions {
+            builders: Some(vec![]),
+            substituters: Some(vec![
+                "mysubstituter".to_owned(),
+                "cache.nixos.org".to_owned(),
+            ]),
+        });
         let exp2: Vec<&OsStr> = [
+            "--builders",
+            "",
+            "--substituters",
+            "mysubstituter cache.nixos.org",
             "-A",
             "hello",
             "--argstr",
