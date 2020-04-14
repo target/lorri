@@ -41,6 +41,12 @@ impl From<&DebugMessage> for String {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+struct FilteredOut<'a> {
+    reason: &'a str,
+    path: PathBuf,
+}
+
 /// Description of the project change that triggered a build.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -109,15 +115,33 @@ impl Watch {
     /// Extend the watch list with an additional list of paths.
     /// Note: Watch maintains a list of already watched paths, and
     /// will not add duplicates.
-    pub fn extend(&mut self, paths: &[PathBuf]) -> Result<(), notify::Error> {
+    pub fn extend(&mut self, paths: Vec<PathBuf>) -> Result<(), notify::Error> {
         for path in paths {
-            self.add_path(&path)?;
-            if path.is_dir() {
-                self.add_path_recursively(&path)?;
+            let recursive_paths = walk_path_topo(path)?;
+            for p in recursive_paths {
+                let p = p.canonicalize()?;
+                match Self::extend_filter(p) {
+                    Err(FilteredOut { reason, path }) => {
+                        debug!("Skipping watching {}: {}", path.display(), reason)
+                    }
+                    Ok(p) => {
+                        self.add_path(p)?;
+                    }
+                }
             }
         }
-
         Ok(())
+    }
+
+    fn extend_filter(path: PathBuf) -> Result<PathBuf, FilteredOut<'static>> {
+        if path.starts_with(Path::new("/nix/store")) {
+            Err(FilteredOut {
+                path,
+                reason: "starts with /nix/store",
+            })
+        } else {
+            Ok(path)
+        }
     }
 
     fn log_event(&self, event: &notify::Event) {
@@ -132,29 +156,11 @@ impl Watch {
         }
     }
 
-    fn add_path_recursively(&mut self, path: &PathBuf) -> Result<(), notify::Error> {
-        if path.canonicalize()?.starts_with(Path::new("/nix/store")) {
-            return Ok(());
-        }
-
-        for entry in path.read_dir()? {
-            let subpath = entry?.path();
-
-            if subpath.is_dir() {
-                self.add_path(&subpath)?;
-                self.add_path_recursively(&subpath)?;
-            }
-
-            // Skip adding files, watching in the dir will handle it.
-        }
-        Ok(())
-    }
-
-    fn add_path(&mut self, path: &PathBuf) -> Result<(), notify::Error> {
-        if !self.watches.contains(path) {
+    fn add_path(&mut self, path: PathBuf) -> Result<(), notify::Error> {
+        if !self.watches.contains(&path) {
             debug!("watching path"; "path" => path.to_str());
 
-            self.notify.watch(path, RecursiveMode::NonRecursive)?;
+            self.notify.watch(&path, RecursiveMode::NonRecursive)?;
             self.watches.insert(path.clone());
         }
 
@@ -193,6 +199,60 @@ impl Watch {
                 _ => true,
             }
     }
+}
+
+/// Lists the dirs and files in a directory, as two vectors.
+/// Given path must be a readable directory.
+fn list_dir(dir: &Path) -> Result<(Vec<PathBuf>, Vec<PathBuf>), std::io::Error> {
+    let mut dirs = vec![];
+    let mut files = vec![];
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        if entry.file_type()?.is_dir() {
+            dirs.push(entry.path())
+        } else {
+            files.push(entry.path())
+        }
+    }
+    Ok((dirs, files))
+}
+
+/// List all children of the given path.
+/// Recurses into directories.
+///
+/// Returns the given path first, then a topologically sorted list of children, if any.
+///
+/// All files have to be readable, or the function aborts.
+/// TODO: gracefully skip unreadable files.
+fn walk_path_topo(path: PathBuf) -> Result<Vec<PathBuf>, std::io::Error> {
+    // push our own path first
+    let mut res = vec![path.clone()];
+
+    // nothing to list
+    if !path.is_dir() {
+        return Ok(res);
+    }
+
+    let (dirs, mut files) = list_dir(&path)?;
+    // plain files
+    res.append(&mut files);
+
+    // now to go through the list, appending new
+    // directories to the work queue as you find them.
+    let mut work = std::collections::VecDeque::from(dirs);
+    loop {
+        match work.pop_front() {
+            // no directories remaining
+            None => break,
+            Some(dir) => {
+                res.push(dir.clone());
+                let (dirs, mut files) = list_dir(&dir)?;
+                res.append(&mut files);
+                work.append(&mut std::collections::VecDeque::from(dirs));
+            }
+        }
+    }
+    Ok(res)
 }
 
 /// Determine if the event path is covered by our list of watched
@@ -249,6 +309,7 @@ fn path_match(watched_paths: &HashSet<PathBuf>, event_path: &Path) -> bool {
 mod tests {
     use super::{EventError, Reason, Watch};
     use crate::bash::expect_bash;
+    use std::path::PathBuf;
     use std::thread::sleep;
     use std::time::Duration;
     use tempfile::tempdir;
@@ -331,7 +392,7 @@ mod tests {
         let temp = tempdir().unwrap();
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
-        watcher.extend(&[temp.path().to_path_buf()]).unwrap();
+        watcher.extend(vec![temp.path().to_path_buf()]).unwrap();
 
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
         sleep(upper_watcher_timeout());
@@ -349,7 +410,7 @@ mod tests {
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
-        watcher.extend(&[temp.path().join("foo")]).unwrap();
+        watcher.extend(vec![temp.path().join("foo")]).unwrap();
         macos_eat_late_notifications(&mut watcher);
 
         expect_bash(r#"echo 1 > "$1/foo""#, &[temp.path().as_os_str()]);
@@ -365,7 +426,7 @@ mod tests {
 
         expect_bash(r#"mkdir -p "$1""#, &[temp.path().as_os_str()]);
         expect_bash(r#"touch "$1/foo""#, &[temp.path().as_os_str()]);
-        watcher.extend(&[temp.path().join("foo")]).unwrap();
+        watcher.extend(vec![temp.path().join("foo")]).unwrap();
         macos_eat_late_notifications(&mut watcher);
 
         // bar is not watched, expect error
@@ -388,4 +449,63 @@ mod tests {
         sleep(upper_watcher_timeout());
         assert_file_changed(&watcher, "foo");
     }
+
+    #[test]
+    fn walk_path_topo_filetree() -> std::io::Result<()> {
+        let temp = tempdir().unwrap();
+
+        let files = vec![("a", "b"), ("a", "c"), ("a/d", "e"), ("x/y", "z")];
+        for (dir, file) in files {
+            std::fs::create_dir_all(temp.path().join(dir))?;
+            std::fs::write(temp.path().join(dir).join(file), [])?;
+        }
+
+        let res = super::walk_path_topo(temp.path().to_owned())?;
+
+        // check that the list is topolocially sorted
+        // by making sure *no* later path is a prefix of a previous path.
+        let mut inv = res.clone();
+        inv.reverse();
+        for i in 0..inv.len() {
+            for predecessor in inv.iter().skip(i + 1) {
+                assert!(
+                !predecessor.starts_with(&inv[i]),
+                "{:?} is a prefix of {:?}, even though it comes later in list, thus topological order is not given!\nFull list: {:#?}",
+                inv[i], predecessor, res
+            )
+            }
+        }
+
+        // make sure the resulting list contains the same
+        // paths as the original list.
+        let mut res2 = res.clone();
+        res2.sort();
+        let mut all_paths = vec![
+            // our given path first
+            "", "a", // direct files come before nested directories
+            "a/b", "a/c", "x", "a/d", "a/d/e", "x/y", "x/y/z",
+        ]
+        .iter()
+        .map(|p| temp.path().join(p).to_owned())
+        .collect::<Vec<_>>();
+        all_paths.sort();
+        assert_eq!(res2, all_paths);
+        Ok(())
+    }
+
+    #[test]
+    fn extend_filter() {
+        let nix = PathBuf::from("/nix/store/njlavpa90laywf22b1myif5101qhln8r-hello-2.10");
+        match super::Watch::extend_filter(nix.clone()) {
+            Ok(path) => assert!(false, "{:?} should be filtered!", path),
+            Err(super::FilteredOut { path, reason }) => {
+                drop(reason);
+                assert_eq!(path, nix)
+            }
+        }
+
+        let other = PathBuf::from("/home/foo/project/foobar.nix");
+        assert_eq!(super::Watch::extend_filter(other.clone()), Ok(other));
+    }
+
 }

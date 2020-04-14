@@ -200,7 +200,7 @@ impl<'a> BuildLoop<'a> {
         debug!("paths reduced"; "from" => original_paths_len, "to" => paths.len());
 
         // add all new (reduced) nix sources to the input source watchlist
-        self.watch.extend(&paths.into_iter().collect::<Vec<_>>())?;
+        self.watch.extend(paths.into_iter().collect::<Vec<_>>())?;
 
         Ok(())
     }
