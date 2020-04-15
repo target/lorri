@@ -6,6 +6,14 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 534;
+        changes = ''
+          Rename `lorri internal` commands for consistency:
+            - `start_user_shell` -> `start-user-shell`
+            - `stream_events` -> `stream-events`
+        '';
+      }
+      {
         version = 518;
         changes = ''
           Internal subcommands is now visible for all users inside the internal
