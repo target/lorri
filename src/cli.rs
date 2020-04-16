@@ -96,7 +96,7 @@ pub struct ShellOptions {
     pub cached: bool,
 }
 
-/// Options for the `internal start_user_shell` subcommand.
+/// Options for the `internal start-user-shell` subcommand.
 #[derive(StructOpt, Debug)]
 pub struct StartUserShellOptions_ {
     /// The path of the parent shell's binary
@@ -122,7 +122,7 @@ pub struct WatchOptions {
 #[derive(StructOpt, Debug)]
 pub enum Internal_ {
     /// (internal) Used internally by `lorri shell`
-    #[structopt(name = "start_user_shell")]
+    #[structopt(name = "start-user-shell")]
     StartUserShell_(StartUserShellOptions_),
 
     /// (plumbing) Tell the lorri daemon to care about the current directory's project
@@ -130,7 +130,7 @@ pub enum Internal_ {
     Ping_(Ping_),
 
     /// (plumbing) Ask the lorri daemon to report build events as they occur
-    #[structopt(name = "stream_events")]
+    #[structopt(name = "stream-events")]
     StreamEvents_(StreamEvents_),
 }
 
