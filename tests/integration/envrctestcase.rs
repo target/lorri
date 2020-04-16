@@ -20,7 +20,10 @@ fn find_program<S: Display + AsRef<OsStr>>(program: S) -> PathBuf {
         .args(&["-c", "type -p \"$1\"", "--"])
         .arg(&program)
         .output()
-        .expect(&format!("Failed to execute «bash -c 'which {}'»", &program));
+        .expect(&format!(
+            "Failed to execute «bash -c 'which {}'»",
+            &program
+        ));
 
     assert!(
         output.status.success(),
