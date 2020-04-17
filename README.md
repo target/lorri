@@ -43,6 +43,13 @@ platforms](#setup-on-other-platforms).
    This will automatically install both the `lorri` command and `direnv`
    (both required for the next steps).
 
+   **Note**: There's [a known issue](https://github.com/target/lorri/issues/374
+   "nixpkgs `services.lorri` requires reboot for the user lorri.socket to appear")
+   preventing the lorri daemon from starting automatically upon installation. 
+   Until it's resolved, you'll have to reboot, or reload the user daemon by hand
+   by running `systemctl --user daemon-reload`.
+  
+
 2. **Install direnv.** Add `pkgs.direnv` to `environment.systemPackages` in
    your NixOS `configuration.nix` or to `home.packages` in your home-manager
    `home.nix`.
