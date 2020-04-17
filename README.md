@@ -40,8 +40,7 @@ platforms](#setup-on-other-platforms).
    NixOS [`configuration.nix`][nixos-service] or your home-manager
    [`home.nix`][home-manager-service].
 
-   This will automatically install both the `lorri` command and `direnv`
-   (both required for the next steps).
+   This will automatically install the `lorri` command.
 
 2. **Install direnv.** Add `pkgs.direnv` to `environment.systemPackages` in
    your NixOS `configuration.nix` or to `home.packages` in your home-manager
