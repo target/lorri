@@ -201,10 +201,10 @@ impl BuildError {
     /// Smart constructor for `BuildError::Io`
     pub fn io<D>(e: D) -> BuildError
     where
-        D: fmt::Display,
+        D: fmt::Debug,
     {
         BuildError::Io {
-            msg: format!("{}", e),
+            msg: format!("{:?}", e),
         }
     }
 
