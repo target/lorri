@@ -206,6 +206,7 @@ impl EnvrcTestCase {
         // From: https://github.com/direnv/direnv/blob/1423e495c54de3adafde8e26218908010c955514/test/direnv-test.bash
         d.env("DIRENV_CONFIG", &self.tempdir.path());
         d.env("XDG_CONFIG_HOME", &self.tempdir.path());
+        d.env("XDG_DATA_HOME", &self.tempdir.path());
         d.envs(self.ambient_env.iter());
         if let Some(ref env) = self.project_env {
             d.env("EVALUATION_ROOT", env);
