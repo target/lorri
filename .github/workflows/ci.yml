@@ -7,12 +7,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - stable
-          - beta
-          - nightly
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -33,31 +27,16 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-      - name: Toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-          components: rustfmt, clippy
+      - name: Shell (cache inputs)
+        run: nix-shell
       - name: Format
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: nix-shell --run 'cargo fmt --all -- --check' --arg isDevelopmentShell false
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
+        run: nix-shell --run 'cargo build' --arg isDevelopmentShell false
       - name: Clippy
-        uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+        run: nix-shell --run 'cargo clippy --all-features' --arg isDevelopmentShell false
       - name: Test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+        run: nix-shell --run 'cargo test' --arg isDevelopmentShell false
   nix-build:
     runs-on: ubuntu-latest
     steps:
