@@ -1,12 +1,14 @@
 name: CI
 on:
   push:
-    branches: [ "**" ]
+    branches: [master]
   pull_request:
-    branches: [ "**" ]
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -27,18 +29,42 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      # TODO: add CACHIX_SIGNING_KEY and uncomment
+      # - name: Cachix
+      #   uses: cachix/cachix-action@v6
+      #   with:
+      #     name: lorri-test
+      #     signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
+      # darwin doesn't ship with rustfmt and clippy by default, so we have to use rustup to install it
+      - name: Install missing Rust components
+        if: runner.os == 'macOS'
+        run: |
+          # 1.41.0 is the current stable release in nixos-20.03
+          nix-shell -p rustup --run 'rustup default 1.41.0 \
+                    && rustup component add rustfmt clippy' --arg isDevelopmentShell false
       - name: Shell (cache inputs)
         run: nix-shell
       - name: Format
-        run: nix-shell --run 'cargo fmt --all -- --check' --arg isDevelopmentShell false
-      - name: Build
-        run: nix-shell --run 'cargo build' --arg isDevelopmentShell false
+        run: |
+          ./nix/fmt.sh
+          nix-shell --run 'cargo fmt --all -- --check' --arg isDevelopmentShell false
+      - name: Carnix
+        run: ./nix/update-carnix.sh
       - name: Clippy
         run: nix-shell --run 'cargo clippy --all-features' --arg isDevelopmentShell false
+        env:
+            RUSTFLAGS: "-D warnings"
       - name: Test
-        run: nix-shell --run 'cargo test' --arg isDevelopmentShell false
+        run: |
+          ./script-tests/run-all.sh
+          nix-shell --run 'cargo test' --arg isDevelopmentShell false
+      - name: Build
+        run: nix-shell --run 'cargo build' --arg isDevelopmentShell false
   nix-build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -46,12 +72,3 @@ jobs:
         uses: cachix/install-nix-action@v7
       - name: Build
         run: nix-build
-  nix-shell:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Nix
-        uses: cachix/install-nix-action@v7
-      - name: Build
-        run: nix-build -A allBuildInputs shell.nix
