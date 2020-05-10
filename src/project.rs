@@ -38,7 +38,7 @@ impl Project {
             "{:x}",
             md5::compute(PathBuf::from(&nix_file).as_os_str().as_bytes())
         );
-        let project_gc_root = gc_root_dir.join(&hash).join("gc_root").to_path_buf();
+        let project_gc_root = gc_root_dir.join(&hash).join("gc_root");
 
         std::fs::create_dir_all(&project_gc_root)?;
 

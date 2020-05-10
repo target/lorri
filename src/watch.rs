@@ -507,5 +507,4 @@ mod tests {
         let other = PathBuf::from("/home/foo/project/foobar.nix");
         assert_eq!(super::Watch::extend_filter(other.clone()), Ok(other));
     }
-
 }
