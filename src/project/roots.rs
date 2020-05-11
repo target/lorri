@@ -31,10 +31,9 @@ impl RootPath {
 impl OutputPaths<RootPath> {
     /// Check whether all all GC roots exist.
     pub fn all_exist(&self) -> bool {
-        match self {
-            // Match here to ensure we cover every field
-            crate::builder::OutputPaths { shell_gc_root } => shell_gc_root.0.exists(),
-        }
+        let crate::builder::OutputPaths { shell_gc_root } = self;
+
+        shell_gc_root.0.exists()
     }
 
     /// Check that the shell_gc_root is a directory.

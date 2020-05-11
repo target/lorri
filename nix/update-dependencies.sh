@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # lorri should always build with the current NixOS stable branch.
-channel='nixos-19.09'
+channel='nixos-20.03'
 nix-prefetch-git https://github.com/nixos/nixpkgs-channels.git \
                  --rev "refs/heads/${channel}" > ./nix/nixpkgs.json
 

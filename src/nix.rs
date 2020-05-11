@@ -2,40 +2,37 @@
 //! ```rust
 //! extern crate lorri;
 //! use lorri::nix;
+//! use serde_derive::Deserialize;
 //!
-//! #[macro_use] extern crate serde_derive;
 //! #[derive(Debug, Deserialize, PartialEq, Eq)]
 //! struct Author {
 //!     name: String,
 //!     contributions: usize
 //! }
 //!
-//! fn main() {
-//!     let output: Result<Vec<Author>, _> = nix::CallOpts::expression(r#"
-//!       { name }:
-//!       {
-//!         contributors = [
-//!           { inherit name; contributions = 99; }
-//!         ];
-//!       }
-//!     "#)
-//!         .argstr("name", "Jill")
-//!         .attribute("contributors")
-//!         .value();
+//! let output: Result<Vec<Author>, _> = nix::CallOpts::expression(r#"
+//!   { name }:
+//!   {
+//!     contributors = [
+//!       { inherit name; contributions = 99; }
+//!     ];
+//!   }
+//! "#)
+//!     .argstr("name", "Jill")
+//!     .attribute("contributors")
+//!     .value();
 //!
-//!     assert_eq!(
-//!         output.unwrap(),
-//!         vec![
-//!             Author { name: "Jill".to_string(), contributions: 99 },
-//!         ]
-//!     );
-//! }
+//! assert_eq!(
+//!     output.unwrap(),
+//!     vec![
+//!         Author { name: "Jill".to_string(), contributions: 99 },
+//!     ]
+//! );
 //! ```
 
 use crate::error::BuildError;
 use crate::osstrlines;
 use crossbeam_channel as chan;
-use serde_json;
 use slog_scope::debug;
 use std::collections::HashMap;
 use std::ffi::OsStr;
@@ -169,34 +166,32 @@ impl<'a> CallOpts<'a> {
     /// ```rust
     /// extern crate lorri;
     /// use lorri::nix;
+    /// use serde_derive::Deserialize;
     ///
-    /// #[macro_use] extern crate serde_derive;
     /// #[derive(Debug, Deserialize, PartialEq, Eq)]
     /// struct Author {
     ///     name: String,
     ///     contributions: usize
     /// }
     ///
-    /// fn main() {
-    ///     let output: Result<Vec<Author>, _> = nix::CallOpts::expression(r#"
-    ///       { name }:
-    ///       {
-    ///         contributors = [
-    ///           { inherit name; contributions = 99; }
-    ///         ];
-    ///       }
-    ///     "#)
-    ///         .argstr("name", "Jill")
-    ///         .attribute("contributors")
-    ///         .value();
+    /// let output: Result<Vec<Author>, _> = nix::CallOpts::expression(r#"
+    ///   { name }:
+    ///   {
+    ///     contributors = [
+    ///       { inherit name; contributions = 99; }
+    ///     ];
+    ///   }
+    /// "#)
+    ///     .argstr("name", "Jill")
+    ///     .attribute("contributors")
+    ///     .value();
     ///
-    ///     assert_eq!(
-    ///         output.unwrap(),
-    ///         vec![
-    ///             Author { name: "Jill".to_string(), contributions: 99 },
-    ///         ]
-    ///     );
-    /// }
+    /// assert_eq!(
+    ///     output.unwrap(),
+    ///     vec![
+    ///         Author { name: "Jill".to_string(), contributions: 99 },
+    ///     ]
+    /// );
     /// ```
     pub fn value<T: 'static>(&self) -> Result<T, BuildError>
     where
