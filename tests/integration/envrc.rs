@@ -1,4 +1,4 @@
-use crate::direnv::DirenvValue;
+use crate::direnvtestcase::DirenvValue;
 use crate::envrctestcase::{EnvrcTestCase, ProjectEnvBuilderV1, ProjectEnvBuilderV2};
 use std::env;
 

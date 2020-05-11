@@ -1,7 +1,7 @@
 //! Implement a wrapper around setup and tear-down of Direnv-based test
 //! cases.
 
-use crate::direnv::DirenvEnv;
+use crate::direnvtestcase::DirenvEnv;
 use std::collections::HashMap;
 use std::ffi::{OsStr, OsString};
 use std::fmt::Display;

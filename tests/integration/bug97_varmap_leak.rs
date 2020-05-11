@@ -1,5 +1,4 @@
-use crate::direnv::DirenvValue;
-use crate::direnvtestcase::DirenvTestCase;
+use crate::direnvtestcase::{DirenvTestCase, DirenvValue};
 use std::collections::HashSet;
 
 #[test]
@@ -42,6 +41,8 @@ fn bug97_varmap_leak() {
         "DIRENV_DIFF",
         "DIRENV_DIR",
         "DIRENV_WATCHES",
+        // Lorri-set variables
+        "IN_LORRI_SHELL",
     ]
     .into_iter()
     .for_each(|okay_var| {
