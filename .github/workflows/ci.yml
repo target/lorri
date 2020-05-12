@@ -60,6 +60,7 @@ jobs:
           nix-shell --run 'cargo test' --arg isDevelopmentShell false
       - name: Build
         run: nix-shell --run 'cargo build' --arg isDevelopmentShell false
+
   nix-build:
     runs-on: ${{ matrix.os }}
     strategy:
