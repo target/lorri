@@ -66,9 +66,11 @@ To cut a new release:
 
 ## Publishing a release on [nixpkgs][]
 
-lorri is available in the `nixos-unstable` and `nixos-19.09` release channels,
-which correspond to the `master` and `release-19.09` branches in the
-[nixpkgs][] repository, respectively.
+lorri is available in the `nixos-unstable` and release channels starting with
+`nixos-19.09`.
+
+lorri is built and tested against `nixos-20.03` in CI, and this is the release
+channel targeted for future releases.
 
 The relevant directories and files in [nixpkgs][] are:
 - [`pkgs/tools/misc/lorri`][nixpkgs-lorri-tool] declares the command line tool
@@ -86,9 +88,9 @@ To update the lorri version in [nixpkgs][]:
 
    > @GrahamcOfBorg build lorri.tests
 
-2. **`nixos-19.09`**: _after_ the first PR has been merged into `master`,
+2. **`nixos-<release>`**: _after_ the first PR has been merged into `master`,
    follow the [backporting procedure][nixpkgs-backporting] to create a PR
-   against `release-19.09`; see for example [NixOS#77432][nixos-stable-pr].
+   against `release-<release>`; see for example [NixOS#77432][nixos-stable-pr].
    Again, make sure the NixOS integration tests pass (see previous step).
 
 ## Updating dependencies
