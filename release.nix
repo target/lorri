@@ -6,6 +6,12 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 630;
+        changes = ''
+          Make the event stream Varlink events public, with sum-style types.
+        '';
+      }
+      {
         version = 626;
         changes = ''
           Added manpage for lorri(1).

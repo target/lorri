@@ -42,9 +42,10 @@ pub const RUN_TIME_CLOSURE: &str = "{runtime_closure}";
     )
     .unwrap();
 
-    // Generate src/com_target_lorri.rs
-    varlink_generator::cargo_build_tosource(
+    for v in &[
         "src/com.target.lorri.varlink",
-        /* rustfmt */ true,
-    );
+        "src/com.target.lorri.internal.varlink",
+    ] {
+        varlink_generator::cargo_build_tosource(v, /*rustfmt */ true);
+    }
 }

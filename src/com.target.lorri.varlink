@@ -1,46 +1,58 @@
 # The interface `lorri daemon` exposes.
 interface com.target.lorri
 
-# WatchShell instructs the daemon to evaluate a Nix expression and re-evaluate
-# it when it or its dependencies change.
-method WatchShell(shell_nix: ShellNix) -> ()
-
-# ShellNix describes the Nix expression which evaluates to a development
-# environment.
-type ShellNix (
-  # The absolute path of a Nix file specifying the project environment.
-  path: string
-)
-
 # Monitor the daemon. The method will reply with an update whenever a build begins or ends.
-# Montior will immediately reply with a snapshot of known projects, then a marker event,
+# Monitor will immediately reply with a snapshot of known projects, then a marker event,
 # indicating that the stream of events is now "live."
 method Monitor() -> (event: Event)
 
 type Event (
     kind: (section_end, started, completed, failure),
-    nix_file: ?ShellNix, # only present if kind != section_end
-    reason: ?Reason,     # only present if kind == started
-    result: ?Outcome,    # only present if kind == completed
-    failure: ?Failure    # only present if kind == failure
+    section: ?SectionMarker, # present iff kind == section_end
+    reason: ?Reason,         # present iff kind == started
+    result: ?Outcome,        # present iff kind == completed
+    failure: ?Failure        # present iff kind == failure
 )
+
+
+type SectionMarker ()
 
 type Reason (
     kind: (project_added, ping_received, files_changed, unknown),
-    project: ?ShellNix, # only present if kind == project_added
-    files: ?[]string,   # only present if kind == files_changed
-    debug: ?string      # only present if kind == unknown
+    project: ?string, # present iff kind == project_added
+    files: ?[]string, # present iff kind == files_changed
+    debug: ?string    # present iff kind == unknown
 )
 
 type Outcome (
+    nix_file: ?string,
     project_root: string
 )
 
 type Failure (
     kind: (io, spawn, exit, output),
-    msg: ?string,   # only present if kind in (io, spawn)
-    cmd: ?string,   # only present if kind in (spawn, exit)
-    status: ?int,   # only present if kind == exit
-    logs: ?[]string # only present if kind == exit
+    nix_file: string,
+    io: ?IOFail,        # present iff kind == io
+    spawn: ?SpawnFail,  # present iff kind == spawn
+    exit: ?ExitFail,    # present iff kind == exit
+    output: ?OutputFail # present iff kind == output
 )
 
+type IOFail (
+    msg: string
+)
+
+type SpawnFail (
+    msg: string,
+    cmd: string
+)
+
+type ExitFail (
+    cmd: string,
+    status: ?int,
+    logs: []string
+)
+
+type OutputFail (
+    msg: string
+)
