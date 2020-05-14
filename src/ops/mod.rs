@@ -139,8 +139,8 @@ pub mod error {
         }
     }
 
-    impl From<crate::rpc::Error> for ExitError {
-        fn from(e: crate::rpc::Error) -> ExitError {
+    impl From<crate::internal_proto::Error> for ExitError {
+        fn from(e: crate::internal_proto::Error) -> ExitError {
             ExitError::temporary(format!("{}", e))
         }
     }

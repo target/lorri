@@ -18,6 +18,12 @@ pub enum BindError {
     Unix(nix::Error),
 }
 
+impl From<BindError> for crate::ops::error::ExitError {
+    fn from(e: BindError) -> crate::ops::error::ExitError {
+        crate::ops::error::ExitError::temporary(format!("Bind error: {:?}", e))
+    }
+}
+
 impl From<std::io::Error> for BindError {
     fn from(e: std::io::Error) -> BindError {
         BindError::Io(e)

@@ -171,6 +171,9 @@ pub struct Ping_ {
     /// The .nix file to watch and build on changes.
     #[structopt(parse(from_os_str))]
     pub nix_file: PathBuf,
+    /// A custom socket address to ping - used mostly for testing and experiments
+    #[structopt(long = "socket-address")]
+    pub socket_address: Option<String>,
 }
 
 /// Stream events from the daemon.

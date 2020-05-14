@@ -1,85 +1,58 @@
 # The interface `lorri daemon` exposes.
 interface com.target.lorri
 
-# WatchShell instructs the daemon to evaluate a Nix expression and re-evaluate
-# it when it or its dependencies change.
-method WatchShell(shell_nix: ShellNix) -> ()
-
-# ShellNix describes the Nix expression which evaluates to a development
-# environment.
-type ShellNix (
-  # The absolute path of a Nix file specifying the project environment.
-  path: string
-)
-
 # Monitor the daemon. The method will reply with an update whenever a build begins or ends.
-# Montior will immediately reply with a snapshot of known projects, then a marker event,
+# Monitor will immediately reply with a snapshot of known projects, then a marker event,
 # indicating that the stream of events is now "live."
 method Monitor() -> (event: Event)
 
 type Event (
     kind: (section_end, started, completed, failure),
-    nix_file: ?ShellNix, # only present if kind != section_end
-    reason: ?Reason,     # only present if kind == started
-    result: ?Outcome,    # only present if kind == completed
-    failure: ?Failure    # only present if kind == failure
+    section: ?SectionMarker, # present iff kind == section_end
+    reason: ?Reason,         # present iff kind == started
+    result: ?Outcome,        # present iff kind == completed
+    failure: ?Failure        # present iff kind == failure
 )
+
+
+type SectionMarker ()
 
 type Reason (
     kind: (project_added, ping_received, files_changed, unknown),
-    project: ?ShellNix, # only present if kind == project_added
-    files: ?[]string,   # only present if kind == files_changed
-    debug: ?string      # only present if kind == unknown
+    project: ?string, # present iff kind == project_added
+    files: ?[]string, # present iff kind == files_changed
+    debug: ?string    # present iff kind == unknown
 )
 
 type Outcome (
+    nix_file: ?string,
     project_root: string
 )
 
 type Failure (
     kind: (io, spawn, exit, output),
-    msg: ?string,   # only present if kind in (io, spawn)
-    cmd: ?string,   # only present if kind in (spawn, exit)
-    status: ?int,   # only present if kind == exit
-    logs: ?[]string # only present if kind == exit
+    nix_file: string,
+    io: ?IOFail,        # present iff kind == io
+    spawn: ?SpawnFail,  # present iff kind == spawn
+    exit: ?ExitFail,    # present iff kind == exit
+    output: ?OutputFail # present iff kind == output
 )
 
-# WatchServices establishes a stream with the daemon. Initially, the daemon
-# evaluates the given services definition to an array of Command objects and
-# sends a reply for each of them. After this initial evaluation, the daemon
-# watches the services definition and its dependencies for changes,
-# re-evaluates it as appropriate and sends a reply for each Command again.
-#
-# This is a streaming RPC. The daemon only accepts client calls with the "more"
-# property set - see https://varlink.org/Method-Call.
-# TODO: Implement WatchServices
-#method WatchServices(services_nix: ServicesNix) -> (service: Service)
-
-# ServicesNix describes the Nix expression which evaluates to a list of
-# services.
-type ServicesNix (
-  # The absolute path of a Nix file specifying the services to be run. This Nix
-  # file must evaluate to a JSON document of type []Command, that is, an array
-  # of objects whose properties are described by the Command type.
-  path: string
+type IOFail (
+    msg: string
 )
 
-# Service describes an individual service to be run.
-type Service (
-  # The user-friendly name of the service. This is used for identification
-  # purposes too: only a single instance of a service with a particular name is
-  # run at any one time.
-  name: string,
-
-  # How to run the service.
-  command: Command
+type SpawnFail (
+    msg: string,
+    cmd: string
 )
 
-# Command describes how to run a terminal application.
-type Command (
-  # The path of the command binary.
-  program: string,
+type ExitFail (
+    cmd: string,
+    status: ?int,
+    logs: []string
+)
 
-  # Arguments to be passed to the binary.
-  args: []string
+type OutputFail (
+    msg: string
 )

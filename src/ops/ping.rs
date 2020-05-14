@@ -1,18 +1,21 @@
 //! Run a BuildLoop for `shell.nix`, watching for input file changes.
 //! Can be used together with `direnv`.
-use crate::ops::error::{ok, OpResult};
-use crate::rpc;
+use crate::internal_proto;
+use crate::ops::error::{ok, ExitError, OpResult};
 use crate::NixFile;
 use std::convert::TryFrom;
 
 /// See the documentation for lorri::cli::Command::Ping_ for details.
-pub fn main(nix_file: NixFile) -> OpResult {
-    // TODO: set up socket path, make it settable by the user
-    let address = crate::ops::get_paths()?.daemon_socket_address();
-    let shell_nix = rpc::ShellNix::try_from(&nix_file).unwrap();
+pub fn main(nix_file: NixFile, addr: Option<String>) -> OpResult {
+    let address = addr
+        .ok_or(Err(()))
+        .or_else::<ExitError, _>(|_: Result<String, _>| {
+            Ok(crate::ops::get_paths()?.daemon_socket_address())
+        })?;
+    let shell_nix = internal_proto::ShellNix::try_from(&nix_file).unwrap();
 
-    use rpc::VarlinkClientInterface;
-    rpc::VarlinkClient::new(
+    use internal_proto::VarlinkClientInterface;
+    internal_proto::VarlinkClient::new(
         varlink::Connection::with_address(&address).expect("failed to connect to daemon server"),
     )
     .watch_shell(shell_nix)

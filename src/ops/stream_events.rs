@@ -4,7 +4,7 @@ use crate::ops::{
     error::{ok, ExitError, OpResult},
     get_paths,
 };
-use crate::rpc;
+use crate::proto;
 use crossbeam_channel::{select, unbounded};
 use slog_scope::debug;
 use std::convert::TryInto;
@@ -38,7 +38,7 @@ impl FromStr for EventKind {
 
 #[derive(Debug)]
 enum Error {
-    Varlink(rpc::Error),
+    Varlink(proto::Error),
     Compat(String),
 }
 
@@ -47,8 +47,8 @@ enum Error {
 pub fn main(kind: EventKind) -> OpResult {
     let address = get_paths()?.daemon_socket_address();
 
-    use rpc::VarlinkClientInterface;
-    let mut client = rpc::VarlinkClient::new(
+    use proto::VarlinkClientInterface;
+    let mut client = proto::VarlinkClient::new(
         varlink::Connection::with_address(&address).expect("failed to connect to daemon server"),
     );
 
