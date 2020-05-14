@@ -36,12 +36,12 @@ jobs:
       #     name: lorri-test
       #     signingKey: "${{ secrets.CACHIX_SIGNING_KEY }}"
       # darwin doesn't ship with rustfmt and clippy by default, so we have to use rustup to install it
-      - name: Install missing Rust components
-        if: runner.os == 'macOS'
-        run: |
-          # 1.41.0 is the current stable release in nixos-20.03
-          nix-shell -p rustup --run 'rustup default 1.41.0 \
-                    && rustup component add rustfmt clippy' --arg isDevelopmentShell false
+      # - name: Install missing Rust components
+      #   if: runner.os == 'macOS'
+      #   run: |
+      #     # 1.41.0 is the current stable release in nixos-20.03
+      #     nix-shell -p rustup --run 'rustup default 1.41.0 \
+      #               && rustup component add rustfmt clippy' --arg isDevelopmentShell false
       - name: Shell (cache inputs)
         run: nix-shell
       - name: Format

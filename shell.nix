@@ -28,19 +28,23 @@ let
 
   # Only in development shell
 
+  # Rust from the Mozilla overlay doesn't automatically come with the
+  # `rust-src` component, so we need an override to add it.
+  lorriRust = (pkgs.rustChannelOf { channel = "1.37.0"; }).rust.override {
+    extensions = [ "rust-src" ];
+  };
+
   # Needed for racer “jump to definition” editor support
   # In Emacs with `racer-mode`, you need to set
   # `racer-rust-src-path` to `nil` for it to pick
   # up the environment variable with `direnv`.
-  RUST_SRC_PATH = "${pkgs.rustc.src}/lib/rustlib/src/rust/src/";
+  RUST_SRC_PATH = "${lorriRust}/lib/rustlib/src/rust/src";
   # Set up a local directory to install binaries in
   CARGO_INSTALL_ROOT = "${LORRI_ROOT}/.cargo";
 
   buildInputs = [
-    pkgs.cargo
-    pkgs.rustPackages.clippy
-    pkgs.rustc
-    pkgs.rustfmt
+    lorriRust
+
     pkgs.git
     pkgs.direnv
     pkgs.shellcheck
