@@ -74,8 +74,12 @@ fn instrumented_instantiation(
         OsStr::new(crate::RUN_TIME_CLOSURE),
         // the source file
         OsStr::new("--argstr"),
-        OsStr::new("src"),
-        root_nix_file.as_os_str(),
+    ]);
+    match nix_file {
+        NixFile::Shell(shell) => cmd.args(&[OsStr::new("src"), shell.as_os_str()]),
+        NixFile::Services(_services) => panic!("services are not supported"),
+    };
+    cmd.args(&[
         // instrumented by `./logged-evaluation.nix`
         OsStr::new("--"),
         &logged_evaluation_nix.as_os_str(),
