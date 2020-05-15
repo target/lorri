@@ -31,30 +31,30 @@ let
   # gc rooting the resulting store path from this build will retain
   # references to all the store paths needed, preventing the shell's
   # actual environment from being deleted.
-  wrapped-project = shell: services: derivation (
-    shell.drvAttrs // {
-      name = "lorri-wrapped-project-${shell.name}";
+  wrapped-project = drv: services: derivation (
+    drv.drvAttrs // {
+      name = "lorri-wrapped-project-${drv.name}";
 
-      origExtraClosure = shell.extraClosure or [];
+      origExtraClosure = drv.extraClosure or [];
       extraClosure = runtimeCfg.closure;
 
-      origBuilder = shell.builder;
+      origBuilder = drv.builder;
       builder = runtimeCfg.builder;
 
-      origSystem = shell.system;
+      origSystem = drv.system;
       system = builtins.currentSystem;
 
-      origPATH = shell.PATH or "";
+      origPATH = drv.PATH or "";
       PATH = runtimeCfg.path;
 
       # The derivation we're examining may be multi-output. However,
       # this builder only produces the «out» output. Not specifying a
       # single output means we would fail to start a shell for those
       # projects.
-      origOutputs = shell.outputs or [];
+      origOutputs = drv.outputs or [];
       outputs = [ "out" ];
 
-      origPreHook = shell.preHook or "";
+      origPreHook = drv.preHook or "";
       preHook = ''
         # Redefine addToSearchPathWithCustomDelimiter to integrate with
         # lorri's environment variable setup map. Then, call the original
@@ -108,10 +108,10 @@ let
           }
         fi
 
-        ${shell.preHook or ""}
+        ${drv.preHook or ""}
       '';
 
-      origArgs = shell.args or [];
+      origArgs = drv.args or [];
       args = [
         "-e"
         (
