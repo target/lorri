@@ -1,5 +1,4 @@
-{ shellSrc ? null, servicesSrc ? null, runtimeClosure }:
-assert shellSrc != null || servicesSrc != null;
+{ shellSrc, servicesSrc ? null, runtimeClosure }:
 let
   runtimeCfg = import runtimeClosure;
 
@@ -33,16 +32,16 @@ let
   # references to all the store paths needed, preventing the shell's
   # actual environment from being deleted.
   wrapped-project = shell: services: derivation (
-    (shell.drvAttrs or {}) // {
-      name = "lorri-wrapped-project-${shell.name or "unknown"}";
+    shell.drvAttrs // {
+      name = "lorri-wrapped-project-${shell.name}";
 
       origExtraClosure = shell.extraClosure or [];
       extraClosure = runtimeCfg.closure;
 
-      origBuilder = shell.builder or null;
+      origBuilder = shell.builder;
       builder = runtimeCfg.builder;
 
-      origSystem = shell.system or null;
+      origSystem = shell.system;
       system = builtins.currentSystem;
 
       origPATH = shell.PATH or "";
@@ -134,8 +133,8 @@ let
              runHook shellHook;
             fi;
 
-            export > "$out/bash-export"
-            cat << 'EOF' > "$out/services.json"
+            export > $out/bash-export
+            cat << 'EOF' > $out/services.json
             ${builtins.toJSON services}
             EOF
           ''
@@ -148,7 +147,6 @@ let
     }
   );
 
-  shell = if shellSrc == null then {} else logged shellSrc;
   services = if servicesSrc == null then [] else logged servicesSrc;
 in
-wrapped-project shell services
+wrapped-project (logged shellSrc) services
