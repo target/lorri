@@ -60,18 +60,27 @@ PS1="(lorri) $PS1"
                 // https://superuser.com/a/591440/318156.
                 r#"
 unset RCS # disable automatic sourcing of startup scripts
+
+# reset ZDOTDIR
+if [ -z ${ZDOTDIR_BEFORE+x} ]; then
+    ZDOTDIR="${ZDOTDIR_BEFORE}"
+else
+    unset ZDOTDIR
+fi
+
+ZDOTDIR_OR_HOME="${ZDOTDIR:-${HOME}}"
 test -f "$ZDOTDIR_OR_HOME/.zshenv" && . "$ZDOTDIR_OR_HOME/.zshenv"
 test -f "/etc/zshrc"               && . "/etc/zshrc"
+ZDOTDIR_OR_HOME="${ZDOTDIR:-${HOME}}"
 test -f "$ZDOTDIR_OR_HOME/.zshrc"  && . "$ZDOTDIR_OR_HOME/.zshrc"
-PS1="(lorri) $PS1"
+
+PS1="(lorri) ${PS1}"
 "#,
             )
             .expect("failed to write zsh init script");
-            cmd.env(
-                "ZDOTDIR_OR_HOME",
-                env::var("ZDOTDIR")
-                    .unwrap_or_else(|_| env::var("HOME").expect("$HOME must be set")),
-            );
+            if let Ok(d) = env::var("ZDOTDIR") {
+                cmd.env("ZDOTDIR_BEFORE", d);
+            }
             cmd.env("ZDOTDIR", tempdir);
         }
         // Add handling for other supported shells here.
