@@ -7,7 +7,7 @@ use crate::ops::error::{ok, ExitError, OpResult};
 use crate::project::roots::Roots;
 use crate::project::Project;
 use crate::rpc;
-use slog_scope::{error, info, warn};
+use slog_scope::{info, warn};
 use std::convert::TryFrom;
 use std::process::Command;
 
@@ -52,7 +52,7 @@ pub fn main<W: std::io::Write>(project: Project, mut shell_output: W) -> OpResul
         // but when the daemon in started we'll send a ping and eventually
         // load a fresh environment.
         (false, false) =>
-            error!("lorri daemon is not running and this project has not yet been evaluated, please run `lorri daemon`"),
+            warn!("lorri daemon is not running and this project has not yet been evaluated, please run `lorri daemon`"),
     }
 
     if std::env::var("DIRENV_IN_ENVRC") != Ok(String::from("1")) {
