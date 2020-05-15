@@ -70,16 +70,12 @@ fn instrumented_instantiation(
         OsStr::new("--indirect"),
         OsStr::new("--argstr"),
         // runtime nix paths to needed dependencies that come with lorri
-        OsStr::new("runtimeClosure"),
+        OsStr::new("runTimeClosure"),
         OsStr::new(crate::RUN_TIME_CLOSURE),
         // the source file
         OsStr::new("--argstr"),
-    ]);
-    match nix_file {
-        NixFile::Shell(shell) => cmd.args(&[OsStr::new("shellSrc"), shell.as_os_str()]),
-        NixFile::Services(services) => cmd.args(&[OsStr::new("servicesSrc"), services.as_os_str()]),
-    };
-    cmd.args(&[
+        OsStr::new("src"),
+        root_nix_file.as_os_str(),
         // instrumented by `./logged-evaluation.nix`
         OsStr::new("--"),
         &logged_evaluation_nix.as_os_str(),
