@@ -52,6 +52,7 @@ pub enum NixFile {
     /// A .nix file which describes a shell environment
     Shell(PathBuf),
     /// A .nix file which describes a list of services
+    // TODO: remove, see #404. This is not used in production code.
     Services(PathBuf),
 }
 

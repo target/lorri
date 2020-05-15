@@ -1,27 +1,20 @@
-# The purpose of this function is as follows:
-# 1. It protects the output paths of its dependencies from being garbage collected.
-# 2. Given 'shellSrc', it generates a shell environment by capturing environment variables in $out/bash-export.
-# 3. Given 'servicesSrc', it generates a services.json file.
-{ shellSrc ? null # Nix file describing a shell environment
-, servicesSrc ? null # Nix file containing a list of services
-, runtimeClosure
-}:
-assert shellSrc != null || servicesSrc != null;
+{ src, runTimeClosure }:
 let
-  runtimeCfg = import runtimeClosure;
+  runtimeCfg = import runTimeClosure;
 
   # using scopedImport, replace readDir and readFile with
   # implementations which will log files and paths they see.
-  logged = src:
+  overrides = {
+    import = scopedImport overrides;
+    scopedImport = x: builtins.scopedImport (overrides // x);
+    builtins = builtins // {
+      readFile = file: builtins.trace "lorri read: '${toString file}'" (builtins.readFile file);
+      readDir = path: builtins.trace "lorri read: '${toString path}'" (builtins.readDir path);
+    };
+  };
+
+  imported =
     let
-      overrides = {
-        import = scopedImport overrides;
-        scopedImport = x: builtins.scopedImport (overrides // x);
-        builtins = builtins // {
-          readFile = file: builtins.trace "lorri read: '${toString file}'" (builtins.readFile file);
-          readDir = path: builtins.trace "lorri read: '${toString path}'" (builtins.readDir path);
-        };
-      };
       raw = overrides.scopedImport overrides src;
     in
       if (builtins.isFunction raw)
@@ -33,36 +26,36 @@ let
   # However, the output paths referenced in any of the drvs are NOT
   # protected.
   #
-  # The wrapped-project function takes a given derivation and replaces
+  # The keep-env-hack function takes a given derivation and replaces
   # its builder with an `env` dumper.
   #
   # gc rooting the resulting store path from this build will retain
   # references to all the store paths needed, preventing the shell's
   # actual environment from being deleted.
-  wrapped-project = shell: services: derivation (
-    shell.drvAttrs // {
-      name = "lorri-wrapped-project-${shell.name}";
+  keep-env-hack = drv: derivation (
+    drv.drvAttrs // {
+      name = "lorri-keep-env-hack-${drv.name}";
 
-      origExtraClosure = shell.extraClosure;
+      origExtraClosure = drv.extraClosure or [];
       extraClosure = runtimeCfg.closure;
 
-      origBuilder = shell.builder;
+      origBuilder = drv.builder;
       builder = runtimeCfg.builder;
 
-      origSystem = shell.system;
+      origSystem = drv.system;
       system = builtins.currentSystem;
 
-      origPATH = shell.PATH;
+      origPATH = drv.PATH or "";
       PATH = runtimeCfg.path;
 
       # The derivation we're examining may be multi-output. However,
       # this builder only produces the «out» output. Not specifying a
       # single output means we would fail to start a shell for those
       # projects.
-      origOutputs = shell.outputs;
+      origOutputs = drv.outputs or [];
       outputs = [ "out" ];
 
-      origPreHook = shell.preHook;
+      origPreHook = drv.preHook or "";
       preHook = ''
         # Redefine addToSearchPathWithCustomDelimiter to integrate with
         # lorri's environment variable setup map. Then, call the original
@@ -116,14 +109,14 @@ let
           }
         fi
 
-        ${shell.preHook}
+        ${drv.preHook or ""}
       '';
 
-      origArgs = shell.args;
+      origArgs = drv.args or [];
       args = [
         "-e"
         (
-          builtins.toFile "lorri-wrapped-project" ''
+          builtins.toFile "lorri-keep-env-hack" ''
             mkdir -p "$out"
             touch "$out/varmap-v1"
 
@@ -141,10 +134,7 @@ let
              runHook shellHook;
             fi;
 
-            export > "$out/bash-export"
-            cat << 'EOF' > "$out/services.json"
-            ${builtins.toJSON services}
-            EOF
+            export > $out/bash-export
           ''
         )
       ];
@@ -155,17 +145,7 @@ let
     }
   );
 
-  shell = {
-    name = "unknown";
-    args = [];
-    builder = null;
-    drvAttrs = {};
-    extraClosure = [];
-    outputs = [];
-    preHook = "";
-    system = null;
-    PATH = "";
-  } // (if shellSrc == null then {} else logged shellSrc);
-  services = if servicesSrc == null then [] else logged servicesSrc;
+  gc-root = keep-env-hack imported;
+
 in
-wrapped-project shell services
+gc-root
