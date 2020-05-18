@@ -8,7 +8,7 @@
       {
         version = 630;
         changes = ''
-          Make the event stream Varlink events public, with sum-style types.
+          Make the `lorri internal stream-events` Varlink events public, with sum-style types.
         '';
       }
       {
