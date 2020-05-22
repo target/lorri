@@ -62,7 +62,7 @@ PS1="(lorri) $PS1"
 unset RCS # disable automatic sourcing of startup scripts
 
 # reset ZDOTDIR
-if [ -z ${ZDOTDIR_BEFORE+x} ]; then
+if [ ! -z ${ZDOTDIR_BEFORE} ]; then
     ZDOTDIR="${ZDOTDIR_BEFORE}"
 else
     unset ZDOTDIR
