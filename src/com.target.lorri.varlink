@@ -51,7 +51,7 @@ type Reason (
 # Details about the built project.
 type Outcome (
     # The absolute path to the shell.nix file for the added project
-    nix_file: ?string,
+    nix_file: string,
     # The root directory of the project
     project_root: string
 )
@@ -75,21 +75,21 @@ type Failure (
 # Describes a build failure related to opening files, usually the shell.nix file
 type IOFail (
     # A message describing the failure
-    msg: string
+    message: string
 )
 
 # Describes a failure to launch the build process
 type SpawnFail (
     # A message describing the failure
-    msg: string,
+    message: string,
     # The command Lorri attempted to execute
-    cmd: string
+    command: string
 )
 
 # Describes a failed build process
 type ExitFail (
     # The command executed by Lorri
-    cmd: string,
+    command: string,
     # The Unix exit status of the command, if available
     status: ?int,
     # Log output of the command
@@ -100,5 +100,5 @@ type ExitFail (
 # parse
 type OutputFail (
     # A message describing the failure
-    msg: string
+    message: string
 )

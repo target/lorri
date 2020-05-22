@@ -262,7 +262,7 @@ impl TryFrom<&build_loop::Event> for proto::Outcome {
     fn try_from(ev: &build_loop::Event) -> Result<Self, Self::Error> {
         if let build_loop::Event::Completed { nix_file, result } = ev {
             Ok(proto::Outcome {
-                nix_file: Some(nix_file.to_string()),
+                nix_file: nix_file.to_string(),
                 project_root: result.output_paths.shell_gc_root.to_string(),
             })
         } else {
@@ -276,7 +276,7 @@ impl TryFrom<proto::Outcome> for build_loop::Event {
 
     fn try_from(o: proto::Outcome) -> Result<Self, Self::Error> {
         Ok(build_loop::Event::Completed {
-            nix_file: o.nix_file.clone().ok_or("missing nix file!")?.into(),
+            nix_file: o.nix_file.clone().into(),
             result: o.into(),
         })
     }
@@ -308,7 +308,9 @@ impl TryFrom<&build_loop::Event> for proto::Failure {
                 BuildError::Io { msg } => proto::Failure {
                     kind: io,
                     nix_file: nix_file.to_string(),
-                    io: Some(proto::IOFail { msg: msg.clone() }),
+                    io: Some(proto::IOFail {
+                        message: msg.clone(),
+                    }),
                     spawn: None,
                     exit: None,
                     output: None,
@@ -318,8 +320,8 @@ impl TryFrom<&build_loop::Event> for proto::Failure {
                     nix_file: nix_file.to_string(),
                     io: None,
                     spawn: Some(proto::SpawnFail {
-                        cmd: cmd.clone(),
-                        msg: msg.clone(),
+                        command: cmd.clone(),
+                        message: msg.clone(),
                     }),
                     exit: None,
                     output: None,
@@ -330,7 +332,7 @@ impl TryFrom<&build_loop::Event> for proto::Failure {
                     io: None,
                     spawn: None,
                     exit: Some(proto::ExitFail {
-                        cmd: cmd.clone(),
+                        command: cmd.clone(),
                         status: status.map(|i| i as i64),
                         logs: logs.iter().map(|l| l.to_string()).collect(),
                     }),
@@ -342,7 +344,9 @@ impl TryFrom<&build_loop::Event> for proto::Failure {
                     io: None,
                     spawn: None,
                     exit: None,
-                    output: Some(proto::OutputFail { msg: msg.clone() }),
+                    output: Some(proto::OutputFail {
+                        message: msg.clone(),
+                    }),
                 },
             }),
             _ => Err("expecting build_loop::Event::Failure"),
@@ -371,28 +375,36 @@ impl TryFrom<proto::Failure> for error::BuildError {
         match pf {
             proto::Failure {
                 kind: io,
-                io: Some(proto::IOFail { msg }),
+                io: Some(proto::IOFail { message }),
                 ..
-            } => Ok(BuildError::Io { msg }),
+            } => Ok(BuildError::Io { msg: message }),
             proto::Failure {
                 kind: spawn,
-                spawn: Some(proto::SpawnFail { cmd, msg }),
+                spawn: Some(proto::SpawnFail { command, message }),
                 ..
-            } => Ok(BuildError::Spawn { cmd, msg }),
+            } => Ok(BuildError::Spawn {
+                cmd: command,
+                msg: message,
+            }),
             proto::Failure {
                 kind: exit,
-                exit: Some(proto::ExitFail { cmd, status, logs }),
+                exit:
+                    Some(proto::ExitFail {
+                        command,
+                        status,
+                        logs,
+                    }),
                 ..
             } => Ok(BuildError::Exit {
-                cmd,
+                cmd: command,
                 status: status.map(|i| i as i32),
                 logs: logs.iter().map(|l| l.clone().into()).collect(),
             }),
             proto::Failure {
                 kind: output,
-                output: Some(proto::OutputFail { msg }),
+                output: Some(proto::OutputFail { message }),
                 ..
-            } => Ok(BuildError::Output { msg }),
+            } => Ok(BuildError::Output { msg: message }),
             _ => Err("unexpected form of proto::Failure"),
         }
     }
