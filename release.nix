@@ -6,6 +6,14 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 568;
+        changes = ''
+          Added the `$IN_LORRI_SHELL` environment variable to allow
+          differentiation between `nix-shell` and `lorri shell`. The variable is
+          set to the path of the currently-evaluated shell file.
+        '';
+      }
+      {
         version = 534;
         changes = ''
           Rename `lorri internal` commands for consistency:

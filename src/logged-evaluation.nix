@@ -2,6 +2,9 @@
 let
   runtimeCfg = import runTimeClosure;
 
+  # Taken from https://github.com/NixOS/nixpkgs/blob/master/lib/strings.nix
+  escapeShellArg = arg: "'${builtins.replaceStrings [ "'" ] [ "'\\''" ] (toString arg)}'";
+
   # using scopedImport, replace readDir and readFile with
   # implementations which will log files and paths they see.
   overrides = {
@@ -122,8 +125,11 @@ let
 
             # Export IN_NIX_SHELL to trick various Nix tooling to export
             # shell-friendly variables
-
             export IN_NIX_SHELL=impure
+
+            # Export IN_LORRI_SHELL to differentiate between `lorri shell` and
+            # `nix-shell`
+            export IN_LORRI_SHELL=${escapeShellArg src}
 
             # https://github.com/NixOS/nix/blob/92d08c02c84be34ec0df56ed718526c382845d1a/src/nix-build/nix-build.cc#
             [ -e $stdenv/setup ] && . $stdenv/setup

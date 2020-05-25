@@ -1,42 +1,19 @@
-use std::collections::hash_map::Keys;
-use std::collections::HashMap;
+use std::iter::FromIterator;
+use std::path::PathBuf;
 
-/// The resulting environment Direnv after running Direnv. Note:
-/// Direnv returns `{ "varname": null, "varname": "something" }`
-/// so the value type is `Option<String>`. This makes `.get()`
-/// operations clunky, so be prepared to check for `Some(None)` and
-/// `Some(Some("val"))`.
-#[derive(Deserialize, Debug)]
-pub struct DirenvEnv(HashMap<String, Option<String>>);
+use crate::direnvtestcase::{DirenvTestCase, DirenvValue};
 
-impl DirenvEnv {
-    /// Get an environment value with a borrowed str in the deepest Option.
-    /// Makes asserts nicer, like:
-    ///
-    ///    assert!(env.get_env("foo"), Value("bar"));
-    pub fn get_env<'a, 'b>(&'a self, key: &'b str) -> DirenvValue {
-        match self.0.get(key) {
-            Some(Some(val)) => DirenvValue::Value(&val),
-            Some(None) => DirenvValue::Unset,
-            None => DirenvValue::NotSet,
-        }
-    }
+#[test]
+fn in_lorri_shell() {
+    let mut testcase = DirenvTestCase::new("basic");
+    testcase.evaluate().expect("Failed to build the first time");
 
-    /// Get the environment variable names defined by direnv
-    pub fn keys<'a>(&'a self) -> Keys<'a, String, Option<String>> {
-        self.0.keys()
-    }
-}
+    let env = testcase.get_direnv_variables();
+    let shell = PathBuf::from_iter(&[env!("CARGO_MANIFEST_DIR"), "tests", "integration", "basic"])
+        .join("shell.nix");
 
-/// Environemnt Values from Direnv
-#[derive(Debug, PartialEq)]
-pub enum DirenvValue<'a> {
-    /// This variable will not be modified.
-    NotSet,
-
-    /// This variable will be unset when entering direnv.
-    Unset,
-
-    /// This variable will be set to exactly.
-    Value(&'a str),
+    assert_eq!(
+        env.get_env("IN_LORRI_SHELL"),
+        DirenvValue::Value(shell.to_str().unwrap())
+    );
 }

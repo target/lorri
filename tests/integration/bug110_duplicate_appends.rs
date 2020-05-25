@@ -1,5 +1,4 @@
-use crate::direnv::DirenvValue;
-use crate::direnvtestcase::DirenvTestCase;
+use crate::direnvtestcase::{DirenvTestCase, DirenvValue};
 use std::time::{Duration, Instant};
 
 #[test]
