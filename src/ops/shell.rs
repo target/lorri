@@ -7,6 +7,7 @@ use crate::nix::CallOpts;
 use crate::ops::error::{ExitError, OpResult};
 use crate::project::{roots::Roots, Project};
 use slog_scope::debug;
+use std::ffi::OsStr;
 use std::io;
 use std::io::Write;
 use std::path::Path;
@@ -40,7 +41,7 @@ use std::{env, thread};
 /// way the prompt looks.
 pub fn main(project: Project, opts: ShellOptions) -> OpResult {
     let lorri = env::current_exe().expect("failed to determine lorri executable's path");
-    let shell = env::var("SHELL").expect("lorri shell requires $SHELL to be set");
+    let shell = env::var_os("SHELL").expect("lorri shell requires $SHELL to be set");
     let cached = cached_root(&project);
     let mut bash_cmd = bash_cmd(
         if opts.cached {
@@ -54,16 +55,14 @@ pub fn main(project: Project, opts: ShellOptions) -> OpResult {
     debug!("bash_cmd : {:?}", bash_cmd);
     let status = bash_cmd
         .args(&[
-            "-c",
-            "exec \"$1\" internal start-user-shell --shell-path=\"$2\" --shell-file=\"$3\"",
-            "--",
-            &lorri
-                .to_str()
-                .expect("lorri executable path not UTF-8 clean"),
-            &shell,
-            &PathBuf::from(&project.nix_file)
-                .to_str()
-                .expect("Nix file path not UTF-8 clean"),
+            OsStr::new("-c"),
+            OsStr::new(
+                "exec \"$1\" internal start-user-shell --shell-path=\"$2\" --shell-file=\"$3\"",
+            ),
+            OsStr::new("--"),
+            lorri.as_os_str(),
+            shell.as_os_str(),
+            PathBuf::from(&project.nix_file).as_os_str(),
         ])
         .status()
         .expect("failed to execute bash");

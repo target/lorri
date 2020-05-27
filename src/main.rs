@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 
 const TRIVIAL_SHELL_SRC: &str = include_str!("./trivial-shell.nix");
-const DEFAULT_ENVRC: &str = "eval \"$(lorri direnv)\"\n";
+const DEFAULT_ENVRC: &str = "eval \"$(lorri direnv --shell-file=shell.nix)\"\n";
 
 fn main() {
     // This returns 101 on panics, see also `ExitError::panic`.
@@ -48,7 +48,7 @@ fn main() {
 /// Try to read `shell.nix` from the current working dir.
 fn get_shell_nix(shellfile: &PathBuf) -> Result<NixFile, ExitError> {
     // use shell.nix from cwd
-    Ok(NixFile::Shell(locate_file::in_cwd(&shellfile).map_err(
+    Ok(NixFile::Shell(locate_file::by_name(&shellfile).map_err(
         |_| {
             ExitError::user_error(format!(
                 "`{}` does not exist\n\

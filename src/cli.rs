@@ -70,7 +70,12 @@ pub enum Command {
 #[derive(StructOpt, Debug)]
 pub struct DirenvOptions {
     /// The .nix file in the current directory to use
-    #[structopt(long = "shell-file", parse(from_os_str), default_value = "shell.nix")]
+    #[structopt(
+        long = "shell-file",
+        parse(from_os_str),
+        env = "IN_LORRI_SHELL",
+        default_value = "shell.nix"
+    )]
     pub nix_file: PathBuf,
 }
 
@@ -81,7 +86,7 @@ pub struct InfoOptions {
     // The "shell-file" argument has no default value. That's on purpose: sometimes users have
     // projects with multiple shell files. This way, they are forced to think about which shell
     // file was causing problems when they submit a bug report.
-    #[structopt(long = "shell-file", parse(from_os_str))]
+    #[structopt(long = "shell-file", parse(from_os_str), env = "IN_LORRI_SHELL")]
     pub nix_file: PathBuf,
 }
 
@@ -89,7 +94,12 @@ pub struct InfoOptions {
 #[derive(StructOpt, Debug)]
 pub struct ShellOptions {
     /// The .nix file in the current directory to use
-    #[structopt(long = "shell-file", parse(from_os_str), default_value = "shell.nix")]
+    #[structopt(
+        long = "shell-file",
+        parse(from_os_str),
+        env = "IN_LORRI_SHELL",
+        default_value = "shell.nix"
+    )]
     pub nix_file: PathBuf,
     /// If true, load environment from cache
     #[structopt(long = "cached")]
@@ -111,7 +121,12 @@ pub struct StartUserShellOptions_ {
 #[derive(StructOpt, Debug)]
 pub struct WatchOptions {
     /// The .nix file in the current directory to use
-    #[structopt(long = "shell-file", parse(from_os_str), default_value = "shell.nix")]
+    #[structopt(
+        long = "shell-file",
+        parse(from_os_str),
+        env = "IN_LORRI_SHELL",
+        default_value = "shell.nix"
+    )]
     pub nix_file: PathBuf,
     /// Exit after a the first build
     #[structopt(long = "once")]
