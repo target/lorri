@@ -7,8 +7,10 @@ let
 in
 import nixpkgs {
   overlays = [
-    (final: super: {
-      lorri = super.callPackage ../default.nix { };
-    })
+    (
+      final: super: {
+        lorri = super.callPackage ../default.nix {};
+      }
+    )
   ];
 }
