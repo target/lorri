@@ -1,4 +1,5 @@
-{ pkgs ? import ./nix/nixpkgs.nix
+{ nixpkgs ? ./nix/nixpkgs-stable.nix
+, pkgs ? import nixpkgs
 , src ? pkgs.nix-gitignore.gitignoreSource [ ".git/" ] ./.
 }:
 (

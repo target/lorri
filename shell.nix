@@ -3,7 +3,8 @@
   # required for interactive development (i.e. not necessary
   # on CI). Only when this is enabled, Rust nightly is used.
   isDevelopmentShell ? true
-, pkgs ? import ./nix/nixpkgs.nix
+, nixpkgs ? ./nix/nixpkgs-stable.nix
+, pkgs ? import nixpkgs
 }:
 
 let
