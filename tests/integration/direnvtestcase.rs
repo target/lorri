@@ -5,6 +5,7 @@ use lorri::{
     build_loop::{BuildLoop, BuildResults},
     cas::ContentAddressable,
     error::BuildError,
+    nix::options::NixOptions,
     ops::direnv,
     project::Project,
     NixFile,
@@ -52,7 +53,7 @@ impl DirenvTestCase {
 
     /// Execute the build loop one time
     pub fn evaluate(&mut self) -> Result<BuildResults, BuildError> {
-        BuildLoop::new(&self.project).once()
+        BuildLoop::new(&self.project, NixOptions::empty()).once()
     }
 
     /// Run `direnv allow` and then `direnv export json`, and return

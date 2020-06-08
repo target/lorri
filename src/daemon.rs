@@ -1,6 +1,7 @@
 //! The lorri daemon, watches multiple projects in the background.
 
 use crate::build_loop::{BuildLoop, Event};
+use crate::nix::options::NixOptions;
 use crate::ops::error::ExitError;
 use crate::project::Project;
 use crate::socket::SocketPath;
@@ -58,13 +59,15 @@ pub struct Daemon {
     build_events_tx: chan::Sender<LoopHandlerEvent>,
     build_events_rx: chan::Receiver<LoopHandlerEvent>,
     mon_tx: chan::Sender<LoopHandlerEvent>,
+    /// Extra options to pass to each nix invocation
+    extra_nix_options: NixOptions,
 }
 
 impl Daemon {
     /// Create a new daemon. Also return an `chan::Receiver` that
     /// receives `LoopHandlerEvent`s for all builders this daemon
     /// supervises.
-    pub fn new() -> (Daemon, chan::Receiver<LoopHandlerEvent>) {
+    pub fn new(extra_nix_options: NixOptions) -> (Daemon, chan::Receiver<LoopHandlerEvent>) {
         let (build_events_tx, build_events_rx) = chan::unbounded();
         let (mon_tx, mon_rx) = chan::unbounded();
         (
@@ -73,6 +76,7 @@ impl Daemon {
                 build_events_tx,
                 build_events_rx,
                 mon_tx,
+                extra_nix_options,
             },
             mon_rx,
         )
@@ -159,13 +163,14 @@ impl Daemon {
     pub fn add(&mut self, project: Project) {
         let (tx, rx) = chan::unbounded();
         let build_events_tx = self.build_events_tx.clone();
+        let extra_nix_options = self.extra_nix_options.clone();
 
         self.handler_threads
             .entry(project.nix_file.clone())
             .or_insert_with(|| Handler {
                 tx,
                 _handle: std::thread::spawn(move || {
-                    let mut build_loop = BuildLoop::new(&project);
+                    let mut build_loop = BuildLoop::new(&project, extra_nix_options);
 
                     // cloning the tx means the daemon’s rx gets all
                     // messages from all builders.

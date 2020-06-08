@@ -1,6 +1,7 @@
 use lorri::build_loop;
 use lorri::cas::ContentAddressable;
 use lorri::daemon::{Daemon, LoopHandlerEvent};
+use lorri::nix::options::NixOptions;
 use lorri::rpc;
 use lorri::socket::SocketPath;
 use std::io::{Error, ErrorKind};
@@ -28,7 +29,7 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
     let gc_root_dir = tempdir.path().join("gc_root").to_path_buf();
 
     // The daemon knows how to build stuff
-    let (daemon, build_rx) = Daemon::new();
+    let (daemon, build_rx) = Daemon::new(NixOptions::empty());
     let accept_handle = thread::spawn(move || {
         daemon
             .serve(socket_path, gc_root_dir, cas)

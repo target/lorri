@@ -4,6 +4,7 @@
 use crate::builder;
 use crate::daemon::LoopHandlerEvent;
 use crate::error::BuildError;
+use crate::nix::options::NixOptions;
 use crate::pathreduction::reduce_paths;
 use crate::project::roots;
 use crate::project::roots::Roots;
@@ -60,15 +61,18 @@ pub struct BuildLoop<'a> {
     /// Watches all input files for changes.
     /// As new input files are discovered, they are added to the watchlist.
     watch: Watch,
+    /// Extra options to pass to each nix invocation
+    extra_nix_options: NixOptions,
 }
 
 impl<'a> BuildLoop<'a> {
     /// Instatiate a new BuildLoop. Uses an internal filesystem
     /// watching implementation.
-    pub fn new(project: &'a Project) -> BuildLoop<'a> {
+    pub fn new(project: &'a Project, extra_nix_options: NixOptions) -> BuildLoop<'a> {
         BuildLoop {
             project,
             watch: Watch::try_new().expect("Failed to initialize watch"),
+            extra_nix_options,
         }
     }
 
@@ -189,7 +193,11 @@ impl<'a> BuildLoop<'a> {
     /// This will create GC roots and expand the file watch list for
     /// the evaluation.
     pub fn once(&mut self) -> Result<BuildResults, BuildError> {
-        let run_result = builder::run(&self.project.nix_file, &self.project.cas)?;
+        let run_result = builder::run(
+            &self.project.nix_file,
+            &self.project.cas,
+            &self.extra_nix_options,
+        )?;
         self.register_paths(&run_result.referenced_paths)?;
         self.root_result(run_result.result)
     }

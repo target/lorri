@@ -101,9 +101,9 @@ fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
             let (project, _guard) = with_project(&opts.nix_file)?;
             watch::main(project, opts)
         }
-        Command::Daemon => {
+        Command::Daemon(opts) => {
             let _guard = without_project();
-            daemon::main()
+            daemon::main(opts)
         }
         Command::Upgrade(opts) => {
             let _guard = without_project();

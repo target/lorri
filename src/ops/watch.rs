@@ -3,6 +3,7 @@
 
 use crate::build_loop::BuildLoop;
 use crate::cli::WatchOptions;
+use crate::nix::options::NixOptions;
 use crate::ops::error::{ok, ExitError, OpResult};
 use crate::project::Project;
 use crossbeam_channel as chan;
@@ -21,7 +22,8 @@ pub fn main(project: Project, opts: WatchOptions) -> OpResult {
 }
 
 fn main_run_once(project: Project) -> OpResult {
-    let mut build_loop = BuildLoop::new(&project);
+    // TODO: add the ability to pass extra_nix_options to watch
+    let mut build_loop = BuildLoop::new(&project, NixOptions::empty());
     match build_loop.once() {
         Ok(msg) => {
             print_build_message(msg);
@@ -41,7 +43,8 @@ fn main_run_forever(project: Project) -> OpResult {
     let (tx, rx) = chan::unbounded();
     let build_thread = {
         thread::spawn(move || {
-            let mut build_loop = BuildLoop::new(&project);
+            // TODO: add the ability to pass extra_nix_options to watch
+            let mut build_loop = BuildLoop::new(&project, NixOptions::empty());
 
             // The `watch` command does not currently react to pings, hence the `chan::never()`
             build_loop.forever(tx, chan::never());

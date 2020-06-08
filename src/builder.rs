@@ -9,7 +9,7 @@
 
 use crate::cas::ContentAddressable;
 use crate::error::BuildError;
-use crate::nix::StorePath;
+use crate::nix::{options::NixOptions, StorePath};
 use crate::osstrlines;
 use crate::{DrvFile, NixFile};
 use regex::Regex;
@@ -45,6 +45,7 @@ struct InstantiateOutput {
 fn instrumented_instantiation(
     nix_file: &NixFile,
     cas: &ContentAddressable,
+    extra_nix_options: &NixOptions,
 ) -> Result<InstantiateOutput, BuildError> {
     // We're looking for log lines matching:
     //
@@ -64,6 +65,11 @@ fn instrumented_instantiation(
     cmd.args(&[
         // verbose mode prints the files we track
         OsStr::new("-vv"),
+    ]);
+    // put the passed extra options at the front
+    // to make them more visible in traces
+    cmd.args(extra_nix_options.to_nix_arglist());
+    cmd.args(&[
         // we add a temporary indirect GC root
         OsStr::new("--add-root"),
         gc_root_dir.path().join("result").as_os_str(),
@@ -212,8 +218,12 @@ pub struct RunResult {
 ///
 /// Instruments the nix file to gain extra information,
 /// which is valuable even if the build fails.
-pub fn run(root_nix_file: &NixFile, cas: &ContentAddressable) -> Result<RunResult, BuildError> {
-    let inst_info = instrumented_instantiation(root_nix_file, cas)?;
+pub fn run(
+    root_nix_file: &NixFile,
+    cas: &ContentAddressable,
+    extra_nix_options: &NixOptions,
+) -> Result<RunResult, BuildError> {
+    let inst_info = instrumented_instantiation(root_nix_file, cas, &extra_nix_options)?;
     let buildoutput = build(inst_info.output.path)?;
     Ok(RunResult {
         referenced_paths: inst_info.referenced_paths,
@@ -290,6 +300,7 @@ pub struct OutputPaths<T> {
 mod tests {
     use super::*;
     use crate::cas::ContentAddressable;
+    use crate::nix::options::NixOptions;
     use std::path::PathBuf;
 
     /// Parsing of `LogDatum`.
@@ -378,6 +389,7 @@ in {}
         run(
             &crate::NixFile::Shell(cas.file_from_string(&nix_drv)?),
             &cas,
+            &NixOptions::empty(),
         )
         .expect("should not crash!");
         Ok(())
@@ -394,7 +406,7 @@ in {}
             &format!("dep = {};", drv("dep", r##"args = [ "-c" "exit 1" ];"##)),
         ))?);
 
-        if let Err(BuildError::Exit { .. }) = run(&d, &cas) {
+        if let Err(BuildError::Exit { .. }) = run(&d, &cas, &NixOptions::empty()) {
         } else {
             assert!(
                 false,
@@ -451,7 +463,8 @@ dir-as-source = ./dir;
 
         let cas = ContentAddressable::new(cas_tmp.path().join("cas"))?;
 
-        let inst_info = instrumented_instantiation(&NixFile::Shell(shell), &cas).unwrap();
+        let inst_info =
+            instrumented_instantiation(&NixFile::Shell(shell), &cas, &NixOptions::empty()).unwrap();
         let ends_with = |end| inst_info.referenced_paths.iter().any(|p| p.ends_with(end));
         assert!(
             ends_with("foo/default.nix"),
