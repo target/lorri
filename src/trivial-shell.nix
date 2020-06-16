@@ -1,10 +1,10 @@
 { pkgs ? import <nixpkgs> {} }:
 
 pkgs.mkShell {
-  buildInputs = [
-    pkgs.hello
+  buildInputs = with pkgs; [
+    hello
 
     # keep this line if you use bash
-    pkgs.bashInteractive
+    bashInteractive
   ];
 }
