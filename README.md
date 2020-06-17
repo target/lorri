@@ -154,7 +154,9 @@ lorri embodies a Unix philosophy of doing one thing well.
 As a result, it works very well with other tools to provide a powerful
 and streamlined development experience.
 
-[direnv](https://github.com/) is lorri's chief collaborator. From its website:
+[direnv](https://github.com/direnv/direnv) is lorri's chief collaborator. From
+its website:
+
 > [direnv] augments existing shells with a new feature that can load and unload
 > environment variables depending on the current directory.
 
