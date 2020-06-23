@@ -5,13 +5,15 @@ on:
   pull_request:
     branches: [ "**" ]
 jobs:
-  build:
+  rust:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Nix
-        uses: cachix/install-nix-action@v7
+        uses: cachix/install-nix-action@v9
+        with:
+            skip_adding_nixpkgs_channel: true
       - name: Cache cargo registry
         uses: actions/cache@v1
         with:
@@ -37,21 +39,49 @@ jobs:
         run: nix-shell --run 'cargo clippy --all-features' --arg isDevelopmentShell false
       - name: Test
         run: nix-shell --run 'cargo test' --arg isDevelopmentShell false
-  nix-build:
+  nix-build_stable:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Nix
-        uses: cachix/install-nix-action@v7
+        uses: cachix/install-nix-action@v9
+        with:
+            skip_adding_nixpkgs_channel: true
       - name: Build
         run: nix-build
+  nix-build_1909:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Nix
+        uses: cachix/install-nix-action@v9
+        with:
+            skip_adding_nixpkgs_channel: true
+      - name: Build
+        run: nix-build --arg nixpkgs ./nix/nixpkgs-1909.nix
   nix-shell:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Nix
-        uses: cachix/install-nix-action@v7
+        uses: cachix/install-nix-action@v9
+        with:
+            skip_adding_nixpkgs_channel: true
       - name: Build
         run: nix-build -A allBuildInputs shell.nix
+  overlay:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Nix
+        uses: cachix/install-nix-action@v9
+        with:
+            skip_adding_nixpkgs_channel: true
+      - name: Build w/ overlay (19.09)
+        run: nix-build ./nix/overlay.nix -A lorri --arg pkgs ./nix/nixpkgs-1909.json
+      - name: Build w/ overlay (stable)
+        run: nix-build ./nix/overlay.nix -A lorri --arg pkgs ./nix/nixpkgs-stable.json
