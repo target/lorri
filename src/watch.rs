@@ -316,7 +316,8 @@ mod tests {
 
     /// upper bound of watcher (if it’s hit, something is broken)
     fn upper_watcher_timeout() -> Duration {
-        Duration::from_millis(500)
+        // CI machines are very slow sometimes.
+        Duration::from_millis(1000)
     }
 
     /// Collect all notifications
