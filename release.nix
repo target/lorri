@@ -6,6 +6,12 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 581;
+        changes = ''
+          Fix `lorri shell` for zsh. ZDOTDIR is loaded correctly.
+        '';
+      }
+      {
         version = 572;
         changes = ''
           `lorri daemon` got a `--extra-nix-options` flag to pass further options
