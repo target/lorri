@@ -3,6 +3,7 @@
 https://github.com/target/lorri
 
 [![built with nix](https://builtwithnix.org/badge.svg)](https://builtwithnix.org)
+![CI](https://github.com/target/lorri/workflows/CI/badge.svg?branch=master)
 
 lorri is a `nix-shell` replacement for project development. lorri is
 based around fast direnv integration for robust CLI and editor
