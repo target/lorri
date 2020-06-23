@@ -11,7 +11,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Nix
-        uses: cachix/install-nix-action@v7
+        uses: cachix/install-nix-action@v9
+        with:
+            skip_adding_nixpkgs_channel: true
       - name: Cache cargo registry
         uses: actions/cache@v1
         with:
@@ -43,7 +45,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Nix
-        uses: cachix/install-nix-action@v7
+        uses: cachix/install-nix-action@v9
+        with:
+            skip_adding_nixpkgs_channel: true
       - name: Build
         run: nix-build
   nix-shell:
@@ -52,6 +56,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Nix
-        uses: cachix/install-nix-action@v7
+        uses: cachix/install-nix-action@v9
+        with:
+            skip_adding_nixpkgs_channel: true
       - name: Build
         run: nix-build -A allBuildInputs shell.nix
