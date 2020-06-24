@@ -116,6 +116,7 @@ pkgs.mkShell (
         set +x
         echo "./nix/fmt.sh --check: $nix_fmt"
         echo "carnix update: $carnixupdates"
+        echo "Cargo.nix changed: $carnixdiff"
         echo "cargo fmt: $cargofmtexit"
         echo "cargo clippy: $cargoclippyexit"
 
@@ -137,11 +138,15 @@ pkgs.mkShell (
         lorri_travis_fold cargo-test cargo test
         cargotestexit=$?
 
+        git diff --quiet -- src/
+        gendiff=$?
+
         set +x
         echo "script tests: $scripttests"
+        echo "generated files changed: $gendiff"
         echo "cargo test: $cargotestexit"
 
-        sum=$((scripttest + cargotestexit))
+        sum=$((scripttest + cargotestexit + gendiff))
         if [ "$sum" -gt 0 ]; then
           return 1
         fi
