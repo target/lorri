@@ -25,6 +25,7 @@ rec {
         (cratesIO.crates."notify"."${deps."lorri"."1.1.0"."notify"}" deps)
         (cratesIO.crates."proptest"."${deps."lorri"."1.1.0"."proptest"}" deps)
         (cratesIO.crates."regex"."${deps."lorri"."1.1.0"."regex"}" deps)
+        (cratesIO.crates."scoped_threadpool"."${deps."lorri"."1.1.0"."scoped_threadpool"}" deps)
         (cratesIO.crates."serde"."${deps."lorri"."1.1.0"."serde"}" deps)
         (cratesIO.crates."serde_derive"."${deps."lorri"."1.1.0"."serde_derive"}" deps)
         (cratesIO.crates."serde_json"."${deps."lorri"."1.1.0"."serde_json"}" deps)
@@ -53,6 +54,7 @@ rec {
       notify."${deps.lorri."1.1.0".notify}".default = true;
       proptest."${deps.lorri."1.1.0".proptest}".default = true;
       regex."${deps.lorri."1.1.0".regex}".default = true;
+      scoped_threadpool."${deps.lorri."1.1.0".scoped_threadpool}".default = true;
       serde."${deps.lorri."1.1.0".serde}".default = true;
       serde_derive."${deps.lorri."1.1.0".serde_derive}".default = true;
       serde_json."${deps.lorri."1.1.0".serde_json}".default = true;
@@ -75,6 +77,7 @@ rec {
       (cratesIO.features_.notify."${deps."lorri"."1.1.0"."notify"}" deps)
       (cratesIO.features_.proptest."${deps."lorri"."1.1.0"."proptest"}" deps)
       (cratesIO.features_.regex."${deps."lorri"."1.1.0"."regex"}" deps)
+      (cratesIO.features_.scoped_threadpool."${deps."lorri"."1.1.0"."scoped_threadpool"}" deps)
       (cratesIO.features_.serde."${deps."lorri"."1.1.0"."serde"}" deps)
       (cratesIO.features_.serde_derive."${deps."lorri"."1.1.0"."serde_derive"}" deps)
       (cratesIO.features_.serde_json."${deps."lorri"."1.1.0"."serde_json"}" deps)
@@ -268,6 +271,7 @@ rec {
     notify = "5.0.0-pre.1";
     proptest = "0.9.6";
     regex = "1.3.9";
+    scoped_threadpool = "0.1.9";
     serde = "1.0.114";
     serde_derive = "1.0.114";
     serde_json = "1.0.55";
@@ -502,6 +506,7 @@ rec {
   deps.same_file."1.0.6" = {
     winapi_util = "0.1.5";
   };
+  deps.scoped_threadpool."0.1.9" = {};
   deps.serde."1.0.114" = {};
   deps.serde_derive."1.0.114" = {
     proc_macro2 = "1.0.18";

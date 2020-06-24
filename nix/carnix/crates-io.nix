@@ -3763,6 +3763,22 @@ rec {
 
 
 # end
+# scoped_threadpool-0.1.9
+
+  crates.scoped_threadpool."0.1.9" = deps: { features?(features_.scoped_threadpool."0.1.9" deps {}) }: buildRustCrate {
+    crateName = "scoped_threadpool";
+    version = "0.1.9";
+    description = "A library for scoped and cached threadpools.";
+    authors = [ "Marvin Löbel <loebel.marvin@gmail.com>" ];
+    sha256 = "1arqj2skcfr46s1lcyvnlmfr5456kg5nhn8k90xyfjnxkp5yga2v";
+    features = mkFeatures (features."scoped_threadpool"."0.1.9" or {});
+  };
+  features_.scoped_threadpool."0.1.9" = deps: f: updateFeatures f (rec {
+    scoped_threadpool."0.1.9".default = (f.scoped_threadpool."0.1.9".default or true);
+  }) [];
+
+
+# end
 # serde-1.0.114
 
   crates.serde."1.0.114" = deps: { features?(features_.serde."1.0.114" deps {}) }: buildRustCrate {
