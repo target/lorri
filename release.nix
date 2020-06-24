@@ -6,6 +6,13 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 589;
+        changes = ''
+          Fix issue with `lorri daemon` where panic messages were swallowed
+          when the panic occurred inside a thread pool.
+        '';
+      }
+      {
         version = 581;
         changes = ''
           Fix `lorri shell` for zsh. ZDOTDIR is loaded correctly.
