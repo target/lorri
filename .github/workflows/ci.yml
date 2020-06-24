@@ -45,6 +45,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # required for lorri self-upgrade local
       - name: Nix
         uses: cachix/install-nix-action@v9
         with:
