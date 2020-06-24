@@ -101,6 +101,9 @@ pkgs.mkShell (
 
         lorri_travis_fold carnix-update ./nix/update-carnix.sh
         carnixupdate=$?
+        git diff --quiet -- Cargo.nix
+        carnixdiff=$?
+        carnixupdate=$((carnixupdate + carnixdiff))
 
         lorri_travis_fold cargo-fmt \
           cargo fmt -- --check
