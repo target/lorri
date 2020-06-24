@@ -4,6 +4,8 @@ on:
     branches: [ "**" ]
   pull_request:
     branches: [ "**" ]
+env:
+  LORRI_NO_INSTALL_PANIC_HANDLER: absolutely
 jobs:
   rust:
     runs-on: ubuntu-latest
@@ -43,6 +45,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # required for lorri self-upgrade local
       - name: Nix
         uses: cachix/install-nix-action@v9
         with:
@@ -56,8 +60,8 @@ jobs:
         run: nix-build
       - name: Install
         run: nix-env -i ./result
-      - name: Test self-upgrade (TODO)
-        run: echo "lorri self-upgrade local $(pwd)"
+      - name: Self-upgrade
+        run: lorri self-upgrade local $(pwd)
   nix-build_1909:
     runs-on: ubuntu-latest
     steps:
