@@ -26,7 +26,6 @@ pub mod osstrlines;
 pub mod pathreduction;
 pub mod project;
 pub mod socket;
-pub mod thread;
 pub mod watch;
 
 // This and the following module declaration together publicly export the contents of

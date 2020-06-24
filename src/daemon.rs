@@ -7,6 +7,7 @@ use crate::project::Project;
 use crate::socket::SocketPath;
 use crate::NixFile;
 use crossbeam_channel as chan;
+use scoped_threadpool::Pool;
 use slog_scope::debug;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -92,68 +93,72 @@ impl Daemon {
         let (activity_tx, activity_rx) = chan::unbounded();
 
         let server = rpc::Server::new(socket_path, activity_tx, self.build_events_tx.clone())?;
-        let mut pool = crate::thread::Pool::new();
-        pool.spawn("accept-loop", move || {
-            server
-                .serve()
-                .expect("failed to serve daemon server endpoint");
-        })?;
         let build_events_rx = self.build_events_rx.clone();
         let mon_tx = self.mon_tx.clone();
-        pool.spawn("build-loop", move || {
-            let mut project_states: HashMap<NixFile, Event> = HashMap::new();
-            let mut event_listeners: Vec<chan::Sender<Event>> = Vec::new();
+        let mut pool = Pool::new(3);
+        pool.scoped(|scope| {
+            scope.execute(move || {
+                server
+                    .serve()
+                    .expect("failed to serve daemon server endpoint");
+            });
+            scope.execute(move || {
+                let mut project_states: HashMap<NixFile, Event> = HashMap::new();
+                let mut event_listeners: Vec<chan::Sender<Event>> = Vec::new();
 
-            for msg in build_events_rx {
-                mon_tx
-                    .send(msg.clone())
-                    .expect("listener still to be there");
-                match &msg {
-                    LoopHandlerEvent::BuildEvent(ev) => match ev {
-                        Event::SectionEnd => (),
-                        Event::Started { nix_file, .. }
-                        | Event::Completed { nix_file, .. }
-                        | Event::Failure { nix_file, .. } => {
-                            project_states.insert(nix_file.clone(), ev.clone());
+                for msg in build_events_rx {
+                    mon_tx
+                        .send(msg.clone())
+                        .expect("listener still to be there");
+                    match &msg {
+                        LoopHandlerEvent::BuildEvent(ev) => match ev {
+                            Event::SectionEnd => (),
+                            Event::Started { nix_file, .. }
+                            | Event::Completed { nix_file, .. }
+                            | Event::Failure { nix_file, .. } => {
+                                project_states.insert(nix_file.clone(), ev.clone());
+                                event_listeners.retain(|tx| {
+                                    let keep = tx.send(ev.clone()).is_ok();
+                                    debug!("Sent"; "event" => ?ev, "keep" => keep);
+                                    keep
+                                })
+                            }
+                        },
+                        LoopHandlerEvent::NewListener(tx) => {
+                            debug!("adding listener");
+                            let keep = project_states.values().all(|event| {
+                                let keeping = tx.send(event.clone()).is_ok();
+                                debug!("Sent snapshot"; "event" => ?&event, "keep" => keeping);
+                                keeping
+                            });
+                            debug!("Finished snapshot"; "keep" => keep);
+                            if keep {
+                                event_listeners.push(tx.clone());
+                            }
                             event_listeners.retain(|tx| {
-                                let keep = tx.send(ev.clone()).is_ok();
-                                debug!("Sent"; "event" => ?ev, "keep" => keep);
+                                let keep = tx.send(Event::SectionEnd).is_ok();
+                                debug!("Sent new listener sectionend"; "keep" => keep);
                                 keep
                             })
                         }
-                    },
-                    LoopHandlerEvent::NewListener(tx) => {
-                        debug!("adding listener");
-                        let keep = project_states.values().all(|event| {
-                            let keeping = tx.send(event.clone()).is_ok();
-                            debug!("Sent snapshot"; "event" => ?&event, "keep" => keeping);
-                            keeping
-                        });
-                        debug!("Finished snapshot"; "keep" => keep);
-                        if keep {
-                            event_listeners.push(tx.clone());
-                        }
-                        event_listeners.retain(|tx| {
-                            let keep = tx.send(Event::SectionEnd).is_ok();
-                            debug!("Sent new listener sectionend"; "keep" => keep);
-                            keep
-                        })
                     }
                 }
-            }
-        })?;
-        pool.spawn("build-instruction-handler", move || {
-            // For each build instruction, add the corresponding file
-            // to the watch list.
-            for start_build in activity_rx {
-                let project =
-                    crate::project::Project::new(start_build.nix_file, &gc_root_dir, cas.clone())
-                        // TODO: the project needs to create its gc root dir
-                        .unwrap();
-                self.add(project)
-            }
-        })?;
-        pool.join_all_or_panic();
+            });
+            scope.execute(move || {
+                // For each build instruction, add the corresponding file
+                // to the watch list.
+                for start_build in activity_rx {
+                    let project = crate::project::Project::new(
+                        start_build.nix_file,
+                        &gc_root_dir,
+                        cas.clone(),
+                    )
+                    // TODO: the project needs to create its gc root dir
+                    .unwrap();
+                    self.add(project)
+                }
+            });
+        });
 
         Ok(())
     }
