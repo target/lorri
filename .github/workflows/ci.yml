@@ -56,8 +56,8 @@ jobs:
         run: nix-build
       - name: Install
         run: nix-env -i ./result
-      - name: Test self-upgrade (TODO)
-        run: echo "lorri self-upgrade local $(pwd)"
+      - name: Self-upgrade
+        run: LORRI_NO_INSTALL_PANIC_HANDLER=1 lorri self-upgrade local $(pwd)
   nix-build_1909:
     runs-on: ubuntu-latest
     steps:
