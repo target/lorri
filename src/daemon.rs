@@ -97,30 +97,30 @@ impl Daemon {
         let mut pool = crate::thread::Pool::new();
         let build_events_tx = self.build_events_tx.clone();
 
+        let server =
+            rpc::Server::new(socket_path.clone(), activity_tx, build_events_tx).map_err(|e| {
+                ExitError::temporary(format!(
+                    "unable to bind to the server socket at {}: {:?}",
+                    socket_path.0.display(),
+                    e
+                ))
+            })?;
+
         pool.spawn("accept-loop", || {
-            Self::accept_loop(socket_path, activity_tx, build_events_tx)
+            server.serve().expect("varlink error");
         })?;
+
         let build_events_rx = self.build_events_rx.clone();
         let mon_tx = self.mon_tx.clone();
-
         pool.spawn("build-loop", || Self::build_loop(build_events_rx, mon_tx))?;
 
         pool.spawn("build-instruction-handler", move || {
-            self.build_instruction_handler(activity_rx, &gc_root_dir, cas)
+            self.build_instruction_handler(activity_rx, &gc_root_dir, cas);
         })?;
 
         pool.join_all_or_panic();
 
         Ok(())
-    }
-
-    fn accept_loop(
-        socket_path: SocketPath,
-        activity_tx: chan::Sender<IndicateActivity>,
-        build_events_tx: chan::Sender<LoopHandlerEvent>,
-    ) -> Result<(), ExitError> {
-        let server = rpc::Server::new(socket_path, activity_tx, build_events_tx)?;
-        server.serve()
     }
 
     fn build_loop(

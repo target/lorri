@@ -4,7 +4,8 @@ use std::os::unix::io::AsRawFd;
 use std::path::{Path, PathBuf};
 
 /// Small wrapper that makes sure lorri sockets are handled correctly.
-pub struct SocketPath(PathBuf);
+#[derive(Clone)]
+pub struct SocketPath(pub PathBuf);
 
 /// Binding to the socket failed.
 #[derive(Debug)]
@@ -15,12 +16,6 @@ pub enum BindError {
     Io(std::io::Error),
     /// nix library I/O error (like Io)
     Unix(nix::Error),
-}
-
-impl From<BindError> for crate::ops::error::ExitError {
-    fn from(e: BindError) -> crate::ops::error::ExitError {
-        crate::ops::error::ExitError::temporary(format!("Bind error: {:?}", e))
-    }
 }
 
 impl From<std::io::Error> for BindError {
