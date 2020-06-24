@@ -56,11 +56,20 @@ pub enum NixFile {
     Services(PathBuf),
 }
 
-impl From<&NixFile> for PathBuf {
-    fn from(p: &NixFile) -> PathBuf {
-        match p {
-            NixFile::Shell(p) => p.to_path_buf(),
-            NixFile::Services(p) => p.to_path_buf(),
+impl NixFile {
+    /// Underlying `Path`.
+    pub fn as_path(&self) -> &Path {
+        match self {
+            Self::Shell(ref path) => path,
+            Self::Services(ref path) => path,
+        }
+    }
+
+    /// Display the underlying path
+    pub fn display(&self) -> std::path::Display {
+        match self {
+            Self::Shell(path) => path.display(),
+            Self::Services(path) => path.display(),
         }
     }
 }
@@ -72,7 +81,7 @@ impl slog::Value for NixFile {
         key: slog::Key,
         serializer: &mut dyn slog::Serializer,
     ) -> slog::Result {
-        serializer.emit_arguments(key, &format_args!("{}", PathBuf::from(self).display()))
+        serializer.emit_arguments(key, &format_args!("{}", self.as_path().display()))
     }
 }
 
