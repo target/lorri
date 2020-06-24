@@ -24,10 +24,15 @@ impl Drop for DeathCertificate {
     }
 }
 
+struct Thread {
+    name: String,
+    join_handle: thread::JoinHandle<()>,
+}
+
 /// A thread pool for joining many threads at once, panicking
 /// if any of the threads panicked.
 pub struct Pool {
-    threads: HashMap<ThreadId, thread::JoinHandle<()>>,
+    threads: HashMap<ThreadId, Thread>,
     tx: chan::Sender<ThreadId>,
     rx: chan::Receiver<ThreadId>,
 }
@@ -60,7 +65,7 @@ impl Pool {
     /// remaining threads.
     pub fn spawn<N, F, T>(&mut self, name: N, f: F) -> Result<(), std::io::Error>
     where
-        N: Into<String>,
+        N: Into<String> + Copy,
         F: FnOnce() -> T,
         F: Send + 'static,
         T: Send + 'static,
@@ -75,7 +80,13 @@ impl Pool {
             drop(certificate);
         })?;
 
-        self.threads.insert(handle.thread().id(), handle);
+        self.threads.insert(
+            handle.thread().id(),
+            Thread {
+                name: name.into(),
+                join_handle: handle,
+            },
+        );
 
         Ok(())
     }
@@ -91,16 +102,17 @@ impl Pool {
             let thread_id = self
                 .rx
                 .recv()
-                .expect("Failed to receive a ThreadResult, even though there are more threads.");
+                .expect("thread pool: Failed to receive a ThreadResult, even though there are more threads.");
 
-            let handle = self
+            let thread = self
                 .threads
                 .remove(&thread_id)
-                .expect("Failed to find thread ID in handle table");
+                .expect("thread pool: Failed to find thread ID in handle table");
 
-            handle
+            thread
+                .join_handle
                 .join()
-                .expect("Failed to join thread, despite catch_unwind!");
+                .expect(&format!("thread pool: thread {} paniced", thread.name));
         }
     }
 }
