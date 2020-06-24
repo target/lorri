@@ -46,12 +46,9 @@ fn main() {
 }
 
 fn install_panic_handler() {
-    match env::var("LORRI_NO_INSTALL_PANIC_HANDLER") {
-        Err(env::VarError::NotPresent) => {}
-        _ => {
-            // This returns 101 on panics, see also `ExitError::panic`.
-            human_panic::setup_panic!();
-        }
+    if let Err(env::VarError::NotPresent) = env::var("LORRI_NO_INSTALL_PANIC_HANDLER") {
+        // This returns 101 on panics, see also `ExitError::panic`.
+        human_panic::setup_panic!();
     }
 }
 
