@@ -4,6 +4,8 @@ on:
     branches: [ "**" ]
   pull_request:
     branches: [ "**" ]
+env:
+  LORRI_NO_INSTALL_PANIC_HANDLER: absolutely
 jobs:
   rust:
     runs-on: ubuntu-latest
@@ -57,7 +59,7 @@ jobs:
       - name: Install
         run: nix-env -i ./result
       - name: Self-upgrade
-        run: LORRI_NO_INSTALL_PANIC_HANDLER=1 lorri self-upgrade local $(pwd)
+        run: lorri self-upgrade local $(pwd)
   nix-build_1909:
     runs-on: ubuntu-latest
     steps:
