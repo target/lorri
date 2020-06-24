@@ -3,7 +3,6 @@
 use crate::build_loop::{BuildLoop, Event};
 use crate::nix::options::NixOptions;
 use crate::ops::error::ExitError;
-use crate::project::Project;
 use crate::socket::SocketPath;
 use crate::NixFile;
 use crossbeam_channel as chan;
@@ -182,32 +181,29 @@ impl Daemon {
                 crate::project::Project::new(start_build.nix_file, &gc_root_dir, cas.clone())
                     // TODO: the project needs to create its gc root dir
                     .unwrap();
-            self.add(project)
+
+            // Add nix file to the set of files this daemon watches
+            // & build if they change.
+            let (tx, rx) = chan::unbounded();
+            let build_events_tx = self.build_events_tx.clone();
+            let extra_nix_options = self.extra_nix_options.clone();
+
+            self.handler_threads
+                .entry(project.nix_file.clone())
+                .or_insert_with(|| Handler {
+                    tx,
+                    _handle: std::thread::spawn(move || {
+                        let mut build_loop = BuildLoop::new(&project, extra_nix_options);
+
+                        // cloning the tx means the daemon’s rx gets all
+                        // messages from all builders.
+                        build_loop.forever(build_events_tx, rx);
+                    }),
+                })
+                // Notify the handler, whether or not it was newly added
+                .tx
+                .send(())
+                .unwrap();
         }
-    }
-
-    /// Add nix file to the set of files this daemon watches
-    /// & build if they change.
-    pub fn add(&mut self, project: Project) {
-        let (tx, rx) = chan::unbounded();
-        let build_events_tx = self.build_events_tx.clone();
-        let extra_nix_options = self.extra_nix_options.clone();
-
-        self.handler_threads
-            .entry(project.nix_file.clone())
-            .or_insert_with(|| Handler {
-                tx,
-                _handle: std::thread::spawn(move || {
-                    let mut build_loop = BuildLoop::new(&project, extra_nix_options);
-
-                    // cloning the tx means the daemon’s rx gets all
-                    // messages from all builders.
-                    build_loop.forever(build_events_tx, rx);
-                }),
-            })
-            // Notify the handler, whether or not it was newly added
-            .tx
-            .send(())
-            .unwrap();
     }
 }
