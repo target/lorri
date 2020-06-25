@@ -11,7 +11,7 @@ fn not_so_slow() {
     println!("direnv time: {:?}", start.elapsed());
     assert!(
         start.elapsed() < Duration::from_secs(2),
-        "direnv export should be under 2 seconds (even on Travis)"
+        "direnv export should be under 2 seconds (even on CI)"
     );
     let itworked = env.get_env("ITWORKED");
     assert!(
