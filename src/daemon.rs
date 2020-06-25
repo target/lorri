@@ -46,13 +46,10 @@ pub struct IndicateActivity {
 
 struct Handler {
     tx: chan::Sender<()>,
-    _handle: std::thread::JoinHandle<()>,
 }
 
 /// Keeps all state of the running `lorri daemon` service, watches nix files and runs builds.
 pub struct Daemon {
-    /// A thread for each `BuildLoop`, keyed by the nix files listened on.
-    handler_threads: HashMap<NixFile, Handler>,
     /// Sending end that we pass to every `BuildLoop` the daemon controls.
     // TODO: this needs to transmit information to identify the builder with
     build_events_tx: chan::Sender<LoopHandlerEvent>,
@@ -71,7 +68,6 @@ impl Daemon {
         let (mon_tx, mon_rx) = chan::unbounded();
         (
             Daemon {
-                handler_threads: HashMap::new(),
                 build_events_tx,
                 build_events_rx,
                 mon_tx,
@@ -83,7 +79,7 @@ impl Daemon {
 
     /// Serve the daemon's RPC endpoint.
     pub fn serve(
-        self,
+        &mut self,
         socket_path: SocketPath,
         gc_root_dir: PathBuf,
         cas: crate::cas::ContentAddressable,
@@ -113,8 +109,16 @@ impl Daemon {
         let mon_tx = self.mon_tx.clone();
         pool.spawn("build-loop", || Self::build_loop(build_events_rx, mon_tx))?;
 
-        pool.spawn("build-instruction-handler", move || {
-            self.build_instruction_handler(activity_rx, &gc_root_dir, cas);
+        let build_events_tx = self.build_events_tx.clone();
+        let extra_nix_options = self.extra_nix_options.clone();
+        pool.spawn("foo", || {
+            Self::build_instruction_handler(
+                build_events_tx,
+                extra_nix_options,
+                activity_rx,
+                gc_root_dir,
+                cas,
+            )
         })?;
 
         pool.join_all_or_panic();
@@ -169,11 +173,17 @@ impl Daemon {
     }
 
     fn build_instruction_handler(
-        mut self,
+        // TODO: use the pool here
+        // pool: &mut crate::thread::Pool,
+        build_events_tx: chan::Sender<LoopHandlerEvent>,
+        extra_nix_options: NixOptions,
         activity_rx: chan::Receiver<IndicateActivity>,
-        gc_root_dir: &PathBuf,
+        gc_root_dir: PathBuf,
         cas: crate::cas::ContentAddressable,
     ) {
+        // A thread for each `BuildLoop`, keyed by the nix files listened on.
+        let mut handler_threads: HashMap<NixFile, Handler> = HashMap::new();
+
         // For each build instruction, add the corresponding file
         // to the watch list.
         for start_build in activity_rx {
@@ -185,20 +195,28 @@ impl Daemon {
             // Add nix file to the set of files this daemon watches
             // & build if they change.
             let (tx, rx) = chan::unbounded();
-            let build_events_tx = self.build_events_tx.clone();
-            let extra_nix_options = self.extra_nix_options.clone();
+            // cloning the tx means the daemon’s rx gets all
+            // messages from all builders.
+            let build_events_tx = build_events_tx.clone();
+            let extra_nix_options = extra_nix_options.clone();
 
-            self.handler_threads
+            handler_threads
                 .entry(project.nix_file.clone())
-                .or_insert_with(|| Handler {
-                    tx,
-                    _handle: std::thread::spawn(move || {
+                .or_insert_with(|| {
+                    // TODO: how to use the pool here?
+                    // We cannot just spawn new threads once messages come in,
+                    // because then then pool objects is stuck in this loop
+                    // and will never start to wait for joins, which means
+                    // we don’t catch panics as they happen!
+                    // If we can get the pool to “wait for join but also spawn new
+                    // thread when you get a message” that could work!
+                    // pool.spawn(format!("build_loop for {}", nix_file.display()),
+                    let _ = std::thread::spawn(move || {
                         let mut build_loop = BuildLoop::new(&project, extra_nix_options);
 
-                        // cloning the tx means the daemon’s rx gets all
-                        // messages from all builders.
                         build_loop.forever(build_events_tx, rx);
-                    }),
+                    });
+                    Handler { tx }
                 })
                 // Notify the handler, whether or not it was newly added
                 .tx

@@ -8,33 +8,32 @@
 //! already.
 
 use crossbeam_channel as chan;
+use std::any::Any;
 use std::collections::HashMap;
 use std::thread;
 use std::thread::ThreadId;
-
-struct DeathCertificate {
-    tx: chan::Sender<ThreadId>,
-}
-
-impl Drop for DeathCertificate {
-    fn drop(&mut self) {
-        self.tx
-            .send(thread::current().id())
-            .expect("failed to send thread shut-down message!");
-    }
-}
 
 struct Thread {
     name: String,
     join_handle: thread::JoinHandle<()>,
 }
 
+struct Dead {
+    thread_id: ThreadId,
+    cause: Cause,
+}
+
+enum Cause {
+    Natural,
+    Paniced(Box<dyn Any + Send>),
+}
+
 /// A thread pool for joining many threads at once, panicking
 /// if any of the threads panicked.
 pub struct Pool {
     threads: HashMap<ThreadId, Thread>,
-    tx: chan::Sender<ThreadId>,
-    rx: chan::Receiver<ThreadId>,
+    tx: chan::Sender<Dead>,
+    rx: chan::Receiver<Dead>,
 }
 
 impl Default for Pool {
@@ -63,27 +62,30 @@ impl Pool {
 
     /// Spawn a sub-thread which is joined at the same time as all the
     /// remaining threads.
-    pub fn spawn<N, F, T>(&mut self, name: N, f: F) -> Result<(), std::io::Error>
+    pub fn spawn<N, F>(&mut self, name: N, f: F) -> Result<(), std::io::Error>
     where
-        N: Into<String> + Copy,
-        F: FnOnce() -> T,
+        N: Into<String>,
+        F: FnOnce() -> () + std::panic::UnwindSafe,
         F: Send + 'static,
-        T: Send + 'static,
     {
-        let builder = thread::Builder::new().name(name.into());
+        let name = name.into();
+        let builder = thread::Builder::new().name(name.clone());
 
         let tx = self.tx.clone();
         let handle = builder.spawn(move || {
-            let certificate = DeathCertificate { tx };
-
-            f();
-            drop(certificate);
+            let thread_id = thread::current().id();
+            let cause = match std::panic::catch_unwind(|| f()) {
+                Ok(()) => Cause::Natural,
+                Err(panic) => Cause::Paniced(panic),
+            };
+            tx.send(Dead { thread_id, cause })
+                .expect("failed to send thread shut-down message!")
         })?;
 
         self.threads.insert(
             handle.thread().id(),
             Thread {
-                name: name.into(),
+                name,
                 join_handle: handle,
             },
         );
@@ -99,20 +101,34 @@ impl Pool {
                 return;
             }
 
-            let thread_id = self
+            let death = self
                 .rx
                 .recv()
                 .expect("thread pool: Failed to receive a ThreadResult, even though there are more threads.");
 
             let thread = self
                 .threads
-                .remove(&thread_id)
+                .remove(&death.thread_id)
                 .expect("thread pool: Failed to find thread ID in handle table");
 
+            let name = thread.name;
             thread
                 .join_handle
                 .join()
-                .expect(&format!("thread pool: thread {} paniced", thread.name));
+                // If the thread panics without an unwindable panic,
+                // there’s nothing we can do here.
+                // Otherwise the stack is unrolled via Cause::Paniced
+                .unwrap_or_else(|_any| {
+                    panic!(
+                        "thread pool: thread {} paniced and we were unable to unwind it",
+                        name
+                    )
+                });
+
+            match death.cause {
+                Cause::Natural => {}
+                Cause::Paniced(panic) => std::panic::resume_unwind(panic),
+            }
         }
     }
 }
