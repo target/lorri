@@ -95,18 +95,16 @@ pkgs.mkShell (
 
         set -x
 
-        fmt-nix ./nix/fmt.sh --check
+        ./nix/fmt.sh --check
         nix_fmt=$?
 
-        carnix-update ./nix/update-carnix.sh
+        ./nix/update-carnix.sh
         carnixupdate=$?
 
-        cargo-fmt \
-          cargo fmt -- --check
+        cargo fmt -- --check
         cargofmtexit=$?
 
-        RUSTFLAGS='-D warnings' \
-          cargo-clippy cargo clippy
+        RUSTFLAGS='-D warnings' cargo clippy
         cargoclippyexit=$?
 
         set +x
@@ -126,10 +124,10 @@ pkgs.mkShell (
 
         set -x
 
-        script-tests ./script-tests/run-all.sh
+        ./script-tests/run-all.sh
         scripttests=$?
 
-        cargo-test cargo test
+        cargo test
         cargotestexit=$?
 
         set +x
