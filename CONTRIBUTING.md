@@ -38,6 +38,30 @@ A complete pull request will:
    amongst other checks.
  - Have nice commit messages
 
+We use a commit message scheme which starts with the type of change
+and includes the scope of the commit, like
+
+```
+type(scope): short message
+```
+
+Examples:
+
+```
+fix(builder): run nix builds with the `--foo` flag
+feat(error.rs): use proper status codes for different failures
+chore(CI): run cachix during CI
+```
+
+Where `type` can be one of:
+* `feat`: A new feature has been introduced
+* `fix`: An issue of some kind has been fixed
+* `docs`: Documentation or comments have been updated
+* `style`: Formatting changes only
+* `refactor`: Some code has been moved, no changes to functionality
+* `test`: Added missing tests / fixed tests
+* `chore`: Maintenance work
+
 Instead of writing a beautiful Pull Request message, write the
 important parts in the commit messages themselves. This makes it much
 easier to open up a request: just copy and paste the nice commit
