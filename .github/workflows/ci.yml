@@ -4,6 +4,8 @@ on:
     branches: [ "**" ]
   pull_request:
     branches: [ "**" ]
+env:
+  LORRI_NO_INSTALL_PANIC_HANDLER: absolutely
 jobs:
   rust:
     runs-on: ubuntu-latest
@@ -36,19 +38,15 @@ jobs:
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       - name: Shell (cache inputs)
         run: nix-shell
-      - name: Format
-        run: nix-shell --run 'cargo fmt --all -- --check' --arg isDevelopmentShell false
-      - name: Build
-        run: nix-shell --run 'cargo build' --arg isDevelopmentShell false
-      - name: Clippy
-        run: nix-shell --run 'cargo clippy --all-features' --arg isDevelopmentShell false
-      - name: Test
-        run: nix-shell --run 'cargo test' --arg isDevelopmentShell false
+      - name: CI check
+        run: nix-shell --arg isDevelopmentShell false --run 'ci_check'
   nix-build_stable:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # required for lorri self-upgrade local
       - name: Nix
         uses: cachix/install-nix-action@v9
         with:
@@ -60,6 +58,10 @@ jobs:
             signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
       - name: Build
         run: nix-build
+      - name: Install
+        run: nix-env -i ./result
+      - name: Self-upgrade
+        run: lorri self-upgrade local $(pwd)
   nix-build_1909:
     runs-on: ubuntu-latest
     steps:

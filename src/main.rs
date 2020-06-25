@@ -10,6 +10,7 @@ use lorri::project::Project;
 use lorri::NixFile;
 use slog::{debug, error, o};
 use slog_scope::GlobalLoggerGuard;
+use std::env;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -17,8 +18,7 @@ const TRIVIAL_SHELL_SRC: &str = include_str!("./trivial-shell.nix");
 const DEFAULT_ENVRC: &str = "eval \"$(lorri direnv)\"\n";
 
 fn main() {
-    // This returns 101 on panics, see also `ExitError::panic`.
-    human_panic::setup_panic!();
+    install_panic_handler();
 
     let exit_code = {
         let opts = Arguments::from_args();
@@ -43,6 +43,13 @@ fn main() {
     // https://doc.rust-lang.org/std/process/trait.Termination.html
     // https://github.com/rust-lang/rfcs/blob/master/text/1937-ques-in-main.md
     std::process::exit(exit_code);
+}
+
+fn install_panic_handler() {
+    if let Err(env::VarError::NotPresent) = env::var("LORRI_NO_INSTALL_PANIC_HANDLER") {
+        // This returns 101 on panics, see also `ExitError::panic`.
+        human_panic::setup_panic!();
+    }
 }
 
 /// Try to read `shell.nix` from the current working dir.
