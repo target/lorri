@@ -50,7 +50,7 @@ let
     pkgs.nixpkgs-fmt
 
     # To ensure we always have a compatible nix in our shells.
-    # Travis doesn’t know `nix-env` otherwise.
+    # CI doesn’t know `nix-env` otherwise.
     pkgs.nix
   ] ++ pkgs.stdenv.lib.optionals pkgs.stdenv.isDarwin [
     pkgs.darwin.Security
@@ -92,22 +92,21 @@ pkgs.mkShell (
 
       function ci_lint() (
         cd "$LORRI_ROOT";
-        source ./.travis_fold.sh
 
         set -x
 
-        lorri_travis_fold fmt-nix ./nix/fmt.sh --check
+        fmt-nix ./nix/fmt.sh --check
         nix_fmt=$?
 
-        lorri_travis_fold carnix-update ./nix/update-carnix.sh
+        carnix-update ./nix/update-carnix.sh
         carnixupdate=$?
 
-        lorri_travis_fold cargo-fmt \
+        cargo-fmt \
           cargo fmt -- --check
         cargofmtexit=$?
 
         RUSTFLAGS='-D warnings' \
-          lorri_travis_fold cargo-clippy cargo clippy
+          cargo-clippy cargo clippy
         cargoclippyexit=$?
 
         set +x
@@ -124,14 +123,13 @@ pkgs.mkShell (
 
       function ci_test() (
         cd "$LORRI_ROOT";
-        source ./.travis_fold.sh
 
         set -x
 
-        lorri_travis_fold script-tests ./script-tests/run-all.sh
+        script-tests ./script-tests/run-all.sh
         scripttests=$?
 
-        lorri_travis_fold cargo-test cargo test
+        cargo-test cargo test
         cargotestexit=$?
 
         set +x

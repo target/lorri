@@ -21,7 +21,7 @@ development environment defined in `shell.nix`. You can do this using
 
 Amongst other things, the environment gives you the `ci` command which runs the
 continuous integration build and test suite locally. If this passes, you can be
-pretty confident that your pull request will pass Travis too.
+pretty confident that your pull request will pass CI too.
 
 ## Making a contribution
 
