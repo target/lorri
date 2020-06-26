@@ -87,11 +87,21 @@ To update the lorri version in [nixpkgs][]:
    > @GrahamcOfBorg build lorri.tests
 
 2. **latest `nixos` stable**: _after_ the first PR has been merged into `master`,
-   if the new release is not a major version bump (aka a breaking change),
+   if the new release is *not* a major version bump (aka a breaking change),
    follow the [backporting procedure][nixpkgs-backporting] to create a PR
    against `release-<latest-stable-release-date>` (e.g. `release-20.03`);
    see for example [NixOS#77432][nixos-stable-pr].
    Again, make sure the NixOS integration tests pass (see previous step).
+
+   We only backport to latest stable, since NixOS has a policy of only
+   supporting one stable version at a time.
+
+   Q: why do we support an older `rusttc` then?
+
+   A: Users often work with repositories that use an older nixpkgs pin,
+   which might still be from before latest stable. If they add lorri
+   as an overlay to their repository, it won’t work if we drop support
+   for older rustc’s too early.
 
 ## Updating dependencies
 
