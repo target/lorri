@@ -17,7 +17,7 @@ pub fn main(opts: crate::cli::DaemonOptions) -> OpResult {
         },
     };
 
-    let (daemon, build_rx) = Daemon::new(extra_nix_options);
+    let (mut daemon, build_rx) = Daemon::new(extra_nix_options);
     let build_handle = std::thread::spawn(|| {
         for msg in build_rx {
             info!("build status"; "message" => ?msg);

@@ -61,7 +61,9 @@ pub fn main(project: Project, opts: ShellOptions) -> OpResult {
                 .to_str()
                 .expect("lorri executable path not UTF-8 clean"),
             &shell,
-            &PathBuf::from(&project.nix_file)
+            project
+                .nix_file
+                .as_path()
                 .to_str()
                 .expect("Nix file path not UTF-8 clean"),
         ])

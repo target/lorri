@@ -35,10 +35,7 @@ fn loads_env() {
         .args(&[
             "shell",
             "--shell-file",
-            PathBuf::from(&project.nix_file)
-                .as_os_str()
-                .to_str()
-                .unwrap(),
+            project.nix_file.as_path().as_os_str().to_str().unwrap(),
         ])
         .current_dir(&tempdir)
         .output()

@@ -534,7 +534,7 @@ mod tests {
             "--expr",
             "my-cool-expression",
         ]
-        .into_iter()
+        .iter()
         .map(OsStr::new)
         .collect();
         assert_eq!(exp, nix.command_arguments());
@@ -565,7 +565,7 @@ mod tests {
             "--",
             "/my-cool-file.nix",
         ]
-        .into_iter()
+        .iter()
         .map(OsStr::new)
         .collect();
         assert_eq!(exp2, nix2.command_arguments());

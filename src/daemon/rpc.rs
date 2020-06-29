@@ -4,7 +4,6 @@ use super::IndicateActivity;
 use super::LoopHandlerEvent;
 use crate::build_loop::Event;
 use crate::error;
-use crate::ops::error::ExitError;
 use crate::rpc;
 use crate::socket::{BindLock, SocketPath};
 use crate::watch;
@@ -29,7 +28,7 @@ impl Server {
         socket_path: SocketPath,
         activity_tx: chan::Sender<IndicateActivity>,
         build_tx: chan::Sender<LoopHandlerEvent>,
-    ) -> Result<Server, ExitError> {
+    ) -> Result<Server, crate::socket::BindError> {
         let lock = socket_path.lock()?;
         Ok(Server {
             socket_path,
@@ -40,7 +39,7 @@ impl Server {
     }
 
     /// Serve the daemon endpoint.
-    pub fn serve(self) -> Result<(), ExitError> {
+    pub fn serve(self) -> Result<(), varlink::error::Error> {
         let address = &self.socket_path.address();
         let service = varlink::VarlinkService::new(
             /* vendor */ "com.target",
@@ -59,7 +58,6 @@ impl Server {
             max_worker_threads,
             idle_timeout,
         )
-        .map_err(|e| ExitError::temporary(format!("{}", e)))
     }
 }
 
