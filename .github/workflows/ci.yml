@@ -8,7 +8,10 @@ env:
   LORRI_NO_INSTALL_PANIC_HANDLER: absolutely
 jobs:
   rust:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -41,7 +44,10 @@ jobs:
       - name: CI check
         run: nix-shell --arg isDevelopmentShell false --run 'ci_check'
   nix-build_stable:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -63,7 +69,10 @@ jobs:
       - name: Self-upgrade
         run: lorri self-upgrade local $(pwd)
   nix-build_1909:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -79,7 +88,10 @@ jobs:
       - name: Build
         run: nix-build --arg nixpkgs ./nix/nixpkgs-1909.nix
   nix-shell:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -95,7 +107,10 @@ jobs:
       - name: Build
         run: nix-build -A allBuildInputs shell.nix
   overlay:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
