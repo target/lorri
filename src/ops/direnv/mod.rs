@@ -21,14 +21,22 @@ pub fn main<W: std::io::Write>(project: Project, mut shell_output: W) -> OpResul
     let address = crate::ops::get_paths()?.daemon_socket_address();
     let shell_nix = rpc::ShellNix::try_from(&project.nix_file).map_err(ExitError::temporary)?;
 
-    let ping_sent = if let Ok(connection) = varlink::Connection::with_address(&address) {
-        use rpc::VarlinkClientInterface;
-        rpc::VarlinkClient::new(connection)
-            .watch_shell(shell_nix)
-            .call()
-            .is_ok()
-    } else {
-        false
+    let ping_sent = match varlink::Connection::with_address(&address) {
+        Ok(connection) => {
+            use rpc::VarlinkClientInterface;
+            rpc::VarlinkClient::new(connection)
+                .watch_shell(shell_nix)
+                .call()
+                .expect("unable to ping varlink server");
+            true
+        }
+        Err(err) => match err.kind() {
+            // We cannot connect to the socket
+            varlink::error::ErrorKind::Io(std::io::ErrorKind::NotFound) => false,
+            varlink::error::ErrorKind::Io(std::io::ErrorKind::ConnectionRefused) => false,
+            // Any other error is probably a bug
+            _ => panic!("failed connecting to socket: {:?}", err),
+        },
     };
 
     match (ping_sent, paths_are_cached) {
