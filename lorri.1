@@ -1,0 +1,247 @@
+.\" written in mdoc. See https://mandoc.bsd.lv/mdoc/ for a guide
+.\" and http://man.openbsd.org/mdoc.7 for a reference.
+.\" You can call this file with `man ./lorri.1` directly to see how it is formatted.
+.Dd July 20, 2020
+.Dt LORRI 1
+.Os
+.\"
+.\"
+.Sh NAME
+.Nm lorri
+.Nd nix-shell replacement for project development
+.\"
+.\"
+.Sh SYNOPSIS
+.Nm
+.Cm daemon
+.Op Fl -extra-nix-options Ar json
+.Nm
+.Cm direnv
+.Op Fl -shell-file Ar shell.nix
+.Nm
+.Cm info
+.Fl -shell-file Ar shell.nix
+.Nm
+.Cm init
+.Nm
+.Cm self-upgrade Op Ar local Ar <path> | master | rolling-release
+.Nm
+.Cm shell
+.Op Fl -cached
+.Op Fl -shell-file Ar shell.nix
+.\"
+.\"
+.Sh DESCRIPTION
+.Nm
+is a nix-shell replacement for project development.
+.Nm
+is based around fast
+.Xr direnv 1
+integration for robust CLI and editor integration.
+.Pp
+.Nm
+is about experimenting with and improving the developer's experience with Nix.
+A particular focus is managing your project's external dependencies, editor integration, and quick feedback.
+.Pp
+.Nm
+provides a daemon that automatically builds project environment whenever their nix files change, and the
+.Xr direnv 1
+integration instantly loads the project environment, in your shell and in your editor.
+.Pp
+.Nm
+supports Linux and macOS.
+.Pp
+This man page documents the available commands,
+but we also have setup and installation instructions which you can find on the
+.Lk https://github.com/target/lorri/ project page .
+.\"
+.\"
+.Ss Subcommands
+.Bl -tag -width Ds
+.\"
+.It Nm Cm daemon Op Fl -extra-nix-options Ar json
+Start the
+.Nm
+daemon.
+It is required for most other commands to function.
+The daemon keeps track of the projects watched
+and will rebuild whenever a dependency of your project’s
+.Pa shell.nix
+file changes.
+This includes
+.Em nix files ,
+.Em source files
+as well as
+.Em non-nix source files ,
+like for example json files loaded via
+.Ql builtins.fromJSON (builtins.readFile …) .
+.Pp
+The
+.Fl -extra-nix-options
+flag takes a json description of nix options to overwrite.
+Only a subset is supported.
+See
+.Ql lorri daemon --help
+for a description of the supported options.
+.\"
+.It Nm Cm direnv Op Fl -shell-file Ar shell.nix
+Print a piece of
+.Xr direnv 1
+bash code, intended to be sourced in the
+.Pa .envrc
+of your project.
+Source it by adding
+.Pp
+.Dl eval \&"$(lorri direnv)\&"
+.Pp
+to your project’s
+.Pa .envrc .
+It will then cause direnv to reload your environment whenever
+.Nm
+finishes a rebuild.
+.Pp
+.Pa .shell.nix
+is the file built and watched by
+.Nm .
+Use the
+.Fl -shell-file
+flag to overwrite the file name:
+.Pp
+.Dl eval \&"$(lorri direnv --shell-file foo.nix)\&"
+.Pp
+The path is relative to the location of your
+.Pa .envrc .
+.\"
+.It Nm Cm info Fl -shell-file Ar shell.nix
+Show project information for the given shell file.
+.\"
+.It Nm Cm init
+Bootstrap a
+.Nm
+project.
+The following files are created if they do not exist yet:
+.Bl -tag -width Ds
+.It Pa shell.nix
+Minimal nix shell file
+.It Pa .envrc
+A direnv config with the
+.Nm
+.Cm direnv
+call.
+.El
+.\"
+.It Nm Cm self-upgrade Op Ar local Ar <path> | master | rolling-release
+Upgrade
+.Nm
+to a newer version.
+This uses
+.Xr nix-env 1
+internally, and will install the new
+.Nm
+to your user profile.
+It is intended as a quick way to update to latest master, or to try out a specific branch.
+.Pp
+.Ar local
+will use the
+.Nm
+checkout in
+.Ar <path> .
+.Ar master
+will update to the master branch of
+.Lk https://github.com/target/lorri/ .
+.Ar rolling-release
+will update to the
+.Sy rolling-release
+branch of that repository.
+.Ar rolling-release
+is not updated any more, please use the official release from nixpkgs.
+.Pp
+If no argument is given,
+.Ar rolling-release
+is assumed.
+.\"
+.It Nm Cm shell Oo Fl -cached Oc Oo Fl -shell-file Ar shell.nix Oc
+Open a project shell.
+This is essentially a beefed-up
+.Xr nix-shell 1 ,
+with the following improvements:
+.Bl -dash
+.It
+It will use your interactive shell instead of
+.Xr bash 1
+.Po
+.Xr bash 1 ,
+.Xr fish 1
+and
+.Xr zsh 1
+are supported currently
+.Pc .
+.It
+If given the
+.Fl -cached
+flag it will use the environment that
+.Nm
+built most recently.
+This means the project shell starts up instantly, similar to
+.Nm
+.Cm direnv .
+.El
+.Pp
+.Fl -shell-file
+opens a shell for the given
+.Pa shell.nix
+instead of the one in the current directory.
+.El
+.\"
+.\"
+.Sh RELATED WORK
+.Bl -tag -width Ds
+.It direnv’s Ql use nix
+Built-in support for watching a nix file with direnv.
+Will block on the evaluation of the
+.Pa shell.nix .
+If a dependency of the
+.Pa shell.nix
+changes, direnv will not pick it up, so you have to manually add them to the watch list with
+.Sy watch_file .
+See
+.Xr direnv-stdlib 1 .
+.It Xr shadowenv 1
+In spirit an alternative to
+.Xr direnv 1 ,
+it defines a domain specific S-expression format,
+.Xr shadowlisp 5
+to specify environment changes.
+In the future, we might want to provide a way to generate this format.
+.El
+.\"
+.\"
+.Sh SEE ALSO
+.Xr direnv 1 ,
+.Xr direnv-stdlib 1 ,
+.Xr nix-instantiate 1 ,
+.Xr nix-shell 1 ,
+.Xr nix-store 1 ,
+.Xr shadowenv 1 ,
+.Xr shadowlisp 5
+.\"
+.\"
+.Sh KNOWN ISSUES
+.Bl -dash
+.It
+Source files referenced by
+.Em Import from Derivation (IfD)
+are not picked up.
+So for example if you use the
+.Sy callCabal2nix
+function to convert your project’s
+.Ql .cabal
+file to a nix expression on the fly, and you change the
+.Ql .cabal
+file,
+.Nm
+will not notice.
+There is some discussion in
+.Lk https://github.com/target/lorri/issues/309
+on how to solve this issue.
+.El
