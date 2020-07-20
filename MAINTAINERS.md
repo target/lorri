@@ -56,13 +56,16 @@ To cut a new release:
    change the `version` field in `Cargo.toml` accordingly.
 2. Build the project to update `Cargo.lock`, then run `nix/update-carnix.sh` to
    update `Cargo.nix`.
-3. Create a PR with these changes and merge it. Note the hash of the merge
+3. Go through all commits since the last release and cross-check against the
+   release notes in `release.nix`. Add missing changes.
+4. With the changelog in mind, check that the manpage is up-to-date. 
+5. Create a PR with these changes and merge it. Note the hash of the merge
    commit.
-4. Tag the merge commit using `git tag --sign <version> <merge commit hash>`.
+6. Tag the merge commit using `git tag --sign <version> <merge commit hash>`.
    Here, `<version>` is used as the name of the tag. It should adhere to the
    `MAJOR.MINOR` format without prefix or suffix, for example `1.0` (and not
    `v1.0`).
-5. Push the tag using `git push origin <version>`.
+7. Push the tag using `git push origin <version>`.
 
 ## Publishing a release on [nixpkgs][]
 
