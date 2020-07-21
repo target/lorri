@@ -2,16 +2,25 @@
 , pkgs ? import nixpkgs
 , src ? pkgs.nix-gitignore.gitignoreSource [ ".git/" ] ./.
 }:
-(
-  (
-    pkgs.callPackage ./Cargo.nix {
-      cratesIO = pkgs.callPackage ./nix/carnix/crates-io.nix {};
-    }
-  ).lorri {}
-).override {
+let
+  cargoLorri =
+    (
+      pkgs.callPackage ./Cargo.nix {
+        cratesIO = pkgs.callPackage ./nix/carnix/crates-io.nix {};
+      }
+    ).lorri {};
+
+in
+cargoLorri.override {
   crateOverrides = pkgs.defaultCrateOverrides // {
     lorri = attrs: {
       name = "lorri";
+
+      inherit src;
+
+      # add man and doc outputs to put our documentation into
+      outputs = cargoLorri.outputs ++ [ "man" "doc" ];
+
       # This is implicitely set by `builtins.fetchGit`
       # (which we use in `src/ops/upgrade/upgrade.nix`).
       # So if a user upgrades from a branch of the repository,
@@ -44,6 +53,17 @@
         darwin.Security
         darwin.apple_sdk.frameworks.CoreServices
       ];
+
+      # copy the docs to the $man and $doc outputs
+      postInstall = ''
+        install -Dm644 lorri.1 $man/share/man/man1/lorri.1
+        install -Dm644 -t $doc/share/doc/lorri/ \
+          README.md \
+          CONTRIBUTING.md \
+          LICENSE \
+          MAINTAINERS.md
+        cp -r contrib/ $doc/share/doc/lorri/contrib
+      '';
     };
   };
 }

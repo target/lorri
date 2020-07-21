@@ -95,6 +95,9 @@ pkgs.mkShell (
 
         set -x
 
+        ${import ./nix/mdoc-lint.nix { inherit pkgs; } ./lorri.1}
+        manpage=$?
+
         ./nix/fmt.sh --check
         nix_fmt=$?
 
@@ -117,7 +120,7 @@ pkgs.mkShell (
         echo "cargo fmt: $cargofmtexit"
         echo "cargo clippy: $cargoclippyexit"
 
-        sum=$((nix_fmt + carnixupdate + cargofmtexit + cargoclippyexit))
+        sum=$((manpage + nix_fmt + carnixupdate + cargofmtexit + cargoclippyexit))
         if [ "$sum" -gt 0 ]; then
           return 1
         fi

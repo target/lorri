@@ -10,7 +10,7 @@ import nixpkgs {
   overlays = [
     (
       final: super: {
-        lorri = super.callPackage ../default.nix {};
+        lorri = import ../default.nix { pkgs = final; };
       }
     )
   ];
