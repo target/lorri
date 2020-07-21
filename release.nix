@@ -6,6 +6,12 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 626;
+        changes = ''
+          Added manpage for lorri(1).
+        '';
+      }
+      {
         version = 581;
         changes = ''
           Fix `lorri shell` for zsh. ZDOTDIR is loaded correctly.
