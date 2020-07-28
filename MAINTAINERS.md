@@ -2,8 +2,8 @@
 
 ## Versioning scheme
 
-The versioning scheme for lorri is `MAJOR.MINOR`, where `MAJOR` and `MINOR` are
-non-negative integers without leading zeroes.
+The versioning scheme for lorri is `MAJOR.MINOR.PATCH`, where `MAJOR`, `MINOR` and `PATCH`
+are non-negative integers without leading zeroes.
 
 ### Terminology
 
@@ -35,7 +35,11 @@ For example: it's a major release if since the last released version,
   now fails to build with lorri, unless the previous behaviour is considered a
   bug.
 
-In any other case, increment the `MINOR` version.
+In any other case when a feature changes, increment the `MINOR` version.
+
+If there is a bug fix or a security fix that does not change the interface,
+increment the `PATCH` version. Also if there is a documentation improvement
+that should get its own release.
 
 (\*) The exception to this rule is `lorri direnv`: it is an external command
 with machine-readable output whose output may change between minor releases,
