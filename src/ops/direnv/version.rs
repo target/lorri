@@ -10,7 +10,7 @@ impl FromStr for DirenvVersion {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let ss = s.split('.').collect::<Vec<&str>>();
-        let parse = |s: &str| s.parse::<usize>().or_else(|_| Err(()));
+        let parse = |s: &str| s.parse::<usize>().map_err(|_| ());
         match *ss {
             [major, minor, patch] => Ok(DirenvVersion(parse(major)?, parse(minor)?, parse(patch)?)),
             _ => Err(()),
