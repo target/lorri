@@ -14,6 +14,7 @@ use crate::NixFile;
 use crossbeam_channel as chan;
 use slog_scope::debug;
 use std::convert::{TryFrom, TryInto};
+use std::path::PathBuf;
 
 /// The daemon server.
 pub struct Server {
@@ -72,7 +73,7 @@ impl internal_proto::VarlinkInterface for Server {
         call: &mut dyn internal_proto::Call_WatchShell,
         shell_nix: internal_proto::ShellNix,
     ) -> varlink::Result<()> {
-        let p = std::path::PathBuf::from(&shell_nix.path);
+        let p = PathBuf::from(&shell_nix.path);
         if p.is_file() {
             self.activity_tx
                 .send(IndicateActivity {
@@ -86,12 +87,17 @@ impl internal_proto::VarlinkInterface for Server {
     }
 }
 
-// TODO: remove when switchint to a protocol that can do [u8]
-fn try_nix_file_to_string(file: &NixFile) -> Result<String, String> {
-    match file.as_path().to_str() {
-        None => Err(format!("file {} is not a valid utf-8 string. Varlink does not support non-utf8 strings, so we cannot serialize this file name. TODO: link issue", file.as_path().display())),
+// TODO: remove when switching to a protocol that can do [u8]
+fn try_file_to_string(file: &std::path::Path) -> Result<String, String> {
+    match file.to_str() {
+        None => Err(format!("file {} is not a valid utf-8 string. Varlink does not support non-utf8 strings, so we cannot serialize this file name. TODO: link issue", file.display())),
         Some(s) => Ok(s.to_owned())
     }
+}
+
+// TODO: remove when switching to a protocol that can do [u8]
+fn try_nix_file_to_string(file: &NixFile) -> Result<String, String> {
+    try_file_to_string(file.as_path())
 }
 
 // TODO: remove when switchint to a protocol that can do [u8]
@@ -233,8 +239,8 @@ impl TryFrom<&watch::Reason> for proto::Reason {
                 files: Some(
                     changed
                         .iter()
-                        .map(|pb| Ok(pb.to_str().ok_or("cannot convert path!")?.to_string()))
-                        .collect::<Result<Vec<String>, &'static str>>()?,
+                        .map(|pb| try_file_to_string(&pb))
+                        .collect::<Result<Vec<String>, String>>()?,
                 ),
                 debug: None,
             },
