@@ -16,6 +16,8 @@ cargoLorri.override {
     lorri = attrs: {
       name = "lorri";
 
+      tmp = "rebuild3!";
+
       inherit src;
 
       # add man and doc outputs to put our documentation into
@@ -49,6 +51,7 @@ cargoLorri.override {
       buildInputs = with pkgs; [
         nix # required for the preConfigure test
         rustPackages.rustfmt
+        (hello.overrideAttrs (_: { foo = "uiaetnriaentur3leiane"; }))
       ] ++ stdenv.lib.optionals stdenv.isDarwin [
         darwin.Security
         darwin.apple_sdk.frameworks.CoreServices

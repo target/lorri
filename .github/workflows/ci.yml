@@ -7,48 +7,54 @@ on:
 env:
   LORRI_NO_INSTALL_PANIC_HANDLER: absolutely
 jobs:
-  rust:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Nix
-        uses: cachix/install-nix-action@v9
-        with:
-            skip_adding_nixpkgs_channel: true
-      - name: Cachix
-        uses: cachix/cachix-action@v6
-        with:
-            name: lorri-test
-            signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
-      - name: Cache cargo registry
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo index
-        uses: actions/cache@v1
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo build
-        uses: actions/cache@v1
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-      - name: Shell (cache inputs)
-        run: nix-shell
-      - name: CI check
-        run: nix-shell --arg isDevelopmentShell false --run 'ci_check'
+  # rust:
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-latest, macos-latest]
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v2
+  #     - name: Nix
+  #       uses: cachix/install-nix-action@v9
+  #       with:
+  #           skip_adding_nixpkgs_channel: true
+  #     - name: Cachix
+  #       uses: cachix/cachix-action@v6
+  #       with:
+  #           name: lorri-test
+  #           signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
+  #           # we use the post-build-hook
+  #           skipPush: true
+  #     - name: setup post-build-hook
+  #       run: ./.github/workflows/setup-post-build-hook.sh
+  #     - name: Cache cargo registry
+  #       uses: actions/cache@v1
+  #       with:
+  #         path: ~/.cargo/registry
+  #         key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+  #     - name: Cache cargo index
+  #       uses: actions/cache@v1
+  #       with:
+  #         path: ~/.cargo/git
+  #         key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+  #     - name: Cache cargo build
+  #       uses: actions/cache@v1
+  #       with:
+  #         path: target
+  #         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+  #     - name: Shell (cache inputs)
+  #       run: nix-shell
+  #     - name: CI check
+  #       run: nix-shell --arg isDevelopmentShell false --run 'ci_check'
   nix-build_stable:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest] #, macos-latest]
     steps:
+      - name: test sh
+        run: /usr/bin/env sh -c "echo hello world"
       - name: Checkout
         uses: actions/checkout@v2
         with:
@@ -62,68 +68,74 @@ jobs:
         with:
             name: lorri-test
             signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
+            skipPush: true
+      - name: setup post-build-hook
+        run: ./.github/workflows/setup-post-build-hook.sh
       - name: Build
         run: nix-build
       - name: Install
         run: nix-env -i ./result
       - name: Self-upgrade
         run: lorri self-upgrade local $(pwd)
-  nix-build_1909:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Nix
-        uses: cachix/install-nix-action@v9
-        with:
-            skip_adding_nixpkgs_channel: true
-      - name: Cachix
-        uses: cachix/cachix-action@v6
-        with:
-            name: lorri-test
-            signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
-      - name: Build
-        run: nix-build --arg nixpkgs ./nix/nixpkgs-1909.nix
-  nix-shell:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Nix
-        uses: cachix/install-nix-action@v9
-        with:
-            skip_adding_nixpkgs_channel: true
-      - name: Cachix
-        uses: cachix/cachix-action@v6
-        with:
-            name: lorri-test
-            signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
-      - name: Build
-        run: nix-build -A allBuildInputs shell.nix
-  overlay:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Nix
-        uses: cachix/install-nix-action@v9
-        with:
-            skip_adding_nixpkgs_channel: true
-      - name: Cachix
-        uses: cachix/cachix-action@v6
-        with:
-            name: lorri-test
-            signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
-      - name: Build w/ overlay (19.09)
-        run: nix-build ./nix/overlay.nix -A lorri --arg pkgs ./nix/nixpkgs-1909.json
-      - name: Build w/ overlay (stable)
-        run: nix-build ./nix/overlay.nix -A lorri --arg pkgs ./nix/nixpkgs-stable.json
+  # nix-build_1909:
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-latest, macos-latest]
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v2
+  #     - name: Nix
+  #       uses: cachix/install-nix-action@v9
+  #       with:
+  #           skip_adding_nixpkgs_channel: true
+  #     - name: Cachix
+  #       uses: cachix/cachix-action@v6
+  #       with:
+  #           name: lorri-test
+  #           signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
+  #     - name: Build
+  #       run: nix-build --arg nixpkgs ./nix/nixpkgs-1909.nix
+  # nix-shell:
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-latest, macos-latest]
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v2
+  #     - name: Nix
+  #       uses: cachix/install-nix-action@v9
+  #       with:
+  #           skip_adding_nixpkgs_channel: true
+  #     - name: Cachix
+  #       uses: cachix/cachix-action@v6
+  #       with:
+  #           name: lorri-test
+  #           signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
+  #           skipPush: true
+  #     - name: setup post-build-hook
+  #       run: ./.github/workflows/setup-post-build-hook.sh
+  #     - name: Build
+  #       run: nix-build -A allBuildInputs shell.nix
+  # overlay:
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-latest, macos-latest]
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v2
+  #     - name: Nix
+  #       uses: cachix/install-nix-action@v9
+  #       with:
+  #           skip_adding_nixpkgs_channel: true
+  #     - name: Cachix
+  #       uses: cachix/cachix-action@v6
+  #       with:
+  #           name: lorri-test
+  #           signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
+  #     - name: Build w/ overlay (19.09)
+  #       run: nix-build ./nix/overlay.nix -A lorri --arg pkgs ./nix/nixpkgs-1909.json
+  #     - name: Build w/ overlay (stable)
+  #       run: nix-build ./nix/overlay.nix -A lorri --arg pkgs ./nix/nixpkgs-stable.json
