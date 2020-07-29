@@ -81,12 +81,6 @@ impl From<PathBuf> for NixFile {
     }
 }
 
-impl ToString for NixFile {
-    fn to_string(&self) -> String {
-        self.as_path().to_string_lossy().to_string()
-    }
-}
-
 impl From<String> for NixFile {
     fn from(s: String) -> Self {
         NixFile(PathBuf::from(s))
