@@ -21,25 +21,7 @@ pub struct Watch {
 
 /// A debug message string that can only be displayed via `Debug`.
 #[derive(Clone, Debug, Serialize)]
-pub struct DebugMessage(String);
-
-impl From<String> for DebugMessage {
-    fn from(s: String) -> Self {
-        DebugMessage(s)
-    }
-}
-
-impl From<DebugMessage> for String {
-    fn from(d: DebugMessage) -> Self {
-        d.0
-    }
-}
-
-impl From<&DebugMessage> for String {
-    fn from(d: &DebugMessage) -> Self {
-        d.0.clone()
-    }
-}
+pub struct DebugMessage(pub String);
 
 #[derive(Debug, PartialEq, Eq)]
 struct FilteredOut<'a> {

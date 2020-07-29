@@ -108,7 +108,7 @@ fn log_line_to_string(ll: &crate::error::LogLine) -> String {
 impl proto::VarlinkInterface for Server {
     fn monitor(&self, call: &mut dyn proto::Call_Monitor) -> varlink::Result<()> {
         if !call.wants_more() {
-            return call.reply_invalid_parameter("wants_more".into());
+            return call.reply_invalid_parameter("wants_more".to_string());
         }
 
         let (tx, rx) = chan::unbounded();
@@ -207,7 +207,7 @@ impl TryFrom<proto::Reason> for build_loop::Event {
 
     fn try_from(r: proto::Reason) -> Result<Self, Self::Error> {
         Ok(build_loop::Event::Started {
-            nix_file: r.project.clone().ok_or("missing nix file!")?.into(),
+            nix_file: NixFile::from(r.project.clone().ok_or("missing nix file!")?),
             reason: r.try_into()?,
         })
     }
@@ -248,7 +248,8 @@ impl TryFrom<&watch::Reason> for proto::Reason {
                 kind: unknown,
                 project: None,
                 files: None,
-                debug: Some(dbg.into()),
+                // TODO
+                debug: Some(dbg.0.clone()),
             },
         })
     }
@@ -263,15 +264,19 @@ impl TryFrom<proto::Reason> for watch::Reason {
 
         Ok(match rr.kind {
             ping_received => Reason::PingReceived,
-            project_added => Reason::ProjectAdded(rr.project.ok_or("missing nix file!")?.into()),
+            project_added => {
+                Reason::ProjectAdded(NixFile::from(rr.project.ok_or("missing nix file!")?))
+            }
             files_changed => Reason::FilesChanged(
                 rr.files
                     .ok_or("missing files!")?
                     .into_iter()
-                    .map(|s| s.into())
+                    .map(PathBuf::from)
                     .collect(),
             ),
-            unknown => Reason::UnknownEvent(rr.debug.ok_or("missing debug string!")?.into()),
+            unknown => Reason::UnknownEvent(watch::DebugMessage(
+                rr.debug.ok_or("missing debug string!")?,
+            )),
         })
     }
 }
@@ -296,8 +301,8 @@ impl TryFrom<proto::Outcome> for build_loop::Event {
 
     fn try_from(o: proto::Outcome) -> Result<Self, Self::Error> {
         Ok(build_loop::Event::Completed {
-            nix_file: o.nix_file.clone().into(),
-            result: o.into(),
+            nix_file: NixFile::from(o.nix_file.clone()),
+            result: build_loop::BuildResults::from(o),
         })
     }
 }
@@ -310,7 +315,7 @@ impl From<proto::Outcome> for build_loop::BuildResults {
 
         BuildResults {
             output_paths: OutputPaths {
-                shell_gc_root: RootPath(ro.project_root.into()),
+                shell_gc_root: RootPath(PathBuf::from(ro.project_root)),
             },
         }
     }
@@ -379,7 +384,7 @@ impl TryFrom<proto::Failure> for build_loop::Event {
 
     fn try_from(f: proto::Failure) -> Result<Self, Self::Error> {
         Ok(build_loop::Event::Failure {
-            nix_file: f.nix_file.clone().into(),
+            nix_file: NixFile::from(f.nix_file.clone()),
             failure: f.try_into()?,
         })
     }
@@ -418,7 +423,7 @@ impl TryFrom<proto::Failure> for error::BuildError {
             } => Ok(BuildError::Exit {
                 cmd: command,
                 status: status.map(|i| i as i32),
-                logs: logs.iter().map(|l| l.clone().into()).collect(),
+                logs: logs.into_iter().map(error::LogLine::from).collect(),
             }),
             proto::Failure {
                 kind: output,

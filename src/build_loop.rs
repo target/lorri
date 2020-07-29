@@ -91,7 +91,7 @@ impl<'a> BuildLoop<'a> {
                     "message" => ?msg
                 );
                 // can’t Clone `Event`s, so we return the Debug output here
-                Reason::UnknownEvent(DebugMessage::from(format!("{:#?}", msg)))
+                Reason::UnknownEvent(DebugMessage(format!("{:#?}", msg)))
             }
             Err(EventError::RxNoEventReceived) => {
                 panic!("The file watcher died!");
