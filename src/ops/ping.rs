@@ -9,7 +9,7 @@ use std::convert::TryFrom;
 pub fn main(nix_file: NixFile, addr: Option<String>) -> OpResult {
     let address = match addr {
         Some(a) => a,
-        None => crate::ops::get_paths()?.daemon_socket_address()
+        None => crate::ops::get_paths()?.daemon_socket_address(),
     };
     let shell_nix = internal_proto::ShellNix::try_from(&nix_file).unwrap();
 

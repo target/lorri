@@ -89,6 +89,13 @@ impl internal_proto::VarlinkInterface for Server {
     }
 }
 
+fn try_nix_file_to_string(file: &NixFile) -> Result<String, String> {
+    match file.as_path().to_str() {
+        None => Err(format!("file {} is not a valid utf-8 string. Varlink does not support non-utf8 strings, so we cannot serialize this file name. TODO: link issue", file.as_path().display())),
+        Some(s) => Ok(s.to_owned())
+    }
+}
+
 impl proto::VarlinkInterface for Server {
     fn monitor(&self, call: &mut dyn proto::Call_Monitor) -> varlink::Result<()> {
         if !call.wants_more() {
@@ -194,7 +201,7 @@ impl TryFrom<proto::Reason> for build_loop::Event {
 }
 
 impl TryFrom<&watch::Reason> for proto::Reason {
-    type Error = &'static str;
+    type Error = String;
 
     fn try_from(wr: &watch::Reason) -> Result<Self, Self::Error> {
         use proto::Reason_kind::*;
@@ -209,7 +216,7 @@ impl TryFrom<&watch::Reason> for proto::Reason {
             },
             Reason::ProjectAdded(nix_file) => proto::Reason {
                 kind: project_added,
-                project: Some(nix_file.to_string()),
+                project: Some(try_nix_file_to_string(nix_file)?),
                 files: None,
                 debug: None,
             },
@@ -262,7 +269,7 @@ impl TryFrom<&build_loop::Event> for proto::Outcome {
     fn try_from(ev: &build_loop::Event) -> Result<Self, Self::Error> {
         if let build_loop::Event::Completed { nix_file, result } = ev {
             Ok(proto::Outcome {
-                nix_file: nix_file.to_string(),
+                nix_file: try_nix_file_to_string(nix_file)?,
                 project_root: result.output_paths.shell_gc_root.to_string(),
             })
         } else {
@@ -297,7 +304,7 @@ impl From<proto::Outcome> for build_loop::BuildResults {
 }
 
 impl TryFrom<&build_loop::Event> for proto::Failure {
-    type Error = &'static str;
+    type Error = String;
 
     fn try_from(ev: &build_loop::Event) -> Result<Self, Self::Error> {
         use error::BuildError;
@@ -307,7 +314,7 @@ impl TryFrom<&build_loop::Event> for proto::Failure {
             build_loop::Event::Failure { nix_file, failure } => Ok(match failure {
                 BuildError::Io { msg } => proto::Failure {
                     kind: io,
-                    nix_file: nix_file.to_string(),
+                    nix_file: try_nix_file_to_string(nix_file)?,
                     io: Some(proto::IOFail {
                         message: msg.clone(),
                     }),
@@ -317,7 +324,7 @@ impl TryFrom<&build_loop::Event> for proto::Failure {
                 },
                 BuildError::Spawn { cmd, msg } => proto::Failure {
                     kind: spawn,
-                    nix_file: nix_file.to_string(),
+                    nix_file: try_nix_file_to_string(nix_file)?,
                     io: None,
                     spawn: Some(proto::SpawnFail {
                         command: cmd.clone(),
@@ -328,7 +335,7 @@ impl TryFrom<&build_loop::Event> for proto::Failure {
                 },
                 BuildError::Exit { cmd, status, logs } => proto::Failure {
                     kind: exit,
-                    nix_file: nix_file.to_string(),
+                    nix_file: try_nix_file_to_string(nix_file)?,
                     io: None,
                     spawn: None,
                     exit: Some(proto::ExitFail {
@@ -340,7 +347,7 @@ impl TryFrom<&build_loop::Event> for proto::Failure {
                 },
                 BuildError::Output { msg } => proto::Failure {
                     kind: output,
-                    nix_file: nix_file.to_string(),
+                    nix_file: try_nix_file_to_string(nix_file)?,
                     io: None,
                     spawn: None,
                     exit: None,
@@ -349,7 +356,7 @@ impl TryFrom<&build_loop::Event> for proto::Failure {
                     }),
                 },
             }),
-            _ => Err("expecting build_loop::Event::Failure"),
+            _ => Err(String::from("expecting build_loop::Event::Failure")),
         }
     }
 }
