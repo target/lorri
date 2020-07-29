@@ -70,6 +70,10 @@ To cut a new release:
    `MAJOR.MINOR` format without prefix or suffix, for example `1.0` (and not
    `v1.0`).
 7. Push the tag using `git push origin <version>`.
+8. Go to https://github.com/target/lorri/releases/new and use the pushed
+   Tag to create a new release.
+   Copy the new changelog entries since the last release into the release
+   notes.
 
 ## Publishing a release on [nixpkgs][]
 

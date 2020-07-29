@@ -65,7 +65,7 @@ impl Pool {
     pub fn spawn<N, F>(&mut self, name: N, f: F) -> Result<(), std::io::Error>
     where
         N: Into<String>,
-        F: FnOnce() -> () + std::panic::UnwindSafe,
+        F: FnOnce() + std::panic::UnwindSafe,
         F: Send + 'static,
     {
         let name = name.into();
