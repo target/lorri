@@ -86,11 +86,17 @@ impl internal_proto::VarlinkInterface for Server {
     }
 }
 
+// TODO: remove when switchint to a protocol that can do [u8]
 fn try_nix_file_to_string(file: &NixFile) -> Result<String, String> {
     match file.as_path().to_str() {
         None => Err(format!("file {} is not a valid utf-8 string. Varlink does not support non-utf8 strings, so we cannot serialize this file name. TODO: link issue", file.as_path().display())),
         Some(s) => Ok(s.to_owned())
     }
+}
+
+// TODO: remove when switchint to a protocol that can do [u8]
+fn log_line_to_string(ll: &crate::error::LogLine) -> String {
+    ll.0.to_string_lossy().into_owned()
 }
 
 impl proto::VarlinkInterface for Server {
@@ -107,6 +113,7 @@ impl proto::VarlinkInterface for Server {
         call.set_continues(true);
         for event in rx {
             debug!("event for varlink"; "event" => ?&event);
+            // TODO: destructure the owned event instead of a pointer to the event here
             match event.try_into() {
                 Ok(ev) => call.reply(ev),
                 Err(e) => call.reply_invalid_parameter(e.to_string()),
@@ -115,6 +122,9 @@ impl proto::VarlinkInterface for Server {
         Ok(())
     }
 }
+
+// TODO: replace all these TryFrom instances with one explicit transformation function.
+// This should reduce the boilerplate considerably.
 
 impl TryFrom<&build_loop::Event> for proto::Event {
     type Error = String;
@@ -338,7 +348,7 @@ impl TryFrom<&build_loop::Event> for proto::Failure {
                     exit: Some(proto::ExitFail {
                         command: cmd.clone(),
                         status: status.map(|i| i as i64),
-                        logs: logs.iter().map(|l| l.to_string()).collect(),
+                        logs: logs.iter().map(log_line_to_string).collect(),
                     }),
                     output: None,
                 },

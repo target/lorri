@@ -92,7 +92,7 @@ type ExitFail (
     command: string,
     # The Unix exit status of the command, if available
     status: ?int,
-    # Log output of the command
+    # stderr of the failed command.
     logs: []string
 )
 

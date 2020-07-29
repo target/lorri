@@ -3,6 +3,7 @@
 use std::ffi::OsString;
 use std::fmt;
 use std::io::Error as IoError;
+use std::os::unix::ffi::OsStrExt;
 use std::process::{Command, ExitStatus};
 
 /// An error that can occur during a build.
@@ -54,10 +55,13 @@ pub enum BuildError {
 
 use serde::{Serialize, Serializer};
 
-/// A line from stderr log output. Serializes more nicely than raw `OsString`.
+/// A line from stderr log output.
 #[derive(Debug, Clone)]
-pub struct LogLine(OsString);
+pub struct LogLine(pub OsString);
 
+/// Implement Serialize in a way that prints file names as strings.
+/// TODO: this won’t return the actual filenames if they are not valid utf8.
+/// so scripts won’t be able to read them. Maybe print a warning in that case?
 impl Serialize for LogLine {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -76,19 +80,20 @@ impl From<OsString> for LogLine {
 
 impl From<String> for LogLine {
     fn from(s: String) -> Self {
-        LogLine(s.into())
+        LogLine(OsString::from(s))
     }
 }
 
-impl From<LogLine> for OsString {
-    fn from(ll: LogLine) -> Self {
-        ll.0
-    }
-}
+struct LogLinesDisplay<'a>(&'a [LogLine]);
 
-impl fmt::Display for LogLine {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", OsString::from(self.clone()).to_string_lossy())
+impl<'a> fmt::Display for LogLinesDisplay<'a> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for l in self.0 {
+            let mut s = String::from_utf8_lossy(l.0.as_bytes()).into_owned();
+            s.push('\n');
+            formatter.write_str(&s)?;
+        }
+        Ok(())
     }
 }
 
@@ -158,10 +163,7 @@ impl fmt::Display for BuildError {
                  {}",
                 status.map_or("<unknown>".to_string(), |c| i32::to_string(&c)),
                 cmd,
-                logs.iter()
-                    .map(|l| l.to_string())
-                    .collect::<Vec<_>>()
-                    .join("\n")
+                LogLinesDisplay(logs)
             ),
             BuildError::Output { msg } => write!(f, "{}", msg),
         }
