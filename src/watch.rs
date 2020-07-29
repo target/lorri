@@ -20,26 +20,8 @@ pub struct Watch {
 }
 
 /// A debug message string that can only be displayed via `Debug`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct DebugMessage(String);
-
-impl From<String> for DebugMessage {
-    fn from(s: String) -> Self {
-        DebugMessage(s)
-    }
-}
-
-impl From<DebugMessage> for String {
-    fn from(d: DebugMessage) -> Self {
-        d.0
-    }
-}
-
-impl From<&DebugMessage> for String {
-    fn from(d: &DebugMessage) -> Self {
-        d.0.clone()
-    }
-}
+#[derive(Clone, Debug, Serialize)]
+pub struct DebugMessage(pub String);
 
 #[derive(Debug, PartialEq, Eq)]
 struct FilteredOut<'a> {
@@ -48,7 +30,7 @@ struct FilteredOut<'a> {
 }
 
 /// Description of the project change that triggered a build.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Reason {
     /// When a project is presented to Lorri to track, it's built for this reason.

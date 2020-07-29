@@ -1,46 +1,104 @@
 # The interface `lorri daemon` exposes.
 interface com.target.lorri
 
-# WatchShell instructs the daemon to evaluate a Nix expression and re-evaluate
-# it when it or its dependencies change.
-method WatchShell(shell_nix: ShellNix) -> ()
-
-# ShellNix describes the Nix expression which evaluates to a development
-# environment.
-type ShellNix (
-  # The absolute path of a Nix file specifying the project environment.
-  path: string
-)
-
-# Monitor the daemon. The method will reply with an update whenever a build begins or ends.
-# Montior will immediately reply with a snapshot of known projects, then a marker event,
-# indicating that the stream of events is now "live."
+# Monitor the daemon. The method will reply with an Event update whenever a
+# build begins or ends.  Monitor will immediately reply with a snapshot of
+# known projects, then a marker event, indicating that the stream of events is
+# now "live."
 method Monitor() -> (event: Event)
 
+# An event describing the behavior of Lorri across all known projects. There
+# are several kinds of Event, and each kind has a different type to represent
+# futher information
 type Event (
+    # The kind of the event:
+    # - section_end: marks the break between the current state snapshot, and
+    #   live events.
+    # - started: a build has started but not completed
+    # - completed: a build completed successfully
+    # - failure: a build failed
     kind: (section_end, started, completed, failure),
-    nix_file: ?ShellNix, # only present if kind != section_end
-    reason: ?Reason,     # only present if kind == started
-    result: ?Outcome,    # only present if kind == completed
-    failure: ?Failure    # only present if kind == failure
+    section: ?SectionMarker, # present iff kind == section_end
+    reason: ?Reason,         # present iff kind == started
+    result: ?Outcome,        # present iff kind == completed
+    failure: ?Failure        # present iff kind == failure
 )
 
+# An empty value - there is nothing further to distinguish the section end
+# event. This type (and its field on Event) exist as a ward against future
+# changes to the event, and to aid recipients in the meantime.
+type SectionMarker ()
+
+# The impetus for a new build. Like Event, Reason has a kind, and each kind has
+# a unique field.
 type Reason (
+    # The kind of build reason:
+    # - project_added: Lorri has been newly informed of a project
+    # - ping_received: A client requested a new build
+    # - files_changed: Lorri received a filesystem notification of changed files
+    # - unknown: A build started for an unknown reason
     kind: (project_added, ping_received, files_changed, unknown),
-    project: ?ShellNix, # only present if kind == project_added
-    files: ?[]string,   # only present if kind == files_changed
-    debug: ?string      # only present if kind == unknown
+    # The absolute path to the shell.nix file for the added project
+    project: ?string, # present iff kind == project_added
+    # A list of files that changed, triggering a new build
+    # This can be useful e.g. to debug Nix expressions bringing in too many
+    # files and thereby building too frequently
+    files: ?[]string, # present iff kind == files_changed
+    # A message describing the unknown cause for a new build.
+    debug: ?string    # present iff kind == unknown
 )
 
+# Details about the built project.
 type Outcome (
+    # The absolute path to the shell.nix file for the added project
+    nix_file: string,
+    # The root directory of the project
     project_root: string
 )
 
 type Failure (
+    # The kind of failure:
+    # - io: An I/O failure
+    # - spawn: The build process couldn't be spawned
+    # - exit: The build started but exited with a failure
+    # - output: the build completed, but Lorri wasn't able to interpret the
+    #   output
     kind: (io, spawn, exit, output),
-    msg: ?string,   # only present if kind in (io, spawn)
-    cmd: ?string,   # only present if kind in (spawn, exit)
-    status: ?int,   # only present if kind == exit
-    logs: ?[]string # only present if kind == exit
+    # The absolute path to the shell.nix file for the added project
+    nix_file: string,
+    io: ?IOFail,        # present iff kind == io
+    spawn: ?SpawnFail,  # present iff kind == spawn
+    exit: ?ExitFail,    # present iff kind == exit
+    output: ?OutputFail # present iff kind == output
 )
 
+# Describes a build failure related to opening files, usually the shell.nix file
+type IOFail (
+    # A message describing the failure
+    message: string
+)
+
+# Describes a failure to launch the build process
+type SpawnFail (
+    # A message describing the failure
+    message: string,
+    # The command Lorri attempted to execute
+    command: string
+)
+
+# Describes a failed build process
+type ExitFail (
+    # The command executed by Lorri
+    command: string,
+    # The Unix exit status of the command, if available
+    status: ?int,
+    # stderr of the failed command.
+    logs: []string
+)
+
+# Describes a failure caused by output produced by the build that Lorri cannot
+# parse
+type OutputFail (
+    # A message describing the failure
+    message: string
+)

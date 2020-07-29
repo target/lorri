@@ -10,7 +10,7 @@ use slog_scope::debug;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-mod rpc;
+mod internal_proto;
 
 #[derive(Debug, Clone)]
 /// Union of build_loop::Event and NewListener for internal use.
@@ -92,8 +92,8 @@ impl Daemon {
         let mut pool = crate::thread::Pool::new();
         let build_events_tx = self.build_events_tx.clone();
 
-        let server =
-            rpc::Server::new(socket_path.clone(), activity_tx, build_events_tx).map_err(|e| {
+        let server = internal_proto::Server::new(socket_path.clone(), activity_tx, build_events_tx)
+            .map_err(|e| {
                 ExitError::temporary(format!(
                     "unable to bind to the server socket at {}: {:?}",
                     socket_path.0.display(),

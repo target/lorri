@@ -3,10 +3,10 @@
 mod version;
 
 use self::version::{DirenvVersion, MIN_DIRENV_VERSION};
+use crate::internal_proto;
 use crate::ops::error::{ok, ExitError, OpResult};
 use crate::project::roots::Roots;
 use crate::project::Project;
-use crate::rpc;
 use slog_scope::{info, warn};
 use std::convert::TryFrom;
 use std::process::Command;
@@ -19,24 +19,17 @@ pub fn main<W: std::io::Write>(project: Project, mut shell_output: W) -> OpResul
     let root_paths = Roots::from_project(&project).paths();
     let paths_are_cached: bool = root_paths.all_exist();
     let address = crate::ops::get_paths()?.daemon_socket_address();
-    let shell_nix = rpc::ShellNix::try_from(&project.nix_file).map_err(ExitError::temporary)?;
+    let shell_nix =
+        internal_proto::ShellNix::try_from(&project.nix_file).map_err(ExitError::temporary)?;
 
-    let ping_sent = match varlink::Connection::with_address(&address) {
-        Ok(connection) => {
-            use rpc::VarlinkClientInterface;
-            rpc::VarlinkClient::new(connection)
-                .watch_shell(shell_nix)
-                .call()
-                .expect("unable to ping varlink server");
-            true
-        }
-        Err(err) => match err.kind() {
-            // We cannot connect to the socket
-            varlink::error::ErrorKind::Io(std::io::ErrorKind::NotFound) => false,
-            varlink::error::ErrorKind::Io(std::io::ErrorKind::ConnectionRefused) => false,
-            // Any other error is probably a bug
-            _ => panic!("failed connecting to socket: {:?}", err),
-        },
+    let ping_sent = if let Ok(connection) = varlink::Connection::with_address(&address) {
+        use internal_proto::VarlinkClientInterface;
+        internal_proto::VarlinkClient::new(connection)
+            .watch_shell(shell_nix)
+            .call()
+            .is_ok()
+    } else {
+        false
     };
 
     match (ping_sent, paths_are_cached) {

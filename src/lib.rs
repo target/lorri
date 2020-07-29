@@ -29,15 +29,28 @@ pub mod socket;
 pub mod thread;
 pub mod watch;
 
-// This and the following module declaration together publicly export the contents of
-// the generated module "com_target_lorri" as "rpc", which is a much nicer module name.
-#[allow(missing_docs, clippy::all)]
+// This and the following module declaration together publicly export the
+// contents of the generated module "com_target_lorri" as "proto", which is a
+// much nicer module name.
+#[allow(missing_docs, clippy::all, unused_imports)]
 mod com_target_lorri;
 
 #[allow(missing_docs)]
-pub mod rpc {
+pub mod proto {
     // Code generated from com.target.lorri.varlink
     pub use super::com_target_lorri::*;
+}
+
+// This and the following module declaration together publicly export the
+// contents of the generated module "com_target_lorri_internal" as
+// "internal_proto", which is a much nicer module name.
+#[allow(missing_docs, clippy::all, unused_imports)]
+mod com_target_lorri_internal;
+
+#[allow(missing_docs)]
+pub(crate) mod internal_proto {
+    // Code generated from com.target.lorri.internal.varlink
+    pub use super::com_target_lorri_internal::*;
 }
 
 use std::path::{Path, PathBuf};
@@ -46,7 +59,7 @@ use std::path::{Path, PathBuf};
 include!(concat!(env!("OUT_DIR"), "/build_rev.rs"));
 
 /// A .nix file.
-#[derive(Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Hash, PartialEq, Eq, Clone, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct NixFile(PathBuf);
 
@@ -65,6 +78,12 @@ impl NixFile {
 impl From<PathBuf> for NixFile {
     fn from(p: PathBuf) -> NixFile {
         NixFile(p)
+    }
+}
+
+impl From<String> for NixFile {
+    fn from(s: String) -> Self {
+        NixFile(PathBuf::from(s))
     }
 }
 

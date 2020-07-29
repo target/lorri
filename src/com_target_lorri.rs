@@ -118,10 +118,16 @@ pub enum r#Event_kind {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct r#Event {
     pub r#kind: Event_kind,
-    pub r#nix_file: Option<ShellNix>,
+    pub r#section: Option<SectionMarker>,
     pub r#reason: Option<Reason>,
     pub r#result: Option<Outcome>,
     pub r#failure: Option<Failure>,
+}
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct r#ExitFail {
+    pub r#command: String,
+    pub r#status: Option<i64>,
+    pub r#logs: Vec<String>,
 }
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum r#Failure_kind {
@@ -133,14 +139,24 @@ pub enum r#Failure_kind {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct r#Failure {
     pub r#kind: Failure_kind,
-    pub r#msg: Option<String>,
-    pub r#cmd: Option<String>,
-    pub r#status: Option<i64>,
-    pub r#logs: Option<Vec<String>>,
+    pub r#nix_file: String,
+    pub r#io: Option<IOFail>,
+    pub r#spawn: Option<SpawnFail>,
+    pub r#exit: Option<ExitFail>,
+    pub r#output: Option<OutputFail>,
+}
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct r#IOFail {
+    pub r#message: String,
 }
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct r#Outcome {
+    pub r#nix_file: String,
     pub r#project_root: String,
+}
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct r#OutputFail {
+    pub r#message: String,
 }
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum r#Reason_kind {
@@ -152,13 +168,16 @@ pub enum r#Reason_kind {
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct r#Reason {
     pub r#kind: Reason_kind,
-    pub r#project: Option<ShellNix>,
+    pub r#project: Option<String>,
     pub r#files: Option<Vec<String>>,
     pub r#debug: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-pub struct r#ShellNix {
-    pub r#path: String,
+pub struct r#SectionMarker {}
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct r#SpawnFail {
+    pub r#message: String,
+    pub r#command: String,
 }
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Monitor_Reply {
@@ -173,26 +192,8 @@ pub trait Call_Monitor: VarlinkCallError {
     }
 }
 impl<'a> Call_Monitor for varlink::Call<'a> {}
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-pub struct WatchShell_Reply {}
-impl varlink::VarlinkReply for WatchShell_Reply {}
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-pub struct WatchShell_Args {
-    pub r#shell_nix: ShellNix,
-}
-pub trait Call_WatchShell: VarlinkCallError {
-    fn reply(&mut self) -> varlink::Result<()> {
-        self.reply_struct(varlink::Reply::parameters(None))
-    }
-}
-impl<'a> Call_WatchShell for varlink::Call<'a> {}
 pub trait VarlinkInterface {
     fn monitor(&self, call: &mut dyn Call_Monitor) -> varlink::Result<()>;
-    fn watch_shell(
-        &self,
-        call: &mut dyn Call_WatchShell,
-        r#shell_nix: ShellNix,
-    ) -> varlink::Result<()>;
     fn call_upgraded(
         &self,
         _call: &mut varlink::Call,
@@ -203,10 +204,6 @@ pub trait VarlinkInterface {
 }
 pub trait VarlinkClientInterface {
     fn monitor(&mut self) -> varlink::MethodCall<Monitor_Args, Monitor_Reply, Error>;
-    fn watch_shell(
-        &mut self,
-        r#shell_nix: ShellNix,
-    ) -> varlink::MethodCall<WatchShell_Args, WatchShell_Reply, Error>;
 }
 #[allow(dead_code)]
 pub struct VarlinkClient {
@@ -226,16 +223,6 @@ impl VarlinkClientInterface for VarlinkClient {
             Monitor_Args {},
         )
     }
-    fn watch_shell(
-        &mut self,
-        r#shell_nix: ShellNix,
-    ) -> varlink::MethodCall<WatchShell_Args, WatchShell_Reply, Error> {
-        varlink::MethodCall::<WatchShell_Args, WatchShell_Reply, Error>::new(
-            self.connection.clone(),
-            "com.target.lorri.WatchShell",
-            WatchShell_Args { r#shell_nix },
-        )
-    }
 }
 #[allow(dead_code)]
 pub struct VarlinkInterfaceProxy {
@@ -247,7 +234,7 @@ pub fn new(inner: Box<dyn VarlinkInterface + Send + Sync>) -> VarlinkInterfacePr
 }
 impl varlink::Interface for VarlinkInterfaceProxy {
     fn get_description(&self) -> &'static str {
-        "# The interface `lorri daemon` exposes.\ninterface com.target.lorri\n\n# WatchShell instructs the daemon to evaluate a Nix expression and re-evaluate\n# it when it or its dependencies change.\nmethod WatchShell(shell_nix: ShellNix) -> ()\n\n# ShellNix describes the Nix expression which evaluates to a development\n# environment.\ntype ShellNix (\n  # The absolute path of a Nix file specifying the project environment.\n  path: string\n)\n\n# Monitor the daemon. The method will reply with an update whenever a build begins or ends.\n# Montior will immediately reply with a snapshot of known projects, then a marker event,\n# indicating that the stream of events is now \"live.\"\nmethod Monitor() -> (event: Event)\n\ntype Event (\n    kind: (section_end, started, completed, failure),\n    nix_file: ?ShellNix, # only present if kind != section_end\n    reason: ?Reason,     # only present if kind == started\n    result: ?Outcome,    # only present if kind == completed\n    failure: ?Failure    # only present if kind == failure\n)\n\ntype Reason (\n    kind: (project_added, ping_received, files_changed, unknown),\n    project: ?ShellNix, # only present if kind == project_added\n    files: ?[]string,   # only present if kind == files_changed\n    debug: ?string      # only present if kind == unknown\n)\n\ntype Outcome (\n    project_root: string\n)\n\ntype Failure (\n    kind: (io, spawn, exit, output),\n    msg: ?string,   # only present if kind in (io, spawn)\n    cmd: ?string,   # only present if kind in (spawn, exit)\n    status: ?int,   # only present if kind == exit\n    logs: ?[]string # only present if kind == exit\n)\n\n"
+        "# The interface `lorri daemon` exposes.\ninterface com.target.lorri\n\n# Monitor the daemon. The method will reply with an Event update whenever a\n# build begins or ends.  Monitor will immediately reply with a snapshot of\n# known projects, then a marker event, indicating that the stream of events is\n# now \"live.\"\nmethod Monitor() -> (event: Event)\n\n# An event describing the behavior of Lorri across all known projects. There\n# are several kinds of Event, and each kind has a different type to represent\n# futher information\ntype Event (\n    # The kind of the event:\n    # - section_end: marks the break between the current state snapshot, and\n    #   live events.\n    # - started: a build has started but not completed\n    # - completed: a build completed successfully\n    # - failure: a build failed\n    kind: (section_end, started, completed, failure),\n    section: ?SectionMarker, # present iff kind == section_end\n    reason: ?Reason,         # present iff kind == started\n    result: ?Outcome,        # present iff kind == completed\n    failure: ?Failure        # present iff kind == failure\n)\n\n# An empty value - there is nothing further to distinguish the section end\n# event. This type (and its field on Event) exist as a ward against future\n# changes to the event, and to aid recipients in the meantime.\ntype SectionMarker ()\n\n# The impetus for a new build. Like Event, Reason has a kind, and each kind has\n# a unique field.\ntype Reason (\n    # The kind of build reason:\n    # - project_added: Lorri has been newly informed of a project\n    # - ping_received: A client requested a new build\n    # - files_changed: Lorri received a filesystem notification of changed files\n    # - unknown: A build started for an unknown reason\n    kind: (project_added, ping_received, files_changed, unknown),\n    # The absolute path to the shell.nix file for the added project\n    project: ?string, # present iff kind == project_added\n    # A list of files that changed, triggering a new build\n    # This can be useful e.g. to debug Nix expressions bringing in too many\n    # files and thereby building too frequently\n    files: ?[]string, # present iff kind == files_changed\n    # A message describing the unknown cause for a new build.\n    debug: ?string    # present iff kind == unknown\n)\n\n# Details about the built project.\ntype Outcome (\n    # The absolute path to the shell.nix file for the added project\n    nix_file: string,\n    # The root directory of the project\n    project_root: string\n)\n\ntype Failure (\n    # The kind of failure:\n    # - io: An I/O failure\n    # - spawn: The build process couldn't be spawned\n    # - exit: The build started but exited with a failure\n    # - output: the build completed, but Lorri wasn't able to interpret the\n    #   output\n    kind: (io, spawn, exit, output),\n    # The absolute path to the shell.nix file for the added project\n    nix_file: string,\n    io: ?IOFail,        # present iff kind == io\n    spawn: ?SpawnFail,  # present iff kind == spawn\n    exit: ?ExitFail,    # present iff kind == exit\n    output: ?OutputFail # present iff kind == output\n)\n\n# Describes a build failure related to opening files, usually the shell.nix file\ntype IOFail (\n    # A message describing the failure\n    message: string\n)\n\n# Describes a failure to launch the build process\ntype SpawnFail (\n    # A message describing the failure\n    message: string,\n    # The command Lorri attempted to execute\n    command: string\n)\n\n# Describes a failed build process\ntype ExitFail (\n    # The command executed by Lorri\n    command: string,\n    # The Unix exit status of the command, if available\n    status: ?int,\n    # stderr of the failed command.\n    logs: []string\n)\n\n# Describes a failure caused by output produced by the build that Lorri cannot\n# parse\ntype OutputFail (\n    # A message describing the failure\n    message: string\n)\n"
     }
     fn get_name(&self) -> &'static str {
         "com.target.lorri"
@@ -263,24 +250,6 @@ impl varlink::Interface for VarlinkInterfaceProxy {
         let req = call.request.unwrap();
         match req.method.as_ref() {
             "com.target.lorri.Monitor" => self.inner.monitor(call as &mut dyn Call_Monitor),
-            "com.target.lorri.WatchShell" => {
-                if let Some(args) = req.parameters.clone() {
-                    let args: WatchShell_Args = match serde_json::from_value(args) {
-                        Ok(v) => v,
-                        Err(e) => {
-                            let es = format!("{}", e);
-                            let _ = call.reply_invalid_parameter(es.clone());
-                            return Err(
-                                varlink::context!(varlink::ErrorKind::SerdeJsonDe(es)).into()
-                            );
-                        }
-                    };
-                    self.inner
-                        .watch_shell(call as &mut dyn Call_WatchShell, args.r#shell_nix)
-                } else {
-                    call.reply_invalid_parameter("parameters".into())
-                }
-            }
             m => call.reply_method_not_found(String::from(m)),
         }
     }

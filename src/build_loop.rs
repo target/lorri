@@ -16,7 +16,7 @@ use slog_scope::{debug, warn};
 use std::path::PathBuf;
 
 /// Builder events sent back over `BuildLoop.tx`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Event {
     /// Demarks a stream of events from recent history becoming live
@@ -45,7 +45,7 @@ pub enum Event {
 }
 
 /// Results of a single, successful build.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct BuildResults {
     /// See `build::Info.outputPaths
     pub output_paths: builder::OutputPaths<roots::RootPath>,
@@ -91,7 +91,7 @@ impl<'a> BuildLoop<'a> {
                     "message" => ?msg
                 );
                 // can’t Clone `Event`s, so we return the Debug output here
-                Reason::UnknownEvent(DebugMessage::from(format!("{:#?}", msg)))
+                Reason::UnknownEvent(DebugMessage(format!("{:#?}", msg)))
             }
             Err(EventError::RxNoEventReceived) => {
                 panic!("The file watcher died!");

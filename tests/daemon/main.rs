@@ -2,7 +2,6 @@ use lorri::build_loop;
 use lorri::cas::ContentAddressable;
 use lorri::daemon::{Daemon, LoopHandlerEvent};
 use lorri::nix::options::NixOptions;
-use lorri::rpc;
 use lorri::socket::SocketPath;
 use std::io::{Error, ErrorKind};
 use std::thread;
@@ -36,14 +35,9 @@ pub fn start_job_with_ping() -> std::io::Result<()> {
             .expect("failed to serve daemon endpoint");
     });
 
-    // connect to socket and send a ping message
-    use lorri::rpc::VarlinkClientInterface;
-    rpc::VarlinkClient::new(connect(&address, Duration::from_millis(1000)))
-        .watch_shell(rpc::ShellNix {
-            path: shell_nix.to_str().unwrap().to_string(),
-        })
-        .call()
-        .unwrap();
+    connect(&address, Duration::from_millis(1000));
+
+    lorri::ops::ping::main(lorri::NixFile::from(shell_nix), Some(address)).unwrap();
 
     // Read the first build event, which should be a `Started` message
     match build_rx.recv_timeout(Duration::from_millis(1000)).unwrap() {

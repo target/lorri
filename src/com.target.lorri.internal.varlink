@@ -1,0 +1,32 @@
+# The interface `lorri daemon` exposes.
+interface com.target.lorri.internal
+
+# WatchShell instructs the daemon to evaluate a Nix expression and re-evaluate
+# it when it or its dependencies change.
+method WatchShell(shell_nix: ShellNix) -> ()
+
+# ShellNix describes the Nix expression which evaluates to a development
+# environment.
+type ShellNix (
+  # The absolute path of a Nix file specifying the project environment.
+  path: string
+)
+
+type Reason (
+    kind: (project_added, ping_received, files_changed, unknown),
+    project: ?ShellNix, # only present if kind == project_added
+    files: ?[]string,   # only present if kind == files_changed
+    debug: ?string      # only present if kind == unknown
+)
+
+type Outcome (
+    project_root: string
+)
+
+type Failure (
+    kind: (io, spawn, exit, output),
+    msg: ?string,   # only present if kind in (io, spawn)
+    cmd: ?string,   # only present if kind in (spawn, exit)
+    status: ?int,   # only present if kind == exit
+    logs: ?[]string # only present if kind == exit
+)
