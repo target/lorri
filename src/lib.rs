@@ -48,29 +48,23 @@ include!(concat!(env!("OUT_DIR"), "/build_rev.rs"));
 /// A .nix file.
 #[derive(Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum NixFile {
-    /// A .nix file which describes a shell environment
-    Shell(PathBuf),
-    /// A .nix file which describes a list of services
-    // TODO: remove, see #404. This is not used in production code.
-    Services(PathBuf),
-}
+pub struct NixFile(PathBuf);
 
 impl NixFile {
     /// Underlying `Path`.
     pub fn as_path(&self) -> &Path {
-        match self {
-            Self::Shell(ref path) => path,
-            Self::Services(ref path) => path,
-        }
+        &self.0
     }
 
     /// Display the underlying path
     pub fn display(&self) -> std::path::Display {
-        match self {
-            Self::Shell(path) => path.display(),
-            Self::Services(path) => path.display(),
-        }
+        self.0.display()
+    }
+}
+
+impl From<PathBuf> for NixFile {
+    fn from(p: PathBuf) -> NixFile {
+        NixFile(p)
     }
 }
 

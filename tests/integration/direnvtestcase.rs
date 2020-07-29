@@ -34,7 +34,7 @@ impl DirenvTestCase {
         let test_root =
             PathBuf::from_iter(&[env!("CARGO_MANIFEST_DIR"), "tests", "integration", name]);
 
-        let shell_file = NixFile::Shell(test_root.join("shell.nix"));
+        let shell_file = NixFile::from(test_root.join("shell.nix"));
 
         let cas = ContentAddressable::new(cachedir.path().join("cas").to_owned()).unwrap();
         let project = Project::new(
