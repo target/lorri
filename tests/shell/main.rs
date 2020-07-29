@@ -61,7 +61,7 @@ fn project(name: &str, cache_dir: &Path) -> Project {
     let cas_dir = cache_dir.join("cas").to_owned();
     fs::create_dir_all(&cas_dir).expect("failed to create CAS directory");
     Project::new(
-        NixFile::Shell(test_root.join("shell.nix")),
+        NixFile::from(test_root.join("shell.nix")),
         &cache_dir.join("gc_roots").to_owned(),
         ContentAddressable::new(cas_dir).unwrap(),
     )

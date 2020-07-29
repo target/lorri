@@ -109,11 +109,6 @@ impl From<&varlink::Reply> for ErrorKind {
 pub trait VarlinkCallError: varlink::CallTrait {}
 impl<'a> VarlinkCallError for varlink::Call<'a> {}
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-pub struct r#Command {
-    pub r#program: String,
-    pub r#args: Vec<String>,
-}
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub enum r#Event_kind {
     r#section_end,
     r#started,
@@ -160,15 +155,6 @@ pub struct r#Reason {
     pub r#project: Option<ShellNix>,
     pub r#files: Option<Vec<String>>,
     pub r#debug: Option<String>,
-}
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-pub struct r#Service {
-    pub r#name: String,
-    pub r#command: Command,
-}
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-pub struct r#ServicesNix {
-    pub r#path: String,
 }
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct r#ShellNix {
@@ -261,7 +247,7 @@ pub fn new(inner: Box<dyn VarlinkInterface + Send + Sync>) -> VarlinkInterfacePr
 }
 impl varlink::Interface for VarlinkInterfaceProxy {
     fn get_description(&self) -> &'static str {
-        "# The interface `lorri daemon` exposes.\ninterface com.target.lorri\n\n# WatchShell instructs the daemon to evaluate a Nix expression and re-evaluate\n# it when it or its dependencies change.\nmethod WatchShell(shell_nix: ShellNix) -> ()\n\n# ShellNix describes the Nix expression which evaluates to a development\n# environment.\ntype ShellNix (\n  # The absolute path of a Nix file specifying the project environment.\n  path: string\n)\n\n# Monitor the daemon. The method will reply with an update whenever a build begins or ends.\n# Montior will immediately reply with a snapshot of known projects, then a marker event,\n# indicating that the stream of events is now \"live.\"\nmethod Monitor() -> (event: Event)\n\ntype Event (\n    kind: (section_end, started, completed, failure),\n    nix_file: ?ShellNix, # only present if kind != section_end\n    reason: ?Reason,     # only present if kind == started\n    result: ?Outcome,    # only present if kind == completed\n    failure: ?Failure    # only present if kind == failure\n)\n\ntype Reason (\n    kind: (project_added, ping_received, files_changed, unknown),\n    project: ?ShellNix, # only present if kind == project_added\n    files: ?[]string,   # only present if kind == files_changed\n    debug: ?string      # only present if kind == unknown\n)\n\ntype Outcome (\n    project_root: string\n)\n\ntype Failure (\n    kind: (io, spawn, exit, output),\n    msg: ?string,   # only present if kind in (io, spawn)\n    cmd: ?string,   # only present if kind in (spawn, exit)\n    status: ?int,   # only present if kind == exit\n    logs: ?[]string # only present if kind == exit\n)\n\n# WatchServices establishes a stream with the daemon. Initially, the daemon\n# evaluates the given services definition to an array of Command objects and\n# sends a reply for each of them. After this initial evaluation, the daemon\n# watches the services definition and its dependencies for changes,\n# re-evaluates it as appropriate and sends a reply for each Command again.\n#\n# This is a streaming RPC. The daemon only accepts client calls with the \"more\"\n# property set - see https://varlink.org/Method-Call.\n# TODO: Implement WatchServices\n#method WatchServices(services_nix: ServicesNix) -> (service: Service)\n\n# ServicesNix describes the Nix expression which evaluates to a list of\n# services.\ntype ServicesNix (\n  # The absolute path of a Nix file specifying the services to be run. This Nix\n  # file must evaluate to a JSON document of type []Command, that is, an array\n  # of objects whose properties are described by the Command type.\n  path: string\n)\n\n# Service describes an individual service to be run.\ntype Service (\n  # The user-friendly name of the service. This is used for identification\n  # purposes too: only a single instance of a service with a particular name is\n  # run at any one time.\n  name: string,\n\n  # How to run the service.\n  command: Command\n)\n\n# Command describes how to run a terminal application.\ntype Command (\n  # The path of the command binary.\n  program: string,\n\n  # Arguments to be passed to the binary.\n  args: []string\n)\n"
+        "# The interface `lorri daemon` exposes.\ninterface com.target.lorri\n\n# WatchShell instructs the daemon to evaluate a Nix expression and re-evaluate\n# it when it or its dependencies change.\nmethod WatchShell(shell_nix: ShellNix) -> ()\n\n# ShellNix describes the Nix expression which evaluates to a development\n# environment.\ntype ShellNix (\n  # The absolute path of a Nix file specifying the project environment.\n  path: string\n)\n\n# Monitor the daemon. The method will reply with an update whenever a build begins or ends.\n# Montior will immediately reply with a snapshot of known projects, then a marker event,\n# indicating that the stream of events is now \"live.\"\nmethod Monitor() -> (event: Event)\n\ntype Event (\n    kind: (section_end, started, completed, failure),\n    nix_file: ?ShellNix, # only present if kind != section_end\n    reason: ?Reason,     # only present if kind == started\n    result: ?Outcome,    # only present if kind == completed\n    failure: ?Failure    # only present if kind == failure\n)\n\ntype Reason (\n    kind: (project_added, ping_received, files_changed, unknown),\n    project: ?ShellNix, # only present if kind == project_added\n    files: ?[]string,   # only present if kind == files_changed\n    debug: ?string      # only present if kind == unknown\n)\n\ntype Outcome (\n    project_root: string\n)\n\ntype Failure (\n    kind: (io, spawn, exit, output),\n    msg: ?string,   # only present if kind in (io, spawn)\n    cmd: ?string,   # only present if kind in (spawn, exit)\n    status: ?int,   # only present if kind == exit\n    logs: ?[]string # only present if kind == exit\n)\n\n"
     }
     fn get_name(&self) -> &'static str {
         "com.target.lorri"
