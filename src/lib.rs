@@ -59,7 +59,7 @@ use std::path::{Path, PathBuf};
 include!(concat!(env!("OUT_DIR"), "/build_rev.rs"));
 
 /// A .nix file.
-#[derive(Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+#[derive(Hash, PartialEq, Eq, Clone, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct NixFile(PathBuf);
 

@@ -6,7 +6,7 @@ use std::io::Error as IoError;
 use std::process::{Command, ExitStatus};
 
 /// An error that can occur during a build.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BuildError {
     /// A system-level IO error occurred during the build.
@@ -52,10 +52,7 @@ pub enum BuildError {
     },
 }
 
-use serde::{
-    de::{self, Visitor},
-    Deserialize, Deserializer, Serialize, Serializer,
-};
+use serde::{Serialize, Serializer};
 
 /// A line from stderr log output. Serializes more nicely than raw `OsString`.
 #[derive(Debug, Clone)]
@@ -68,32 +65,6 @@ impl Serialize for LogLine {
     {
         let LogLine(oss) = self;
         serializer.serialize_str(&*oss.to_string_lossy())
-    }
-}
-
-impl<'de> Deserialize<'de> for LogLine {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct LLVisitor;
-
-        impl<'de> Visitor<'de> for LLVisitor {
-            type Value = LogLine;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a string")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<LogLine, E>
-            where
-                E: de::Error,
-            {
-                Ok(LogLine(OsString::from(value)))
-            }
-        }
-
-        deserializer.deserialize_str(LLVisitor)
     }
 }
 
