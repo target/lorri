@@ -6,6 +6,8 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: null
     - name: Nix
       uses: cachix/install-nix-action@v9
       with:
@@ -54,6 +56,8 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: null
     - name: Nix
       uses: cachix/install-nix-action@v9
       with:
@@ -75,6 +79,8 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: null
     - name: Nix
       uses: cachix/install-nix-action@v9
       with:
@@ -98,6 +104,8 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+      with:
+        fetch-depth: null
     - name: Nix
       uses: cachix/install-nix-action@v9
       with:

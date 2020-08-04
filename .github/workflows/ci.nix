@@ -1,5 +1,12 @@
 { pkgs ? import ../../nix/nixpkgs-stable.nix }:
 let
+  checkout = { fetch-depth ? null }: {
+    name = "Checkout";
+    uses = "actions/checkout@v2";
+    "with" = {
+      inherit fetch-depth;
+    };
+  };
   setup-nix = {
     name = "Nix";
     uses = "cachix/install-nix-action@v9";
@@ -27,10 +34,7 @@ let
       rust = {
         runs-on = "\${{ matrix.os }}";
         steps = [
-          {
-            name = "Checkout";
-            uses = "actions/checkout@v2";
-          }
+          (checkout {})
           setup-nix
           setup-cachix
           {
@@ -71,13 +75,12 @@ let
       nix-build_stable = {
         runs-on = "\${{ matrix.os }}";
         steps = [
-          {
-            name = "Checkout";
-            uses = "actions/checkout@v2";
-            "with" = {
+          (
+            checkout {
+              # required for lorri self-upgrade local
               fetch-depth = 0;
-            };
-          }
+            }
+          )
           setup-nix
           setup-cachix
           { name = "Build"; run = "nix-build"; }
@@ -95,10 +98,7 @@ let
       nix-build_1909 = {
         runs-on = "\${{ matrix.os }}";
         steps = [
-          {
-            name = "Checkout";
-            uses = "actions/checkout@v2";
-          }
+          (checkout {})
           setup-nix
           setup-cachix
           {
@@ -111,10 +111,7 @@ let
       nix-shell = {
         runs-on = "\${{ matrix.os }}";
         steps = [
-          {
-            name = "Checkout";
-            uses = "actions/checkout@v2";
-          }
+          (checkout {})
           setup-nix
           setup-cachix
           {
@@ -127,10 +124,7 @@ let
       overlay = {
         runs-on = "\${{ matrix.os }}";
         steps = [
-          {
-            name = "Checkout";
-            uses = "actions/checkout@v2";
-          }
+          (checkout {})
           setup-nix
           setup-cachix
           {
