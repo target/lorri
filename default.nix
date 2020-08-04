@@ -1,8 +1,8 @@
 { nixpkgs ? ./nix/nixpkgs-stable.nix
 , pkgs ? import nixpkgs
-, src ? pkgs.nix-gitignore.gitignoreSource [ ".git/" ] ./.
 }:
 let
+  src = pkgs.nix-gitignore.gitignoreSource [ ".git/" ] ./.;
   cargoLorri =
     (
       pkgs.callPackage ./Cargo.nix {

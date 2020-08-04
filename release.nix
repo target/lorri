@@ -1,10 +1,17 @@
-{ src }:
 {
-  package = import ./default.nix { inherit src; };
+  package = import ./default.nix {};
 
   changelog = {
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
+      {
+        version = 655;
+        changes = ''
+          Add `lorri self-upgrade branch` sub-subcommand.
+          This enables us to point users to a branch name,
+          in order to test out fixes from repository branches.
+        '';
+      }
       {
         version = 630;
         changes = ''
