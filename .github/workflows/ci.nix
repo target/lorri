@@ -63,10 +63,6 @@ let
             };
           }
           {
-            name = "Shell (cache inputs)";
-            run = "nix-shell";
-          }
-          {
             name = "CI check";
             run = "nix-shell --arg isDevelopmentShell false --run 'ci_check'";
           }

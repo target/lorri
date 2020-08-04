@@ -197,8 +197,6 @@ jobs:
       with:
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
         path: target
-    - name: Shell (cache inputs)
-      run: nix-shell
     - name: CI check
       run: nix-shell --arg isDevelopmentShell false --run 'ci_check'
   rust-ubuntu-latest:
@@ -233,8 +231,6 @@ jobs:
       with:
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
         path: target
-    - name: Shell (cache inputs)
-      run: nix-shell
     - name: CI check
       run: nix-shell --arg isDevelopmentShell false --run 'ci_check'
 name: CI
