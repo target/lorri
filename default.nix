@@ -2,7 +2,11 @@
 , pkgs ? import nixpkgs
 }:
 let
-  src = pkgs.nix-gitignore.gitignoreSource [ ".git/" ] ./.;
+  src = pkgs.nix-gitignore.gitignoreSource [
+    ".git/"
+    ".github/"
+    "assets/"
+  ] ./.;
   cargoLorri =
     (
       pkgs.callPackage ./Cargo.nix {
