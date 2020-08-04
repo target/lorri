@@ -30,115 +30,130 @@ let
       push = { branches = [ "master" ]; };
     };
     env = { LORRI_NO_INSTALL_PANIC_HANDLER = "absolutely"; };
-    jobs = {
-      rust = {
-        runs-on = "\${{ matrix.os }}";
-        steps = [
-          (checkout {})
-          setup-nix
-          setup-cachix
-          {
-            name = "Cache cargo registry";
-            uses = "actions/cache@v1";
-            "with" = {
-              key = "\${{ runner.os }}-cargo-registry-\${{ hashFiles('**/Cargo.lock') }}";
-              path = "~/.cargo/registry";
-            };
-          }
-          {
-            name = "Cache cargo index";
-            uses = "actions/cache@v1";
-            "with" = {
-              key = "\${{ runner.os }}-cargo-index-\${{ hashFiles('**/Cargo.lock') }}";
-              path = "~/.cargo/git";
-            };
-          }
-          {
-            name = "Cache cargo build";
-            uses = "actions/cache@v1";
-            "with" = {
-              key = "\${{ runner.os }}-cargo-build-target-\${{ hashFiles('**/Cargo.lock') }}";
-              path = "target";
-            };
-          }
-          {
-            name = "Shell (cache inputs)";
-            run = "nix-shell";
-          }
-          {
-            name = "CI check";
-            run = "nix-shell --arg isDevelopmentShell false --run 'ci_check'";
-          }
-        ];
-        strategy = { matrix = { os = [ "ubuntu-latest" "macos-latest" ]; }; };
-      };
-      nix-build_stable = {
-        runs-on = "\${{ matrix.os }}";
-        steps = [
-          (
-            checkout {
-              # required for lorri self-upgrade local
-              fetch-depth = 0;
+    jobs = builtins.listToAttrs [
+      {
+        name = "rust";
+        value = {
+          runs-on = "\${{ matrix.os }}";
+          steps = [
+            (checkout {})
+            setup-nix
+            setup-cachix
+            {
+              name = "Cache cargo registry";
+              uses = "actions/cache@v1";
+              "with" = {
+                key = "\${{ runner.os }}-cargo-registry-\${{ hashFiles('**/Cargo.lock') }}";
+                path = "~/.cargo/registry";
+              };
             }
-          )
-          setup-nix
-          setup-cachix
-          { name = "Build"; run = "nix-build"; }
-          {
-            name = "Install";
-            run = "nix-env -i ./result";
-          }
-          {
-            name = "Self-upgrade";
-            run = "lorri self-upgrade local \$(pwd)";
-          }
-        ];
-        strategy = { matrix = { os = [ "ubuntu-latest" "macos-latest" ]; }; };
-      };
-      nix-build_1909 = {
-        runs-on = "\${{ matrix.os }}";
-        steps = [
-          (checkout {})
-          setup-nix
-          setup-cachix
-          {
-            name = "Build";
-            run = "nix-build --arg nixpkgs ./nix/nixpkgs-1909.nix";
-          }
-        ];
-        strategy = { matrix = { os = [ "ubuntu-latest" "macos-latest" ]; }; };
-      };
-      nix-shell = {
-        runs-on = "\${{ matrix.os }}";
-        steps = [
-          (checkout {})
-          setup-nix
-          setup-cachix
-          {
-            name = "Build";
-            run = "nix-build -A allBuildInputs shell.nix";
-          }
-        ];
-        strategy = { matrix = { os = [ "ubuntu-latest" "macos-latest" ]; }; };
-      };
-      overlay = {
-        runs-on = "\${{ matrix.os }}";
-        steps = [
-          (checkout {})
-          setup-nix
-          setup-cachix
-          {
-            name = "Build w/ overlay (19.09)";
-            run = "nix-build ./nix/overlay.nix -A lorri --arg pkgs ./nix/nixpkgs-1909.json";
-          }
-          {
-            name = "Build w/ overlay (stable)";
-            run = "nix-build ./nix/overlay.nix -A lorri --arg pkgs ./nix/nixpkgs-stable.json";
-          }
-        ];
-        strategy = { matrix = { os = [ "ubuntu-latest" "macos-latest" ]; }; };
-      };
-    };
+            {
+              name = "Cache cargo index";
+              uses = "actions/cache@v1";
+              "with" = {
+                key = "\${{ runner.os }}-cargo-index-\${{ hashFiles('**/Cargo.lock') }}";
+                path = "~/.cargo/git";
+              };
+            }
+            {
+              name = "Cache cargo build";
+              uses = "actions/cache@v1";
+              "with" = {
+                key = "\${{ runner.os }}-cargo-build-target-\${{ hashFiles('**/Cargo.lock') }}";
+                path = "target";
+              };
+            }
+            {
+              name = "Shell (cache inputs)";
+              run = "nix-shell";
+            }
+            {
+              name = "CI check";
+              run = "nix-shell --arg isDevelopmentShell false --run 'ci_check'";
+            }
+          ];
+          strategy = { matrix = { os = [ "ubuntu-latest" "macos-latest" ]; }; };
+        };
+      }
+      {
+        name = "nix-build_stable";
+        value = {
+          runs-on = "\${{ matrix.os }}";
+          steps = [
+            (
+              checkout {
+                # required for lorri self-upgrade local
+                fetch-depth = 0;
+              }
+            )
+            setup-nix
+            setup-cachix
+            { name = "Build"; run = "nix-build"; }
+            {
+              name = "Install";
+              run = "nix-env -i ./result";
+            }
+            {
+              name = "Self-upgrade";
+              run = "lorri self-upgrade local \$(pwd)";
+            }
+          ];
+          strategy = { matrix = { os = [ "ubuntu-latest" "macos-latest" ]; }; };
+        };
+      }
+      {
+        name = "nix-build_1909";
+        value = {
+          runs-on = "\${{ matrix.os }}";
+          steps = [
+            (checkout {})
+            setup-nix
+            setup-cachix
+            {
+              name = "Build";
+              run = "nix-build --arg nixpkgs ./nix/nixpkgs-1909.nix";
+            }
+          ];
+          strategy = { matrix = { os = [ "ubuntu-latest" "macos-latest" ]; }; };
+        };
+      }
+      {
+        name = "nix-shell";
+        value = {
+          runs-on = "\${{ matrix.os }}";
+          steps = [
+            (checkout {})
+            setup-nix
+            setup-cachix
+            {
+              name = "Build";
+              run = "nix-build -A allBuildInputs shell.nix";
+            }
+          ];
+          strategy = { matrix = { os = [ "ubuntu-latest" "macos-latest" ]; }; };
+        };
+      }
+      {
+        name = "overlay";
+        value = {
+          runs-on = "\${{ matrix.os }}";
+          steps = [
+            (checkout {})
+            setup-nix
+            setup-cachix
+            {
+              name = "Build w/ overlay (19.09)";
+              run = "nix-build ./nix/overlay.nix -A lorri --arg pkgs ./nix/nixpkgs-1909.json";
+            }
+            {
+              name = "Build w/ overlay (stable)";
+              run = "nix-build ./nix/overlay.nix -A lorri --arg pkgs ./nix/nixpkgs-stable.json";
+            }
+          ];
+          strategy = { matrix = { os = [ "ubuntu-latest" "macos-latest" ]; }; };
+        };
+      }
+    ];
   };
 
   yaml = pkgs.runCommand "ci.yml" {
