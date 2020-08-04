@@ -1,6 +1,5 @@
+{ pkgs ? import ../../nix/nixpkgs-stable.nix }:
 let
-  pkgs = import ../../nix/nixpkgs-stable.nix;
-
   config = {
     name = "CI";
     on = {
