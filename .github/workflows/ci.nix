@@ -1,5 +1,14 @@
 { pkgs ? import ../../nix/nixpkgs-stable.nix }:
 let
+  setup-cachix = {
+    name = "Cachix";
+    uses = "cachix/cachix-action@v6";
+    "with" = {
+      name = "lorri-test";
+      signingKey = "\${{ secrets.CACHIX_SIGNING_KEY }}";
+    };
+  };
+
   config = {
     name = "CI";
     on = {
@@ -22,14 +31,7 @@ let
               skip_adding_nixpkgs_channel = true;
             };
           }
-          {
-            name = "Cachix";
-            uses = "cachix/cachix-action@v6";
-            "with" = {
-              name = "lorri-test";
-              signingKey = "\${{ secrets.CACHIX_SIGNING_KEY }}";
-            };
-          }
+          setup-cachix
           {
             name = "Cache cargo registry";
             uses = "actions/cache@v1";
@@ -82,14 +84,7 @@ let
               skip_adding_nixpkgs_channel = true;
             };
           }
-          {
-            name = "Cachix";
-            uses = "cachix/cachix-action@v6";
-            "with" = {
-              name = "lorri-test";
-              signingKey = "\${{ secrets.CACHIX_SIGNING_KEY }}";
-            };
-          }
+          setup-cachix
           { name = "Build"; run = "nix-build"; }
           {
             name = "Install";
@@ -116,14 +111,7 @@ let
               skip_adding_nixpkgs_channel = true;
             };
           }
-          {
-            name = "Cachix";
-            uses = "cachix/cachix-action@v6";
-            "with" = {
-              name = "lorri-test";
-              signingKey = "\${{ secrets.CACHIX_SIGNING_KEY }}";
-            };
-          }
+          setup-cachix
           {
             name = "Build";
             run = "nix-build --arg nixpkgs ./nix/nixpkgs-1909.nix";
@@ -145,14 +133,7 @@ let
               skip_adding_nixpkgs_channel = true;
             };
           }
-          {
-            name = "Cachix";
-            uses = "cachix/cachix-action@v6";
-            "with" = {
-              name = "lorri-test";
-              signingKey = "\${{ secrets.CACHIX_SIGNING_KEY }}";
-            };
-          }
+          setup-cachix
           {
             name = "Build";
             run = "nix-build -A allBuildInputs shell.nix";
@@ -174,14 +155,7 @@ let
               skip_adding_nixpkgs_channel = true;
             };
           }
-          {
-            name = "Cachix";
-            uses = "cachix/cachix-action@v6";
-            "with" = {
-              name = "lorri-test";
-              signingKey = "\${{ secrets.CACHIX_SIGNING_KEY }}";
-            };
-          }
+          setup-cachix
           {
             name = "Build w/ overlay (19.09)";
             run = "nix-build ./nix/overlay.nix -A lorri --arg pkgs ./nix/nixpkgs-1909.json";
