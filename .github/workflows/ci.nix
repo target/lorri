@@ -23,11 +23,17 @@ let
     };
   };
 
+  githubRunners = {
+    ubuntu = "ubuntu-latest";
+    macos = "macos-latest";
+  };
+
   builds = {
-    rust = {
-      name = "rust";
+    rust = { runs-on }: {
+      name = "rust-${runs-on}";
       value = {
-        runs-on = "\${{ matrix.os }}";
+        name = "Rust and ci_check (${runs-on})";
+        inherit runs-on;
         steps = [
           (checkout {})
           setup-nix
@@ -65,14 +71,14 @@ let
             run = "nix-shell --arg isDevelopmentShell false --run 'ci_check'";
           }
         ];
-        strategy = { matrix = { os = [ "ubuntu-latest" "macos-latest" ]; }; };
       };
     };
 
-    stable = {
-      name = "nix-build_stable";
+    stable = { runs-on }: {
+      name = "nix-build_stable-${runs-on}";
       value = {
-        runs-on = "\${{ matrix.os }}";
+        name = "nix-build [nixos stable] (${runs-on})";
+        inherit runs-on;
         steps = [
           (
             checkout {
@@ -92,14 +98,14 @@ let
             run = "lorri self-upgrade local \$(pwd)";
           }
         ];
-        strategy = { matrix = { os = [ "ubuntu-latest" "macos-latest" ]; }; };
       };
     };
 
-    nixos-19_09 = {
-      name = "nix-build_1909";
+    nixos-19_09 = { runs-on }: {
+      name = "nix-build_1909-${runs-on}";
       value = {
-        runs-on = "\${{ matrix.os }}";
+        name = "nix-build [nixos 19.09] (${runs-on})";
+        inherit runs-on;
         steps = [
           (checkout {})
           setup-nix
@@ -109,14 +115,14 @@ let
             run = "nix-build --arg nixpkgs ./nix/nixpkgs-1909.nix";
           }
         ];
-        strategy = { matrix = { os = [ "ubuntu-latest" "macos-latest" ]; }; };
       };
     };
 
-    nix-shell = {
-      name = "nix-shell";
+    nix-shell = { runs-on }: {
+      name = "nix-shell-${runs-on}";
       value = {
-        runs-on = "\${{ matrix.os }}";
+        name = "nix-shell allBuildInputs (${runs-on})";
+        inherit runs-on;
         steps = [
           (checkout {})
           setup-nix
@@ -126,14 +132,14 @@ let
             run = "nix-build -A allBuildInputs shell.nix";
           }
         ];
-        strategy = { matrix = { os = [ "ubuntu-latest" "macos-latest" ]; }; };
       };
     };
 
-    overlay = {
-      name = "overlay";
+    overlay = { runs-on }: {
+      name = "overlay-${runs-on}";
       value = {
-        runs-on = "\${{ matrix.os }}";
+        name = "Overlay builds (${runs-on})";
+        inherit runs-on;
         steps = [
           (checkout {})
           setup-nix
@@ -147,7 +153,6 @@ let
             run = "nix-build ./nix/overlay.nix -A lorri --arg pkgs ./nix/nixpkgs-stable.json";
           }
         ];
-        strategy = { matrix = { os = [ "ubuntu-latest" "macos-latest" ]; }; };
       };
     };
   };
@@ -162,11 +167,16 @@ let
 
     jobs = builtins.listToAttrs
       [
-        builds.rust
-        builds.stable
-        builds.nixos-19_09
-        builds.nix-shell
-        builds.overlay
+        (builds.rust { runs-on = githubRunners.ubuntu; })
+        (builds.rust { runs-on = githubRunners.macos; })
+        (builds.stable { runs-on = githubRunners.ubuntu; })
+        (builds.stable { runs-on = githubRunners.macos; })
+        (builds.nixos-19_09 { runs-on = githubRunners.ubuntu; })
+        (builds.nixos-19_09 { runs-on = githubRunners.macos; })
+        (builds.nix-shell { runs-on = githubRunners.ubuntu; })
+        (builds.nix-shell { runs-on = githubRunners.macos; })
+        (builds.overlay { runs-on = githubRunners.ubuntu; })
+        (builds.overlay { runs-on = githubRunners.macos; })
       ];
   };
 
