@@ -3,7 +3,7 @@ name = "lorri"
 # lorri uses a MAJOR.MINOR versioning scheme, see MAINTAINERS.md for details.
 # Cargo requires MAJOR.MINOR.PATCH. So we translate lorri's versioning scheme
 # to MAJOR.MINOR.0, i.e. the PATCH part is always zero.
-version = "1.1.1" # Format: MAJOR.MINOR.0
+version = "1.2.0" # Format: MAJOR.MINOR.0
 authors = [
   "Graham Christensen <graham.christensen@target.com>",
 ]
