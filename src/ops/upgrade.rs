@@ -1,9 +1,10 @@
 //! Upgrade lorri by using nix-env to install from Git.
 //!
-//! In the future, this upgrade tool should use tagged versions.
-//! However, while this repo is closed source, it uses a
-//! rolling-release branch.
-
+//! This is useful for pointing users to an fix to a reported bug,
+//! or for users who want to follow the lorri master locally.
+//!
+//! Originally it was used as pre-release, that’s why there is support
+//! for updating to a special rolling-release branch.
 use crate::cas::ContentAddressable;
 use crate::changelog;
 use crate::cli;
