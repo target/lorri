@@ -1,5 +1,12 @@
 { pkgs ? import ../../nix/nixpkgs-stable.nix }:
 let
+  setup-nix = {
+    name = "Nix";
+    uses = "cachix/install-nix-action@v9";
+    "with" = {
+      skip_adding_nixpkgs_channel = true;
+    };
+  };
   setup-cachix = {
     name = "Cachix";
     uses = "cachix/cachix-action@v6";
@@ -24,13 +31,7 @@ let
             name = "Checkout";
             uses = "actions/checkout@v2";
           }
-          {
-            name = "Nix";
-            uses = "cachix/install-nix-action@v9";
-            "with" = {
-              skip_adding_nixpkgs_channel = true;
-            };
-          }
+          setup-nix
           setup-cachix
           {
             name = "Cache cargo registry";
@@ -77,13 +78,7 @@ let
               fetch-depth = 0;
             };
           }
-          {
-            name = "Nix";
-            uses = "cachix/install-nix-action@v9";
-            "with" = {
-              skip_adding_nixpkgs_channel = true;
-            };
-          }
+          setup-nix
           setup-cachix
           { name = "Build"; run = "nix-build"; }
           {
@@ -104,13 +99,7 @@ let
             name = "Checkout";
             uses = "actions/checkout@v2";
           }
-          {
-            name = "Nix";
-            uses = "cachix/install-nix-action@v9";
-            "with" = {
-              skip_adding_nixpkgs_channel = true;
-            };
-          }
+          setup-nix
           setup-cachix
           {
             name = "Build";
@@ -126,13 +115,7 @@ let
             name = "Checkout";
             uses = "actions/checkout@v2";
           }
-          {
-            name = "Nix";
-            uses = "cachix/install-nix-action@v9";
-            "with" = {
-              skip_adding_nixpkgs_channel = true;
-            };
-          }
+          setup-nix
           setup-cachix
           {
             name = "Build";
@@ -148,13 +131,7 @@ let
             name = "Checkout";
             uses = "actions/checkout@v2";
           }
-          {
-            name = "Nix";
-            uses = "cachix/install-nix-action@v9";
-            "with" = {
-              skip_adding_nixpkgs_channel = true;
-            };
-          }
+          setup-nix
           setup-cachix
           {
             name = "Build w/ overlay (19.09)";
