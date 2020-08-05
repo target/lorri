@@ -23,32 +23,18 @@ let
     };
   };
 
-  rust-cache = [
-    {
-      name = "Cache cargo registry";
-      uses = "actions/cache@v1";
-      "with" = {
-        key = "\${{ runner.os }}-cargo-registry-\${{ hashFiles('**/Cargo.lock') }}";
-        path = "~/.cargo/registry";
-      };
-    }
-    {
-      name = "Cache cargo index";
-      uses = "actions/cache@v1";
-      "with" = {
-        key = "\${{ runner.os }}-cargo-index-\${{ hashFiles('**/Cargo.lock') }}";
-        path = "~/.cargo/git";
-      };
-    }
-    {
-      name = "Cache cargo build";
-      uses = "actions/cache@v1";
-      "with" = {
-        key = "\${{ runner.os }}-cargo-build-target-\${{ hashFiles('**/Cargo.lock') }}";
-        path = "target";
-      };
-    }
-  ];
+  rust-cache = {
+    name = "Cache cargo registry";
+    uses = "actions/cache@v2";
+    "with" = {
+      path = ''
+        "~/.cargo/registry"
+        "~/.cargo/git"
+        "target"
+      '';
+      key = "\${{ runner.os }}-cargo-registry-\${{ hashFiles('**/Cargo.lock') }}";
+    };
+  };
 
   githubRunners = {
     ubuntu = "ubuntu-latest";
@@ -65,7 +51,7 @@ let
           (checkout {})
           setup-nix
           setup-cachix
-        ] ++ rust-cache ++ [
+          rust-cache
           {
             name = "CI check";
             run = "nix-shell --arg isDevelopmentShell false --run 'ci_check'";
@@ -88,7 +74,10 @@ let
           )
           setup-nix
           setup-cachix
-          { name = "Build"; run = "nix-build"; }
+          {
+            name = "Build";
+            run = "nix-build";
+          }
           {
             name = "Install";
             run = "nix-env -i ./result";
