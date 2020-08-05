@@ -85,44 +85,6 @@ jobs:
       run: nix-env -i ./result
     - name: Self-upgrade
       run: lorri self-upgrade local $(pwd)
-  nix-shell-macos-latest:
-    name: nix-shell allBuildInputs (macos-latest)
-    runs-on: macos-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: null
-    - name: Nix
-      uses: cachix/install-nix-action@v9
-      with:
-        skip_adding_nixpkgs_channel: true
-    - name: Cachix
-      uses: cachix/cachix-action@v6
-      with:
-        name: lorri-test
-        signingKey: ${{ secrets.CACHIX_SIGNING_KEY }}
-    - name: Build
-      run: nix-build -A allBuildInputs shell.nix
-  nix-shell-ubuntu-latest:
-    name: nix-shell allBuildInputs (ubuntu-latest)
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: null
-    - name: Nix
-      uses: cachix/install-nix-action@v9
-      with:
-        skip_adding_nixpkgs_channel: true
-    - name: Cachix
-      uses: cachix/cachix-action@v6
-      with:
-        name: lorri-test
-        signingKey: ${{ secrets.CACHIX_SIGNING_KEY }}
-    - name: Build
-      run: nix-build -A allBuildInputs shell.nix
   overlay-macos-latest:
     name: Overlay builds (macos-latest)
     runs-on: macos-latest

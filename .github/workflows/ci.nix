@@ -107,23 +107,6 @@ let
       };
     };
 
-    nix-shell = { runs-on }: {
-      name = "nix-shell-${runs-on}";
-      value = {
-        name = "nix-shell allBuildInputs (${runs-on})";
-        inherit runs-on;
-        steps = [
-          (checkout {})
-          setup-nix
-          setup-cachix
-          {
-            name = "Build";
-            run = "nix-build -A allBuildInputs shell.nix";
-          }
-        ];
-      };
-    };
-
     overlay = { runs-on }: {
       name = "overlay-${runs-on}";
       value = {
@@ -162,8 +145,6 @@ let
         (builds.stable { runs-on = githubRunners.macos; })
         (builds.nixos-19_09 { runs-on = githubRunners.ubuntu; })
         (builds.nixos-19_09 { runs-on = githubRunners.macos; })
-        (builds.nix-shell { runs-on = githubRunners.ubuntu; })
-        (builds.nix-shell { runs-on = githubRunners.macos; })
         (builds.overlay { runs-on = githubRunners.ubuntu; })
         (builds.overlay { runs-on = githubRunners.macos; })
       ];

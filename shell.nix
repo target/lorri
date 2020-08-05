@@ -58,11 +58,6 @@ let
     pkgs.darwin.apple_sdk.frameworks.CoreFoundation
   ];
 
-  # we manually collect all build inputs,
-  # because `mkShell` derivations cannot be built
-  # and we want to cachix them.
-  allBuildInputs = buildInputs;
-
 in
 pkgs.mkShell (
   {
@@ -192,8 +187,6 @@ pkgs.mkShell (
         export NIX_LDFLAGS="-F${pkgs.darwin.apple_sdk.frameworks.CoreFoundation}/Library/Frameworks -framework CoreFoundation $NIX_LDFLAGS"
       ''
     );
-
-    passthru.allBuildInputs = allBuildInputs;
 
     preferLocalBuild = true;
     allowSubstitutes = false;
