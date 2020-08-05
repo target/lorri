@@ -23,6 +23,33 @@ let
     };
   };
 
+  rust-cache = [
+    {
+      name = "Cache cargo registry";
+      uses = "actions/cache@v1";
+      "with" = {
+        key = "\${{ runner.os }}-cargo-registry-\${{ hashFiles('**/Cargo.lock') }}";
+        path = "~/.cargo/registry";
+      };
+    }
+    {
+      name = "Cache cargo index";
+      uses = "actions/cache@v1";
+      "with" = {
+        key = "\${{ runner.os }}-cargo-index-\${{ hashFiles('**/Cargo.lock') }}";
+        path = "~/.cargo/git";
+      };
+    }
+    {
+      name = "Cache cargo build";
+      uses = "actions/cache@v1";
+      "with" = {
+        key = "\${{ runner.os }}-cargo-build-target-\${{ hashFiles('**/Cargo.lock') }}";
+        path = "target";
+      };
+    }
+  ];
+
   githubRunners = {
     ubuntu = "ubuntu-latest";
     macos = "macos-latest";
@@ -38,30 +65,7 @@ let
           (checkout {})
           setup-nix
           setup-cachix
-          {
-            name = "Cache cargo registry";
-            uses = "actions/cache@v1";
-            "with" = {
-              key = "\${{ runner.os }}-cargo-registry-\${{ hashFiles('**/Cargo.lock') }}";
-              path = "~/.cargo/registry";
-            };
-          }
-          {
-            name = "Cache cargo index";
-            uses = "actions/cache@v1";
-            "with" = {
-              key = "\${{ runner.os }}-cargo-index-\${{ hashFiles('**/Cargo.lock') }}";
-              path = "~/.cargo/git";
-            };
-          }
-          {
-            name = "Cache cargo build";
-            uses = "actions/cache@v1";
-            "with" = {
-              key = "\${{ runner.os }}-cargo-build-target-\${{ hashFiles('**/Cargo.lock') }}";
-              path = "target";
-            };
-          }
+        ] ++ rust-cache ++ [
           {
             name = "CI check";
             run = "nix-shell --arg isDevelopmentShell false --run 'ci_check'";
