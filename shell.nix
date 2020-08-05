@@ -58,11 +58,6 @@ let
     pkgs.darwin.apple_sdk.frameworks.CoreFoundation
   ];
 
-  # we manually collect all build inputs,
-  # because `mkShell` derivations cannot be built
-  # and we want to cachix them.
-  allBuildInputs = buildInputs;
-
 in
 pkgs.mkShell (
   {
@@ -101,6 +96,12 @@ pkgs.mkShell (
         ./nix/fmt.sh --check
         nix_fmt=$?
 
+        ${import ./.github/workflows/ci.nix { inherit pkgs; }}
+        ciwrite=$?
+        git diff --quiet -- ./.github/workflows/ci.yml
+        cidiff=$?
+        ciupdate=$((ciwrite + cidiff))
+
         ./nix/update-carnix.sh
         carnixupdate=$?
         git diff --quiet -- Cargo.nix
@@ -120,7 +121,7 @@ pkgs.mkShell (
         echo "cargo fmt: $cargofmtexit"
         echo "cargo clippy: $cargoclippyexit"
 
-        sum=$((manpage + nix_fmt + carnixupdate + cargofmtexit + cargoclippyexit))
+        sum=$((manpage + nix_fmt + ciupdate + carnixupdate + cargofmtexit + cargoclippyexit))
         if [ "$sum" -gt 0 ]; then
           return 1
         fi
@@ -186,8 +187,6 @@ pkgs.mkShell (
         export NIX_LDFLAGS="-F${pkgs.darwin.apple_sdk.frameworks.CoreFoundation}/Library/Frameworks -framework CoreFoundation $NIX_LDFLAGS"
       ''
     );
-
-    passthru.allBuildInputs = allBuildInputs;
 
     preferLocalBuild = true;
     allowSubstitutes = false;
