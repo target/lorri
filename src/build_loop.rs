@@ -14,6 +14,7 @@ use crate::NixFile;
 use crossbeam_channel as chan;
 use slog_scope::{debug, warn};
 use std::path::PathBuf;
+use std::time::Duration;
 
 /// Builder events sent back over `BuildLoop.tx`.
 #[derive(Clone, Debug, Serialize)]
@@ -44,6 +45,15 @@ pub enum Event {
     },
 }
 
+/// Denotes a build to be started and its reason
+#[derive(Clone, Debug, Serialize)]
+struct StartTrigger {
+    /// The shell.nix file to be built
+    nix_file: NixFile,
+    /// The reason the build was triggered
+    reason: Reason,
+}
+
 /// Results of a single, successful build.
 #[derive(Clone, Debug, Serialize)]
 pub struct BuildResults {
@@ -63,6 +73,12 @@ pub struct BuildLoop<'a> {
     watch: Watch,
     /// Extra options to pass to each nix invocation
     extra_nix_options: NixOptions,
+}
+
+impl From<StartTrigger> for Event {
+    fn from(StartTrigger { nix_file, reason }: StartTrigger) -> Self {
+        Event::Started { nix_file, reason }
+    }
 }
 
 impl<'a> BuildLoop<'a> {
@@ -112,14 +128,18 @@ impl<'a> BuildLoop<'a> {
 
         let rx_notify = self.watch.rx.clone();
 
-        loop {
-            let reason = chan::select! {
+        let maybe_get_one_reason_to_build = |self_: &Self,
+                                             output_paths: &Option<builder::OutputPaths<_>>,
+                                             timeout: Option<Duration>|
+         -> Option<StartTrigger> {
+            let timeout_chan = timeout.map(chan::after).unwrap_or_else(chan::never);
+            chan::select! {
                 recv(rx_notify) -> msg => match msg {
                     Ok(msg) => {
-                        match self.watch.process(msg) {
+                        match self_.watch.process(msg) {
                             Some(rsn) => {
-                                Some(Event::Started{
-                                    nix_file: self.project.nix_file.clone(),
+                                Some(StartTrigger{
+                                    nix_file: self_.project.nix_file.clone(),
                                     reason: translate_reason(rsn)
                                 })
                             },
@@ -132,12 +152,12 @@ impl<'a> BuildLoop<'a> {
                     // TODO: can we just ignore Err?
                     Err(_) => None
                 },
-                recv(rx_ping) -> msg => match (msg, &output_paths) {
+                recv(rx_ping) -> msg => match (msg, output_paths) {
                     (Ok(()), Some(output_paths)) => {
                         // TODO: why is this check done here?
                         if !output_paths.shell_gc_root_is_dir() {
-                            Some(Event::Started{
-                                nix_file: self.project.nix_file.clone(),
+                            Some(StartTrigger{
+                                nix_file: self_.project.nix_file.clone(),
                                 reason: Reason::PingReceived
                             })
                         }
@@ -146,12 +166,42 @@ impl<'a> BuildLoop<'a> {
                     // TODO: can we just ignore these two cases?
                     (Ok(()), None) => None,
                     (Err(_), _) => None
-                }
-            };
+                },
+                recv(timeout_chan) -> _  => None
+            }
+        };
+
+        let mut to_start = None;
+
+        loop {
+            if to_start.is_none() {
+                to_start =
+                    maybe_get_one_reason_to_build(self, &output_paths, None /* blocking */);
+            }
 
             // If there is some reason to build, run the build!
-            if let Some(rsn) = reason {
-                output_paths = self.once_with_send(&tx, rsn)
+            if to_start.is_some() {
+                // there are possibly other notifications which would trigger the same build: drain
+                // them
+                let first_trigger = to_start.take().unwrap();
+                loop {
+                    to_start = maybe_get_one_reason_to_build(
+                        self,
+                        &output_paths,
+                        Some(Duration::from_millis(150)),
+                    );
+                    match &to_start {
+                        Some(StartTrigger { nix_file, .. })
+                            if nix_file == &first_trigger.nix_file =>
+                        {
+                            debug!("skipping building a project twice"; "trigger"=>?to_start);
+                        }
+                        // build also a new project
+                        _ => break,
+                    }
+                }
+
+                output_paths = self.once_with_send(&tx, first_trigger.into())
             }
         }
     }
