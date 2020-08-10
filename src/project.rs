@@ -4,6 +4,8 @@ pub mod roots;
 
 use crate::cas::ContentAddressable;
 use crate::NixFile;
+use std::fs::File;
+use std::io::prelude::*;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
@@ -34,13 +36,16 @@ impl Project {
         gc_root_dir: &Path,
         cas: ContentAddressable,
     ) -> std::io::Result<Project> {
-        let hash = format!(
-            "{:x}",
-            md5::compute(nix_file.as_path().as_os_str().as_bytes())
-        );
-        let project_gc_root = gc_root_dir.join(&hash).join("gc_root");
+        let nix_file_path = nix_file.as_path().as_os_str().as_bytes();
+
+        let hash = format!("{:x}", md5::compute(nix_file_path));
+        let project_dir = gc_root_dir.join(&hash);
+        let project_gc_root = project_dir.join("gc_root");
 
         std::fs::create_dir_all(&project_gc_root)?;
+
+        let mut file = File::create(project_dir.join("ref"))?;
+        file.write_all(nix_file_path)?;
 
         Ok(Project {
             nix_file,
