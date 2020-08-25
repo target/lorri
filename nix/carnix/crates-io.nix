@@ -974,6 +974,39 @@ rec {
 
 
 # end
+# ctrlc-3.1.6
+
+  crates.ctrlc."3.1.6" = deps: { features?(features_.ctrlc."3.1.6" deps {}) }: buildRustCrate {
+    crateName = "ctrlc";
+    version = "3.1.6";
+    description = "Easy Ctrl-C handler for Rust projects";
+    authors = [ "Antti Keränen <detegr@gmail.com>" ];
+    sha256 = "1680g2jw2r2z3020p1linfjim5jv8ddvapfd3z1083nr557m1bpc";
+    dependencies = (if (kernel == "linux" || kernel == "darwin") then mapFeatures features ([
+      (crates."nix"."${deps."ctrlc"."3.1.6"."nix"}" deps)
+    ]) else [])
+      ++ (if kernel == "windows" then mapFeatures features ([
+      (crates."winapi"."${deps."ctrlc"."3.1.6"."winapi"}" deps)
+    ]) else []);
+    features = mkFeatures (features."ctrlc"."3.1.6" or {});
+  };
+  features_.ctrlc."3.1.6" = deps: f: updateFeatures f (rec {
+    ctrlc."3.1.6".default = (f.ctrlc."3.1.6".default or true);
+    nix."${deps.ctrlc."3.1.6".nix}".default = true;
+    winapi = fold recursiveUpdate {} [
+      { "${deps.ctrlc."3.1.6".winapi}"."consoleapi" = true; }
+      { "${deps.ctrlc."3.1.6".winapi}"."handleapi" = true; }
+      { "${deps.ctrlc."3.1.6".winapi}"."synchapi" = true; }
+      { "${deps.ctrlc."3.1.6".winapi}"."winbase" = true; }
+      { "${deps.ctrlc."3.1.6".winapi}".default = true; }
+    ];
+  }) [
+    (features_.nix."${deps."ctrlc"."3.1.6"."nix"}" deps)
+    (features_.winapi."${deps."ctrlc"."3.1.6"."winapi"}" deps)
+  ];
+
+
+# end
 # directories-1.0.2
 
   crates.directories."1.0.2" = deps: { features?(features_.directories."1.0.2" deps {}) }: buildRustCrate {
@@ -1942,6 +1975,45 @@ rec {
     (features_.cfg_if."${deps."nix"."0.14.1"."cfg_if"}" deps)
     (features_.libc."${deps."nix"."0.14.1"."libc"}" deps)
     (features_.void."${deps."nix"."0.14.1"."void"}" deps)
+  ];
+
+
+# end
+# nix-0.17.0
+
+  crates.nix."0.17.0" = deps: { features?(features_.nix."0.17.0" deps {}) }: buildRustCrate {
+    crateName = "nix";
+    version = "0.17.0";
+    description = "Rust friendly bindings to *nix APIs";
+    authors = [ "The nix-rust Project Developers" ];
+    sha256 = "0zs4ywgv5vnnsp3bhbjs9d3as9z9flnpj914cx8qkgpzcsqcx9aw";
+    dependencies = mapFeatures features ([
+      (crates."bitflags"."${deps."nix"."0.17.0"."bitflags"}" deps)
+      (crates."cfg_if"."${deps."nix"."0.17.0"."cfg_if"}" deps)
+      (crates."libc"."${deps."nix"."0.17.0"."libc"}" deps)
+      (crates."void"."${deps."nix"."0.17.0"."void"}" deps)
+    ])
+      ++ (if kernel == "android" || kernel == "linux" then mapFeatures features ([
+]) else [])
+      ++ (if kernel == "dragonfly" then mapFeatures features ([
+]) else [])
+      ++ (if kernel == "freebsd" then mapFeatures features ([
+]) else []);
+  };
+  features_.nix."0.17.0" = deps: f: updateFeatures f (rec {
+    bitflags."${deps.nix."0.17.0".bitflags}".default = true;
+    cfg_if."${deps.nix."0.17.0".cfg_if}".default = true;
+    libc = fold recursiveUpdate {} [
+      { "${deps.nix."0.17.0".libc}"."extra_traits" = true; }
+      { "${deps.nix."0.17.0".libc}".default = true; }
+    ];
+    nix."0.17.0".default = (f.nix."0.17.0".default or true);
+    void."${deps.nix."0.17.0".void}".default = true;
+  }) [
+    (features_.bitflags."${deps."nix"."0.17.0"."bitflags"}" deps)
+    (features_.cfg_if."${deps."nix"."0.17.0"."cfg_if"}" deps)
+    (features_.libc."${deps."nix"."0.17.0"."libc"}" deps)
+    (features_.void."${deps."nix"."0.17.0"."void"}" deps)
   ];
 
 

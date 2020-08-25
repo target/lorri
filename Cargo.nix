@@ -17,6 +17,7 @@ rec {
       dependencies = mapFeatures features ([
         (cratesIO.crates."atomicwrites"."${deps."lorri"."1.2.0"."atomicwrites"}" deps)
         (cratesIO.crates."crossbeam_channel"."${deps."lorri"."1.2.0"."crossbeam_channel"}" deps)
+        (cratesIO.crates."ctrlc"."${deps."lorri"."1.2.0"."ctrlc"}" deps)
         (cratesIO.crates."directories"."${deps."lorri"."1.2.0"."directories"}" deps)
         (cratesIO.crates."human_panic"."${deps."lorri"."1.2.0"."human_panic"}" deps)
         (cratesIO.crates."lazy_static"."${deps."lorri"."1.2.0"."lazy_static"}" deps)
@@ -44,6 +45,10 @@ rec {
     features_.lorri."1.2.0" = deps: f: updateFeatures f (rec {
       atomicwrites."${deps.lorri."1.2.0".atomicwrites}".default = true;
       crossbeam_channel."${deps.lorri."1.2.0".crossbeam_channel}".default = true;
+      ctrlc = fold recursiveUpdate {} [
+        { "${deps.lorri."1.2.0".ctrlc}"."termination" = true; }
+        { "${deps.lorri."1.2.0".ctrlc}".default = true; }
+      ];
       directories."${deps.lorri."1.2.0".directories}".default = true;
       human_panic."${deps.lorri."1.2.0".human_panic}".default = true;
       lazy_static."${deps.lorri."1.2.0".lazy_static}".default = true;
@@ -67,6 +72,7 @@ rec {
     }) [
       (cratesIO.features_.atomicwrites."${deps."lorri"."1.2.0"."atomicwrites"}" deps)
       (cratesIO.features_.crossbeam_channel."${deps."lorri"."1.2.0"."crossbeam_channel"}" deps)
+      (cratesIO.features_.ctrlc."${deps."lorri"."1.2.0"."ctrlc"}" deps)
       (cratesIO.features_.directories."${deps."lorri"."1.2.0"."directories"}" deps)
       (cratesIO.features_.human_panic."${deps."lorri"."1.2.0"."human_panic"}" deps)
       (cratesIO.features_.lazy_static."${deps."lorri"."1.2.0"."lazy_static"}" deps)
@@ -179,6 +185,10 @@ rec {
     lazy_static = "1.4.0";
     autocfg = "1.0.0";
   };
+  deps.ctrlc."3.1.6" = {
+    nix = "0.17.0";
+    winapi = "0.3.8";
+  };
   deps.directories."1.0.2" = {
     libc = "0.2.71";
     winapi = "0.3.8";
@@ -260,6 +270,7 @@ rec {
   deps.lorri."1.2.0" = {
     atomicwrites = "0.2.5";
     crossbeam_channel = "0.3.9";
+    ctrlc = "3.1.6";
     directories = "1.0.2";
     human_panic = "1.0.3";
     lazy_static = "1.4.0";
@@ -314,6 +325,12 @@ rec {
     winapi = "0.3.8";
   };
   deps.nix."0.14.1" = {
+    bitflags = "1.2.1";
+    cfg_if = "0.1.10";
+    libc = "0.2.71";
+    void = "1.0.2";
+  };
+  deps.nix."0.17.0" = {
     bitflags = "1.2.1";
     cfg_if = "0.1.10";
     libc = "0.2.71";

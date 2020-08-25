@@ -5,6 +5,13 @@
     # Find the current version number with `git log --pretty=%h | wc -l`
     entries = [
       {
+        version = 676;
+        changes = ''
+          Make `lorri daemon` exit with exit code 0 instead of 130/143 on
+          SIGINT or SIGTERM.
+        '';
+      }
+      {
         version = 655;
         changes = ''
           Add `lorri self-upgrade branch` sub-subcommand.

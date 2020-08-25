@@ -14,6 +14,7 @@ edition = "2018"
 [dependencies]
 atomicwrites = "0.2.3"
 crossbeam-channel = "0.3.8"
+ctrlc = { version = "3.1.6", features = ["termination"] }
 directories = "1.0.2"
 lazy_static = "1.2.0"
 md5  = "0.6.1"
