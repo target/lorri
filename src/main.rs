@@ -52,6 +52,14 @@ fn install_panic_handler() {
     }
 }
 
+// Exit with return code 0 on SIGINT and SIGTERM
+fn install_signal_handler() {
+    ctrlc::set_handler(move || {
+        std::process::exit(0);
+    })
+    .expect("Error setting SIGINT and SIGTERM handler");
+}
+
 /// Try to read `shell.nix` from the current working dir.
 fn get_shell_nix(shellfile: &PathBuf) -> Result<NixFile, ExitError> {
     // use shell.nix from cwd
@@ -105,6 +113,7 @@ fn run_command(log: slog::Logger, opts: Arguments) -> OpResult {
             watch::main(project, opts)
         }
         Command::Daemon(opts) => {
+            install_signal_handler();
             let _guard = without_project();
             daemon::main(opts)
         }
