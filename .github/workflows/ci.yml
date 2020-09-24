@@ -10,9 +10,7 @@ jobs:
       with:
         fetch-depth: null
     - name: Nix
-      uses: cachix/install-nix-action@v9
-      with:
-        skip_adding_nixpkgs_channel: true
+      uses: cachix/install-nix-action@v11
     - name: Cachix
       uses: cachix/cachix-action@v6
       with:
@@ -29,9 +27,7 @@ jobs:
       with:
         fetch-depth: null
     - name: Nix
-      uses: cachix/install-nix-action@v9
-      with:
-        skip_adding_nixpkgs_channel: true
+      uses: cachix/install-nix-action@v11
     - name: Cachix
       uses: cachix/cachix-action@v6
       with:
@@ -48,9 +44,7 @@ jobs:
       with:
         fetch-depth: 0
     - name: Nix
-      uses: cachix/install-nix-action@v9
-      with:
-        skip_adding_nixpkgs_channel: true
+      uses: cachix/install-nix-action@v11
     - name: Cachix
       uses: cachix/cachix-action@v6
       with:
@@ -71,9 +65,7 @@ jobs:
       with:
         fetch-depth: 0
     - name: Nix
-      uses: cachix/install-nix-action@v9
-      with:
-        skip_adding_nixpkgs_channel: true
+      uses: cachix/install-nix-action@v11
     - name: Cachix
       uses: cachix/cachix-action@v6
       with:
@@ -94,9 +86,7 @@ jobs:
       with:
         fetch-depth: null
     - name: Nix
-      uses: cachix/install-nix-action@v9
-      with:
-        skip_adding_nixpkgs_channel: true
+      uses: cachix/install-nix-action@v11
     - name: Cachix
       uses: cachix/cachix-action@v6
       with:
@@ -115,9 +105,7 @@ jobs:
       with:
         fetch-depth: null
     - name: Nix
-      uses: cachix/install-nix-action@v9
-      with:
-        skip_adding_nixpkgs_channel: true
+      uses: cachix/install-nix-action@v11
     - name: Cachix
       uses: cachix/cachix-action@v6
       with:
@@ -136,9 +124,7 @@ jobs:
       with:
         fetch-depth: null
     - name: Nix
-      uses: cachix/install-nix-action@v9
-      with:
-        skip_adding_nixpkgs_channel: true
+      uses: cachix/install-nix-action@v11
     - name: Cachix
       uses: cachix/cachix-action@v6
       with:
@@ -163,9 +149,7 @@ jobs:
       with:
         fetch-depth: null
     - name: Nix
-      uses: cachix/install-nix-action@v9
-      with:
-        skip_adding_nixpkgs_channel: true
+      uses: cachix/install-nix-action@v11
     - name: Cachix
       uses: cachix/cachix-action@v6
       with:

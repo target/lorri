@@ -9,10 +9,7 @@ let
   };
   setup-nix = {
     name = "Nix";
-    uses = "cachix/install-nix-action@v9";
-    "with" = {
-      skip_adding_nixpkgs_channel = true;
-    };
+    uses = "cachix/install-nix-action@v11";
   };
   setup-cachix = {
     name = "Cachix";
