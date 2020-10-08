@@ -32,7 +32,7 @@ development environment as `shell.nix` is updated:
 
 ## Setup on NixOS or with `home-manager` on Linux
 
-If you are using [NixOS][nixos] or [`home-manager`][home-manager] on Linux, or
+If you are using [NixOS][nixos], [`home-manager`][home-manager] on Linux, or
 [`nix-darwin`][nix-darwin] on macOS, and a Nixpkgs channel at least as recent
 as `nixos-19.09`, you can get started with lorri as follows. Otherwise see the
 next section, [Setup on other platforms](#setup-on-other-platforms).
