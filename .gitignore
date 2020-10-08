@@ -1,3 +1,5 @@
+# local direnv files
+/.envrc-local
 # `cargo build` dir
 /target
 # we set this as CARGO_INSTALL_ROOT
