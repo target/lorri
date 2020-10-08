@@ -266,11 +266,17 @@ else
     # to prevent bootstrapping problems.
     use nix
 fi
+
+# source an additional user-specific .envrc in ./.envrc-local
+if [ -e .envrc-local ]; then
+   source .envrc-local
+fi
 ```
+
+Then add `./.envrc-local` to your `.gitignore` (or similar).
 
 This should make `lorri` users happy, while providing a graceful fallback
 to users who only have `nix` installed.
-
 
 ## Evaluator + watch design
 
