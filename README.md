@@ -246,7 +246,7 @@ Yes, you can!
 
 `direnv` will ask to run `direnv allow` every time the `.envrc` changes,
 and `lorri direnv` will never run anything else than what is required
-to set up the nix environment, so from a security standpoint it is safe.
+to set up the nix environment.
 
 If you have a project where you expect everybody to use `lorri`
 (like for example a company project), you can just check in the `.envrc`
