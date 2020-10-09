@@ -32,16 +32,17 @@ development environment as `shell.nix` is updated:
 
 ## Setup on NixOS or with `home-manager` on Linux
 
-If you are using [NixOS][nixos] or [`home-manager`][home-manager] on Linux and
-a Nixpkgs channel at least as recent as `nixos-19.09`, you can get started with
-lorri as follows. Otherwise see the next section, [Setup on other
-platforms](#setup-on-other-platforms).
+If you are using [NixOS][nixos], [`home-manager`][home-manager] on Linux, or
+[`nix-darwin`][nix-darwin] on macOS, and a Nixpkgs channel at least as recent
+as `nixos-19.09`, you can get started with lorri as follows. Otherwise see the
+next section, [Setup on other platforms](#setup-on-other-platforms).
 
 1. **Enable the daemon service.** Set `services.lorri.enable = true;` in your
-   NixOS [`configuration.nix`][nixos-service] or your home-manager
-   [`home.nix`][home-manager-service].
+   NixOS [`configuration.nix`][nixos-service], your home-manager
+   [`home.nix`][home-manager-service], or your nix-darwin [`configuration.nix`][nix-darwin-service].
 
-   This will automatically install the `lorri` command.
+   This will automatically install the `lorri` command and set up the daemon to
+   run in the background.
 
    **Note**: There's [a known issue](https://github.com/target/lorri/issues/374
    "nixpkgs `services.lorri` requires reboot for the user lorri.socket to appear")
@@ -328,5 +329,7 @@ _([Nix as observed by LORRI on 2015-07-13](https://www.nasa.gov/newhorizons/lorr
 [home-manager-service]: https://rycee.gitlab.io/home-manager/options.html#opt-services.lorri.enable
 [home-manager]: https://rycee.gitlab.io/home-manager/
 [lorri-blog-post]: https://www.tweag.io/posts/2019-03-28-introducing-lorri.html
+[nix-darwin]: https://daiderd.com/nix-darwin/
+[nix-darwin-service]: https://github.com/LnL7/nix-darwin/blob/master/modules/services/lorri.nix
 [nixos-service]: https://nixos.org/nixos/options.html#services.lorri.enable
 [nixos]: https://nixos.org/
