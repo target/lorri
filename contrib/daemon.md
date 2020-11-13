@@ -33,9 +33,10 @@ If your `lorri` binary is not in `~/.nix-profile/bin/lorri`, please change the
 Install [`lorri.socket`] and [`lorri.service`] and make systemd listen on the
 daemon socket:
 
-```console
-$ mkdir -p ~/.config/systemd/user && \
-    cp contrib/lorri.{socket,service} ~/.config/systemd/user/ && \
+```shell
+wget -P "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user" \
+    https://raw.githubusercontent.com/target/lorri/master/contrib/lorri.service \
+    https://raw.githubusercontent.com/target/lorri/master/contrib/lorri.socket && \
     systemctl --user daemon-reload && \
     systemctl --user enable --now lorri.socket
 ```
