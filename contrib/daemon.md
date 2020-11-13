@@ -4,18 +4,17 @@ This guide shows you how to run `lorri daemon` as a service.
 
 If you are using NixOS or `home-manager` on Linux with a Nixpkgs channel at
 least as recent as `nixos-19.09`, you have it easy: see [Setup on NixOS or with
-`home-manager` on Linux][setup-nixos-or-home-manager].
-Otherwise, read on.
+`home-manager` on Linux][setup-nixos-or-home-manager]. Otherwise, read on.
 
 The exact steps depend on your operating system and general setup. Currently,
 we have instructions for these setups:
 
-- [Run `lorri daemon` on Linux with
-  systemd](#run-lorri-daemon-on-linux-with-systemd)
+- [Run `lorri daemon` on Linux with just
+  systemd](#run-lorri-daemon-on-linux-with-just-systemd)
 - [Run `lorri daemon` on macOS with
   Nix](#run-lorri-daemon-on-macOS-with-nix)
 
-## Run `lorri daemon` on Linux with systemd
+## Run `lorri daemon` on Linux with just systemd
 
 Here we'll set up a [systemd] socket and service file manually.
 
@@ -35,13 +34,15 @@ Install [`lorri.socket`] and [`lorri.service`] and make systemd listen on the
 daemon socket:
 
 ```shell
-wget -P ${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user https://raw.githubusercontent.com/target/lorri/master/contrib/lorri.service https://raw.githubusercontent.com/target/lorri/master/contrib/lorri.socket && \
-  systemctl --user daemon-reload && \
-  systemctl --user enable --now lorri.socket
+wget -P "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user" \
+    https://raw.githubusercontent.com/target/lorri/master/contrib/lorri.service \
+    https://raw.githubusercontent.com/target/lorri/master/contrib/lorri.socket && \
+    systemctl --user daemon-reload && \
+    systemctl --user enable --now lorri.socket
 ```
 
-The lorri daemon will now be started on demand by systemd. See [Verify the setup](#verify-the-setup)
-to check that everything works as expected.
+The lorri daemon will now be started on demand by systemd. See [Verify the
+setup](#verify-the-setup) to check that everything works as expected.
 
 ## Run `lorri daemon` on macOS with Nix (using [nix-darwin](https://github.com/LnL7/nix-darwin))
 
