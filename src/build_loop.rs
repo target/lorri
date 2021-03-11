@@ -5,6 +5,7 @@ use crate::builder;
 use crate::daemon::LoopHandlerEvent;
 use crate::error::BuildError;
 use crate::nix::options::NixOptions;
+use crate::nix::StorePath;
 use crate::pathreduction::reduce_paths;
 use crate::project::roots;
 use crate::project::roots::Roots;
@@ -63,6 +64,9 @@ pub struct BuildLoop<'a> {
     watch: Watch,
     /// Extra options to pass to each nix invocation
     extra_nix_options: NixOptions,
+    /// The store path of the last loop iteration is stored so relinking can
+    /// be avoided when there is no change.
+    last_store_path: Option<StorePath>,
 }
 
 impl<'a> BuildLoop<'a> {
@@ -73,6 +77,7 @@ impl<'a> BuildLoop<'a> {
             project,
             watch: Watch::try_new().expect("Failed to initialize watch"),
             extra_nix_options,
+            last_store_path: None,
         }
     }
 
@@ -199,7 +204,12 @@ impl<'a> BuildLoop<'a> {
             &self.extra_nix_options,
         )?;
         self.register_paths(&run_result.referenced_paths)?;
-        self.root_result(run_result.result)
+        if Some(&run_result.result.path) != self.last_store_path.as_ref() {
+            self.last_store_path = Some(run_result.result.path.clone());
+            self.root_result(run_result.result)
+        } else {
+            self.root_result_cached()
+        }
     }
 
     fn register_paths(&mut self, paths: &[PathBuf]) -> Result<(), notify::Error> {
@@ -211,6 +221,14 @@ impl<'a> BuildLoop<'a> {
         self.watch.extend(paths.into_iter().collect::<Vec<_>>())?;
 
         Ok(())
+    }
+
+    fn root_result_cached(&self) -> Result<BuildResults, BuildError> {
+        let roots = Roots::from_project(&self.project);
+
+        Ok(BuildResults {
+            output_paths: roots.paths(),
+        })
     }
 
     fn root_result(&mut self, build: builder::RootedPath) -> Result<BuildResults, BuildError> {
